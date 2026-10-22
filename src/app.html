@@ -3518,6 +3518,7 @@ function renderThreads(){
     }).join("");
     return '<article class="thread">' +
       '<span class="from-qloo">From Qloo</span>' +
+      (thread.shift && thread.shift !== "Steady" ? ' <span class="from-qloo" style="margin-left:6px">' + esc(thread.shift) + '</span>' : "") +
       '<h2 class="thread-title">' + esc(thread.tag) + "</h2>" +
       '<span class="thread-evidence-label">From your notes</span>' +
       '<div class="thread-chips">' + chips + "</div>" +

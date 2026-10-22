@@ -27,29 +27,41 @@ function slimPlace(e) {
   const loc = e.location || p.geocode || {};
   const lat = loc.lat ?? p.latitude, lon = loc.lon ?? loc.lng ?? p.longitude;
   const kinds = (e.tags || []).filter((t) => /genre:place|category/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 4);
-  const vibes = (e.tags || []).filter((t) => !/genre:place|category|payment|offerings|amenity|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
+  const vibes = (e.tags || []).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenity|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
   return {
     qloo_id: e.entity_id, name: e.name, address: p.address, neighborhood: p.neighborhood || p.geocode?.city,
     price_level: p.price_level, kinds, vibes, popularity: e.popularity,
     coords: lat != null && lon != null ? { lat: +lat, lon: +lon } : null,
     description: (p.description || p.short_description || "").slice(0, 240),
+    hours: p.hours || null, is_closed: !!p.is_closed, website: Array.isArray(p.websites) ? p.websites[0] : p.website,
   };
 }
 
 const MOOD_POP = { familiar: undefined, different: undefined, surprise: 0.1 };
 
 /** Pick seed cards: loved or repeatedly mentioned, never ones whose footprints are mostly negative. */
-export async function pickSeeds(env, userId, mood) {
+export async function pickSeeds(env, userId, mood, period) {
   const rows = (await env.DB.prepare(`SELECT c.id,c.qloo_id,c.name,c.type,c.heart,c.tags,
       COUNT(f.id) n, SUM(CASE WHEN f.sentiment='negative' THEN 1 ELSE 0 END) neg, MAX(f.created_at) last
       FROM cards c LEFT JOIN footprints f ON f.card_id=c.id WHERE c.user_id=? AND c.heart>=0 GROUP BY c.id`).bind(userId).all()).results || [];
-  const good = rows.filter((r) => r.heart === 1 || (r.n >= 1 && r.neg * 2 < r.n));
+  let good = rows.filter((r) => r.heart === 1 || (r.n >= 1 && r.neg * 2 < r.n));
+  if (period === "now" || period === "then") {
+    const c = cohorts(good);
+    good = period === "now" ? c.now : c.then;
+  }
   good.sort((a, b) => (b.heart - a.heart) || (b.n - a.n) || (b.last - a.last));
   let seeds;
   if (mood === "familiar") seeds = good.slice(0, 4);
   else if (mood === "surprise") seeds = [...good.slice(0, 2), ...good.slice(2).sort(() => Math.random() - 0.5).slice(0, 3)];
   else seeds = [...good.slice(0, 3), ...good.slice(3, 8).filter((_, i) => i % 2 === 0).slice(0, 2)];
   return { seeds: seeds.filter((s) => s.type !== "place" || true), all: rows };
+}
+
+/** Equal-sized cohorts of liked cards by their latest footprint: the latest N vs the N before. */
+export function cohorts(cards, n = 6) {
+  const byLast = [...cards].sort((a, b) => (b.last || b.last_at || 0) - (a.last || a.last_at || 0));
+  const size = Math.min(n, Math.floor(byLast.length / 2));
+  return { size, now: byLast.slice(0, size), then: byLast.slice(size, size * 2) };
 }
 
 const KW_SCHEMA = { type: "object", properties: { stops: { type: "array", items: { type: "string" } } }, required: ["stops"] };
@@ -80,7 +92,8 @@ const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", item
 export async function makePlan(env, user, req, log) {
   const area = (req.area || user.area || "").trim();
   if (!area) throw { state: "no_area", text: "Where would you like to spend an afternoon?" };
-  const { seeds, all } = await pickSeeds(env, user.id, req.mood);
+  const { seeds, all } = await pickSeeds(env, user.id, req.mood, req.period);
+  if (req.period === "now" || req.period === "then") log(`Planning from ${req.period === "now" ? "your recent notes" : "your earlier notes"} only.`);
   if (seeds.length < 2) throw { state: "too_few", text: "I need a few more things you love to plan from. Mark a couple of cards with a heart, or start from one card." };
   log(`Using ${seeds.length} cards as seeds: ${seeds.map((s) => s.name).join(", ")}.`);
   const kinds = await stopKinds(env, req.text);
@@ -108,6 +121,7 @@ export async function makePlan(env, user, req, log) {
     const dropped = { known: 0, price: 0 };
     const ok = raw.filter((p) => {
       if (known.has(p.qloo_id)) { dropped.known++; return false; }
+      if (p.is_closed) { dropped.closed = (dropped.closed || 0) + 1; return false; }
       if (p.price_level && p.price_level > maxPrice) { dropped.price++; return false; }
       return true;
     });
@@ -121,6 +135,7 @@ export async function makePlan(env, user, req, log) {
     log(`Asked Qloo for ${(tag?.name || k).toLowerCase()} near ${area}: ${raw.length} came back` + (dropped.known ? `, left out ${dropped.known} you already know` : "") + (dropped.price ? `, ${dropped.price} over budget` : "") + ".");
     pools.push({ kind: tag?.name || k, tag, items: ok });
   }
+  let widened = null;
   // Centre of the area, from whatever Qloo returned there.
   const pts = pools.flatMap((p) => p.items.map((i) => i.coords).filter(Boolean));
   const med = (a) => a.sort((x, y) => x - y)[Math.floor(a.length / 2)];
@@ -140,7 +155,7 @@ export async function makePlan(env, user, req, log) {
     }
     const seen = new Set(pool.items.map((i) => i.qloo_id));
     const add = more.filter((i) => !seen.has(i.qloo_id));
-    if (add.length) { pool.items.push(...add); log(`Few ${pool.kind.toLowerCase()} results right in ${area}, so I widened to ${where} and found ${add.length}.`); }
+    if (add.length) { pool.items.push(...add); widened = where; log(`Few ${pool.kind.toLowerCase()} results right in ${area}, so I widened to ${where} and found ${add.length}.`); }
   }
   const usable = pools.filter((p) => p.items.length);
   if (!usable.length) throw { state: "weak", text: `Not much near ${area} matched well this time. Try a wider area or a nearby neighbourhood.` };
@@ -160,9 +175,30 @@ export async function makePlan(env, user, req, log) {
     if (stops.length >= 3) break;
   }
   if (stops.length > 1 && stops.length >= 2) log(`Kept stops close together: ${stops.map((s) => s.name).join(" then ")}.`);
-  const plan = await dressPlan(env, user, seeds, stops, { area, budget, mood: req.mood, when: req.when || user.whenx || "Saturday afternoon" });
+  const plan = await dressPlan(env, user, seeds, stops, { area, budget, mood: req.mood, period: req.period || "all", when: req.when || user.whenx || "Saturday afternoon" });
+  const hoods = [...new Set(plan.stops.map((x) => x.neighborhood).filter(Boolean))];
+  const areaWord = area.split(",")[0].trim();
+  if (widened && hoods.length && !hoods.some((h) => h.toLowerCase() === areaWord.toLowerCase()))
+    plan.notice = `Not much matched right in ${areaWord}, so I looked a little further. ${hoods.length === 1 ? `Both stops are in ${hoods[0]}.` : `The stops are in ${hoods.join(" and ")}.`}`;
+  else if (widened) plan.notice = `Not much matched right in ${areaWord} for one stop, so I looked a little further.`;
   plan.pool = pools.map((p) => ({ kind: p.kind, items: p.items.slice(0, 8) }));
+  plan.receipt = {
+    seeds: seeds.map((s) => ({ name: s.name, qloo_id: s.qloo_id })),
+    queries: pools.map((p) => ({ endpoint: "/v2/insights", "filter.type": "urn:entity:place", "filter.tags": p.tag?.id || null, "filter.location.query": area, "signal.interests.entities": `${seeds.length} card IDs`, returned: p.items.length })),
+    sent_to_qloo: "Card IDs and your area. No note text.",
+  };
   return plan;
+}
+
+const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+function hoursLine(hours, when) {
+  const day = DAYS.find((d) => (when || "").toLowerCase().includes(d)) || "saturday";
+  const h = hours && hours[day];
+  const cap = day[0].toUpperCase() + day.slice(1);
+  if (!h || !h.length) return "Hours not listed";
+  if (h[0].closed) return `Qloo lists it closed on ${cap}s · not live-checked`;
+  const t = (x) => (x || "").replace(/^T/, "").slice(0, 5);
+  return `Qloo lists ${cap} ${h.map((x) => `${t(x.opens)}–${t(x.closes)}`).join(", ")} · not live-checked`;
 }
 
 /** Labelled reasons for each stop. */
@@ -175,8 +211,8 @@ export async function dressPlan(env, user, seeds, stops, meta) {
   let reads = [];
   try {
     const o = await llmJSON(env,
-      "For each venue write ONE short plain sentence (max 14 words) on why it fits a calm afternoon, using only the given facts. No hype, no exclamation marks, no claims about hours or prices. Return {\"reads\":[...]} in order.",
-      JSON.stringify(stops.map((s) => ({ name: s.name, kind: s.kind, vibes: s.vibes, description: s.description }))), READ_SCHEMA, 300);
+      "For each venue write ONE plain sentence addressed to the reader as \"you\" (12-20 words) on why it suits this person's afternoon, connecting a concrete fact about the venue (its kind, vibes or description) to the feel of what they keep returning to (given as seeds). Do not name the seeds as if the venue is about them; no hype, no exclamation marks, no claims about hours, prices or being open. Return {\"reads\":[...]} in order.",
+      JSON.stringify({ seeds: seedNames, venues: stops.map((s) => ({ name: s.name, kind: s.kind, vibes: s.vibes, description: s.description })) }), READ_SCHEMA, 400);
     reads = o?.reads || [];
   } catch (_) {}
   const fit = (s) => {
@@ -196,11 +232,11 @@ export async function dressPlan(env, user, seeds, stops, meta) {
       from_notes: fit(s),
       from_qloo: `Returned for your seeds: ${seedNames.slice(0, 3).join(", ")}.` + (s.vibes.length ? ` Tagged ${s.vibes.slice(0, 2).join(", ").toLowerCase()}.` : ""),
       read: reads[i] || "",
-      ops: "Hours not checked",
+      ops: hoursLine(s.hours, meta.when),
       map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.name, s.address].filter(Boolean).join(", "))}`,
-      coords: s.coords, vibes: s.vibes, description: s.description,
+      coords: s.coords, vibes: s.vibes, description: s.description, hours: s.hours, price_level: s.price_level,
     };
   });
   const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[meta.mood] || "a little different";
-  return { id: uid(), header: `${meta.when} · ${meta.area} · under $${meta.budget} · ${moodWord}`, stops: out, seeds: seeds.map((s) => ({ qloo_id: s.qloo_id, name: s.name })), meta };
+  return { id: uid(), period: meta.period, header: `${meta.when} · ${meta.area} · under $${meta.budget} · ${moodWord}`, stops: out, seeds: seeds.map((s) => ({ qloo_id: s.qloo_id, name: s.name })), meta };
 }

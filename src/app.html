@@ -82,13 +82,13 @@ svg{flex:0 0 auto}
 .back-btn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .inbox-btn{
   position:relative;min-width:34px;height:32px;padding:0 2px;border-radius:999px;
-  display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;color:var(--text);
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;color:var(--text);
 }
 .inbox-btn:hover{background:var(--surface)}
 .inbox-btn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.inbox-badge{display:inline-flex;align-items:center;gap:4px;min-height:16px}
-.inbox-dot{width:7px;height:7px;border-radius:50%;background:var(--dot);display:inline-block}
-.inbox-count{font-size:12px;font-weight:500;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
+.inbox-badge{position:absolute;top:1px;right:-5px;display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--dot);border:2px solid var(--ground)}
+.inbox-dot{display:none}
+.inbox-badge .inbox-count{font-size:10px;font-weight:600;line-height:1;color:#fff;margin:0;font-variant-numeric:tabular-nums}
 .ribbon{
   height:24px;display:flex;align-items:center;justify-content:center;
   background:var(--surface);border-bottom:1px solid var(--border);
@@ -490,6 +490,36 @@ svg{flex:0 0 auto}
 .thread-chip:hover{border-color:#d7d3c8;background:var(--surface)}
 .thread-chip .count{color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums}
 .thread-read{font-size:12.5px;line-height:1.55;color:var(--muted);font-style:italic;margin:12px 0 0;padding-top:11px;border-top:1px solid var(--rule)}
+.period-row{margin-top:12px}
+.period-note{font-size:12px;color:var(--faint);margin:8px 0 0;line-height:1.45;min-height:1em}
+.thread-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.shift-pill{display:inline-flex;align-items:center;height:21px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:500;line-height:1;background:var(--surface);color:var(--muted)}
+.shift-pill.new{background:var(--text);color:#fff}
+.shift-pill.fading{background:transparent;border:1px dashed var(--faint);color:var(--muted)}
+.why-btn{margin-top:10px;font-size:12px;font-weight:500;color:var(--accent);padding:6px 0;min-height:32px}
+.why-sec{margin:0 0 16px}
+.why-h{margin:0 0 8px;font-size:12px;font-weight:500}
+.from-notes{display:inline-flex;align-items:center;height:21px;padding:0 8px;border-radius:999px;background:var(--surface);color:var(--text);font-size:10.5px;font-weight:500}
+.why-read-h{font-style:italic;color:var(--muted);font-weight:500}
+.why-list{list-style:none;margin:0;padding:0}
+.why-list li{padding:8px 0;border-top:1px solid var(--rule)}
+.why-list li:first-child{border-top:0;padding-top:2px}
+.why-tag-name{font-family:var(--serif);font-size:19px;color:var(--text);line-height:1.15}
+.why-meta{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.why-line{font-size:12.5px;color:var(--muted);margin-top:2px}
+.why-quote blockquote{margin:0 0 3px;color:var(--text);font-size:13.5px;line-height:1.5}
+.why-card-btn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;text-align:left;color:var(--text);font-size:13.5px}
+.why-read{font-style:italic;color:var(--muted);font-size:12.5px;margin:0 0 6px}
+.why-details summary{font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;padding:4px 0}
+.why-receipt{margin-top:8px;background:var(--ground);border:1px solid var(--rule);border-radius:12px;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.6;color:var(--text);overflow-wrap:anywhere}
+.why-receipt .ind{padding-left:12px}
+.why-faint{color:var(--faint)}
+.why-focus{outline:none}
+.why-tagnote{margin:0 0 8px}
+.why-also{font-size:11px;font-weight:500;color:var(--faint);padding-top:12px!important}
+.why-tag.extra .why-tag-name{font-size:16px}
+.why-also + .why-tag{border-top:0}
+.why-intro{font-size:12.5px;color:var(--muted);margin:0 0 14px}
 
 /* ---- plan request ---- */
 .plan-prompt{font-family:var(--serif);font-size:32px;line-height:1.04;letter-spacing:-.012em;font-weight:400;margin:7px 0 18px;max-width:350px}
@@ -503,9 +533,8 @@ svg{flex:0 0 auto}
 }
 .inline-input:focus{outline:none;border-bottom-color:var(--accent)}
 .inline-input:focus-visible{outline:none;border-bottom-color:var(--accent)}
-.when-input{width:132px}
-.area-input{width:124px}
-.budget-input{width:42px;text-align:left}
+.when-input,.area-input{min-width:0}
+.budget-input{text-align:left}
 .mood-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px}
 .mood{
   height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--border);
@@ -1221,6 +1250,21 @@ function toast(text, opts){
   const duration = Number(o.duration) || (o.actionLabel ? 10000 : 3500);
   toastTimer = setTimeout(dismissToast, duration);
 }
+
+
+/* inline inputs grow with their text (fallback where field-sizing is unsupported) */
+let sizeCtx = null;
+function sizeInline(el){
+  if (!el || !el.classList || !el.classList.contains("inline-input")) return;
+  const v = el.value || el.placeholder || "";
+  sizeCtx = sizeCtx || document.createElement("canvas").getContext("2d");
+  const cs = getComputedStyle(el);
+  sizeCtx.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+  el.style.width = Math.ceil(Math.max(28, sizeCtx.measureText(v).width + 8)) + "px";
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ document.querySelectorAll(".inline-input").forEach(sizeInline); });
+document.addEventListener("input", function(e){ sizeInline(e.target); });
+new MutationObserver(function(){ document.querySelectorAll(".inline-input").forEach(function(el){ if (!el.dataset.sized) { el.dataset.sized = "1"; sizeInline(el); } }); }).observe(document.documentElement, { childList: true, subtree: true });
 
 /* ---- dialogs ---- */
 let lastSheetFocus = null;
@@ -3490,6 +3534,9 @@ function renderThreads(){
   const token = beginView();
   setShell({ title: "Threads", tabs: true, active: "cards" });
   const ac = abortable();
+  let period = "all";
+  let current = [];
+  let lastData = null;
 
   view.innerHTML =
     '<div class="cards-head">' +
@@ -3498,6 +3545,10 @@ function renderThreads(){
         '<button class="seg-btn" type="button" aria-pressed="true">Threads</button>' +
       "</div>" +
       '<p class="sub">Patterns across your cards, named with Qloo catalogue tags.</p>' +
+      '<div class="mood-row period-row" role="group" aria-label="Which you">' +
+        [["all","All of you"],["now","Recent you"],["then","Earlier you"]].map(function(x){return '<button class="mood" type="button" data-tperiod="'+x[0]+'" aria-pressed="'+(x[0]===period?"true":"false")+'">'+x[1]+'</button>';}).join("") +
+      "</div>" +
+      '<p class="period-note" data-period-note></p>' +
     "</div>" +
     '<div data-threads>' +
       '<div class="skeleton sk-card tall"></div>' +
@@ -3505,25 +3556,89 @@ function renderThreads(){
     "</div>";
 
   const threadsEl = view.querySelector("[data-threads]");
+  const noteEl = view.querySelector("[data-period-note]");
   let loadSeq = 0;
 
-  function threadHTML(thread){
+  function shiftPill(shift){
+    if (!shift) return "";
+    const cls = shift === "New in recent notes" ? "new" : shift === "Fading from recent notes" ? "fading" : "steady";
+    return '<span class="shift-pill ' + cls + '">' + esc(shift) + "</span>";
+  }
+  function threadHTML(thread, i){
     const cards = Array.isArray(thread.cards) ? thread.cards : [];
     const chips = cards.map(function(card){
       const count = Number(card.footprints) || 0;
       const label = card.name + (count ? ", " + count + " " + plural(count, "footprint", "footprints") : "");
       return '<button class="thread-chip" type="button" data-nav="#/cards/' + encodeURIComponent(card.id) + '" aria-label="' + attr(label) + '">' +
-        esc(card.name) + (count ? '<span class="count">(' + count + ")</span>" : "") +
+        esc(card.name) + (count ? '<span class="count">' + count + "</span>" : "") +
       "</button>";
     }).join("");
     return '<article class="thread">' +
-      '<span class="from-qloo">From Qloo</span>' +
-      (thread.shift && thread.shift !== "Steady" ? ' <span class="from-qloo" style="margin-left:6px">' + esc(thread.shift) + '</span>' : "") +
+      '<div class="thread-top"><span class="from-qloo">From Qloo</span>' + shiftPill(thread.shift) + "</div>" +
       '<h2 class="thread-title">' + esc(thread.tag) + "</h2>" +
       '<span class="thread-evidence-label">From your notes</span>' +
       '<div class="thread-chips">' + chips + "</div>" +
       (thread.read ? '<p class="thread-read"><span class="label">Sparkling’s read</span> · ' + esc(thread.read) + "</p>" : "") +
+      '<button class="why-btn" type="button" data-why="' + i + '">Why this thread?</button>' +
     "</article>";
+  }
+  function whyHTML(t){
+    const tags = Array.isArray(t.qloo_tags) ? t.qloo_tags : [];
+    const cards = Array.isArray(t.cards) ? t.cards : [];
+    const words = Array.isArray(t.your_words) ? t.your_words : (t.your_words ? [t.your_words] : []);
+    const rc = t.receipt || {};
+    const tagRow = function(q, extra){
+      const listed = Array.isArray(q.listed_on) ? q.listed_on : [];
+      return '<li class="why-tag' + (extra ? " extra" : "") + '">' +
+        '<div class="why-tag-name">' + esc(q.name) + "</div>" +
+        '<div class="why-meta">' + esc(q.id || "") + (q.affinity != null ? " · affinity " + Number(q.affinity).toFixed(2) : "") + "</div>" +
+        (listed.length ? '<div class="why-line">Qloo lists it on ' + esc(listed.join(", ")) + "</div>" : "") +
+      "</li>";
+    };
+    const anyListed = tags.some(function(q){ return Array.isArray(q.listed_on) && q.listed_on.length; });
+    const tagRows = tags.slice(0, 3).map(function(q){ return tagRow(q, false); }).join("") +
+      (tags.length > 3 ? '<li class="why-also">Also returned for the same cards</li>' + tags.slice(3).map(function(q){ return tagRow(q, true); }).join("") : "");
+    const tagNote = anyListed ? "" : '<p class="why-line why-tagnote">None of these sit on a single card of yours. Qloo returned them for these cards taken together.</p>';
+    const wordRows = words.length ? words.map(function(w){
+      return '<li class="why-quote"><blockquote>“' + esc(w.text) + '”</blockquote><div class="why-meta">' + esc(w.card ? w.card + " · " : "") + esc(formatDate(w.at)) + "</div></li>";
+    }).join("") : '<li class="why-line">No note quotes yet for these cards.</li>';
+    const cardRows = cards.map(function(c){
+      return '<li class="why-card"><button type="button" class="why-card-btn" data-close-nav="#/cards/' + encodeURIComponent(c.id) + '">' +
+        '<span>' + esc(c.name) + "</span>" +
+        '<span class="why-meta">' + (c.carries_tag ? "carries the tag" : "in the input set") + " · " + (Number(c.footprints) || 0) + " " + plural(Number(c.footprints) || 0, "note", "notes") + "</span>" +
+      "</button></li>";
+    }).join("");
+    const ents = Array.isArray(rc["signal.interests.entities"]) ? rc["signal.interests.entities"] : [];
+    const receipt =
+      '<div class="why-receipt">' +
+        "<div>GET " + esc(rc.endpoint || "/v2/insights") + "</div>" +
+        "<div>filter.type=" + esc(rc["filter.type"] || "urn:tag") + "</div>" +
+        "<div>signal.interests.entities=</div>" +
+        ents.map(function(e){ return '<div class="ind">' + esc(e.qloo_id || e) + (e.name ? ' <span class="why-faint">' + esc(e.name) + "</span>" : "") + "</div>"; }).join("") +
+        (Array.isArray(rc.tag_ids) && rc.tag_ids.length ? "<div>→ " + rc.tag_ids.map(esc).join(", ") + "</div>" : "") +
+      "</div>";
+    return '<span tabindex="-1" data-autofocus class="why-focus"></span>' +
+      '<p class="why-intro">What this thread rests on. Qloo’s data and your notes are shown as they are; Sparkling’s own read is marked.</p>' +
+      '<section class="why-sec"><h3 class="why-h"><span class="from-qloo">Qloo says</span></h3>' +
+        tagNote + '<ul class="why-list">' + tagRows + "</ul></section>" +
+      '<section class="why-sec"><h3 class="why-h"><span class="from-notes">Your words</span></h3>' +
+        '<ul class="why-list">' + wordRows + "</ul></section>" +
+      '<section class="why-sec"><h3 class="why-h"><span class="from-notes">Cards that feed it</span></h3>' +
+        '<ul class="why-list">' + cardRows + "</ul></section>" +
+      '<section class="why-sec"><h3 class="why-h why-read-h">Sparkling’s read</h3>' +
+        '<p class="why-read">' + esc(t.read || "") + "</p>" +
+        (t.shift ? '<p class="why-read">' + esc(t.shift) + ": comparing the tags Qloo returns for your " + esc(String((lastData && lastData.shift && lastData.shift.based_on) || "")) + " most recent cards against the " + esc(String((lastData && lastData.shift && lastData.shift.based_on) || "")) + " before them.</p>" : "") +
+      "</section>" +
+      '<details class="why-sec why-details"><summary>Receipt</summary>' + receipt + "</details>";
+  }
+  function openWhy(i){
+    const t = current[i];
+    if (!t) return;
+    openSheet({ title: "Why “" + t.tag + "”?", body: whyHTML(t), onMount: function(m){
+      m.querySelectorAll("[data-close-nav]").forEach(function(btn){
+        btn.addEventListener("click", function(){ const h = btn.getAttribute("data-close-nav"); closeModal(); location.hash = h; });
+      });
+    }});
   }
   function emptyHTML(reason){
     return emptyBlock(
@@ -3532,13 +3647,23 @@ function renderThreads(){
       '<button class="btn btn-sm" type="button" data-nav="#/cards">Look at your cards</button>'
     );
   }
+  function setNote(data){
+    if (!noteEl) return;
+    const sh = data && data.shift;
+    if (period === "all" || !sh || !sh.based_on) { noteEl.textContent = period === "all" ? "Everything you have kept." : ""; return; }
+    const names = period === "now" ? sh.now_cards : sh.then_cards;
+    noteEl.textContent = (period === "now" ? "Your " + sh.based_on + " most recent cards: " : "The " + sh.based_on + " cards before your recent ones: ") + (names || []).join(", ") + ".";
+  }
   async function load(){
     const seq = ++loadSeq;
     if (threadsEl) threadsEl.innerHTML = '<div class="skeleton sk-card tall"></div><div class="skeleton sk-card"></div>';
     try {
-      const data = await api("/api/threads", { signal: ac.signal });
+      const data = await api("/api/threads" + (period === "all" ? "" : "?period=" + period), { signal: ac.signal });
       if (!isCurrent(token) || seq !== loadSeq) return;
+      lastData = data;
+      setNote(data);
       const threads = Array.isArray(data && data.threads) ? data.threads : [];
+      current = threads;
       if (!threads.length) {
         threadsEl.innerHTML = emptyHTML(data && data.reason);
         return;
@@ -3549,6 +3674,17 @@ function renderThreads(){
       threadsEl.innerHTML = errorBlock("Your threads did not load. Check your connection, then try again.", "threads");
     }
   }
+  on(view, "click", function(e){
+    const pb = e.target.closest("[data-tperiod]");
+    if (pb) {
+      period = pb.getAttribute("data-tperiod");
+      view.querySelectorAll("[data-tperiod]").forEach(function(b){ b.setAttribute("aria-pressed", b === pb ? "true" : "false"); });
+      load();
+      return;
+    }
+    const wb = e.target.closest("[data-why]");
+    if (wb) openWhy(Number(wb.getAttribute("data-why")));
+  });
 
   bindRetries({ threads: load });
   load();
@@ -3840,7 +3976,7 @@ function renderPlanRequest(){
         [["all","All of you"],["now","Recent you"],["then","Earlier you"]].map(function(x){return '<button class="mood" type="button" data-period="'+x[0]+'" aria-pressed="'+(x[0]===period?"true":"false")+'">'+x[1]+'</button>';}).join("") +
       "</div>" +
       '<div class="free-line">' +
-        '<input class="free-input" data-free aria-label="Anything else?" placeholder="For example: a quiet bookstore and somewhere nearby to sit" value="' + attr(prefill) + '">' +
+        '<input class="free-input" data-free aria-label="Anything else?" placeholder="A quiet bookstore, then somewhere to sit" value="' + attr(prefill) + '">' +
       "</div>" +
       '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>Make a plan</button></div>' +
       '<div data-plan-progress></div>' +

@@ -19,6 +19,7 @@ export const SAMPLE_NOTES = [
   { daysAgo: 2, minutes: 680, text: "G train, Phoebe Bridgers on shuffle and the whole car went quiet in my head", map: { "Phoebe Bridgers": PHOEBE } },
   { daysAgo: 2, minutes: 200, text: "lunch at the counter place, finally started Klara and the Sun", map: { "Klara and the Sun": KLARA } },
   { daysAgo: 5, text: "watched Her again on the plane, still a lot" },
+  { daysAgo: 3, minutes: 1300, text: "finally watched Solaris. the long drive into the city, I didn't want it to end" },
   { daysAgo: 6, text: "someone left The Rings of Saturn on the bench outside the library. took it as a sign." },
   { daysAgo: 9, text: "Big Thief live recording, Not, at full volume while cleaning. best twenty minutes of the week", map: { "Big Thief": BIGTHIEF } },
   { daysAgo: 13, text: "Paterson on a rainy Sunday. small poems, bus routes, a dog. I want my life to be this size.", map: { "Paterson": PATERSON } },

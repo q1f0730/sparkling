@@ -815,6 +815,17 @@ dialog.modal::backdrop{background:rgba(31,32,29,.34)}
 .receipt-line{margin:0 0 6px;line-height:1.5}
 .receipt-line span{color:var(--text)}
 .receipt code{font-size:11px;background:var(--surface);padding:1px 5px;border-radius:6px}
+.grown{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 2px}
+.grown-chip{display:grid;grid-template-columns:32px auto;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-align:left;background:var(--ground);border:1px solid var(--border);border-radius:14px;padding:6px 12px 6px 6px;font:inherit;color:inherit;cursor:pointer;max-width:100%}
+.grown-chip img,.grown-face{grid-row:1/3;width:32px;height:40px;border-radius:7px;object-fit:cover;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:18px;background:var(--surface)}
+.grown-name{font-family:var(--serif);font-size:16px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.grown-meta{font-size:11px;color:var(--muted)}
+.grown-chip.type-film,.grown-chip.type-tv{border-left:3px solid var(--film)}.grown-chip.type-music{border-left:3px solid var(--music)}.grown-chip.type-book{border-left:3px solid var(--book)}.grown-chip.type-place{border-left:3px solid var(--place)}
+.grow-in .grown-chip{animation:grow .7s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(1.1s + var(--k,0) * 120ms)}
+@keyframes grow{from{opacity:0;transform:translateY(-6px) scale(.92)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.grow-in .grown-chip{animation:none}}
+.plus-one{animation:plusfade 2.4s ease forwards}
+@keyframes plusfade{0%{opacity:0}15%{opacity:1}70%{opacity:1}100%{opacity:0;width:0;margin:0}}
 </style>
 </head>
 <body>
@@ -1835,6 +1846,16 @@ function noteHTML(note, opts){
   meta.push('<span class="note-count">' + esc(cardCountLabel(count)) + "</span>");
   let body = "";
   if (text.trim()) body += '<p class="note-text">' + mentionedTextHTML(text, note.mentions, o) + "</p>";
+  const grown = (Array.isArray(note.mentions) ? note.mentions : []).filter(function(m){ return m && m.state === "matched" && m.card_id && m.card; });
+  if (grown.length) {
+    body += '<div class="grown' + (o.draw ? " grow-in" : "") + '">' + grown.slice(0, 3).map(function(m, k){
+      const im = imgSrc(m.card.image);
+      return '<button type="button" class="grown-chip ' + typeClass(m.card.type) + '" style="--k:' + k + '" data-nav="#/cards/' + attr(m.card_id) + '">' +
+        (im ? '<img src="' + attr(im) + '" alt="" loading="lazy" onerror="this.remove()">' : '<span class="grown-face">' + esc(String(m.card.name || "").slice(0, 1)) + "</span>") +
+        '<span class="grown-name">' + esc(m.card.name) + "</span>" +
+        '<span class="grown-meta">' + esc(typeLabel(m.card.type)) + (m.plus_one ? " · again" : " · new card") + "</span></button>";
+    }).join("") + "</div>";
+  }
   if (image) body += '<div class="note-media"><img class="note-photo" src="' + attr(image) + '" alt="Photo attached to this note" loading="lazy"></div>';
   if (linkUrl) {
     body += '<div class="note-link"><a class="link-chip" href="' + attr(linkUrl) + '" target="_blank" rel="noopener noreferrer">' +
@@ -3177,10 +3198,10 @@ function renderCardDetail(id){
   function reactionHTML(){
     const heart = card ? Number(card.heart) || 0 : 0;
     return '<div class="detail-controls">' +
-        '<button class="heart-btn" type="button" data-react="1" aria-pressed="' + (heart === 1 ? "true" : "false") + '"' + (reactionBusy ? " disabled" : "") + ">" +
+        '<button class="heart-btn" type="button" data-react="1" aria-pressed="' + (heart === 1 ? "true" : "false") + '">' +
           icons.heart + "<span>" + (heart === 1 ? "Loved" : "Love this") + "</span>" +
         "</button>" +
-        '<button class="heart-btn notme" type="button" data-react="-1" aria-pressed="' + (heart === -1 ? "true" : "false") + '"' + (reactionBusy ? " disabled" : "") + ">" +
+        '<button class="heart-btn notme" type="button" data-react="-1" aria-pressed="' + (heart === -1 ? "true" : "false") + '">' +
           icons.close + "<span>Not for me</span>" +
         "</button>" +
       "</div>" +
@@ -3343,10 +3364,11 @@ function renderCardDetail(id){
     if (reactionBusy || !card) return;
     reactionBusy = true;
     reactionError = "";
+    const current = Number(card.heart) || 0;
+    const next = current === value ? 0 : value;
+    card = Object.assign({}, card, { heart: next }); // optimistic: the pill answers at once
     paintReaction();
     try {
-      const current = Number(card.heart) || 0;
-      const next = current === value ? 0 : value;
       const data = await api("/api/cards/" + encodeURIComponent(id), {
         method: "PATCH",
         body: { heart: next },
@@ -3357,6 +3379,7 @@ function renderCardDetail(id){
       if (data && data.card) card = Object.assign({}, card, data.card);
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
+      card = Object.assign({}, card, { heart: current });
       reactionError = e && e.status === 404 ? "This card is no longer here." : "That did not save. Try again.";
     } finally {
       reactionBusy = false;

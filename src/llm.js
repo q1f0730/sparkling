@@ -1,6 +1,6 @@
 // Small helpers around Workers AI. The model writes copy and picks among Qloo candidates;
 // it never supplies an entity of its own.
-const JSON_MODELS = ["@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/meta/llama-4-scout-17b-16e-instruct"];
+const JSON_MODELS = ["@cf/meta/llama-4-scout-17b-16e-instruct", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"];
 
 function parseLoose(t) {
   if (t && typeof t === "object") return t;
@@ -20,7 +20,7 @@ export async function llmJSON(env, system, user, schema, maxTokens = 700) {
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
         response_format: schema ? { type: "json_schema", json_schema: schema } : undefined,
         max_tokens: maxTokens,
-        temperature: 0.2,
+        temperature: 0.1,
       });
       const out = parseLoose(r?.response);
       if (out) return out;

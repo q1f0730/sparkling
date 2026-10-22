@@ -3778,6 +3778,7 @@ function renderPlanRequest(){
   const user = state.user || {};
   const prefill = takePlanPrefill();
   let mood = "familiar";
+  let period = "all";
   let busy = false;
 
   function moodButtonHTML(value, label){
@@ -3835,6 +3836,8 @@ function renderPlanRequest(){
         moodButtonHTML("familiar", "Familiar") +
         moodButtonHTML("different", "A little different") +
         moodButtonHTML("surprise", "Surprise me") +
+        '</div><div class="mood-row" role="group" aria-label="Which you">' +
+        [["all","All of you"],["now","Recent you"],["then","Earlier you"]].map(function(x){return '<button class="mood" type="button" data-period="'+x[0]+'" aria-pressed="'+(x[0]===period?"true":"false")+'">'+x[1]+'</button>';}).join("") +
       "</div>" +
       '<div class="free-line">' +
         '<input class="free-input" data-free aria-label="Anything else?" placeholder="For example: a quiet bookstore and somewhere nearby to sit" value="' + attr(prefill) + '">' +
@@ -3890,7 +3893,7 @@ function renderPlanRequest(){
     progressSlot.innerHTML = logPanelHTML();
     planBtn.disabled = true;
     planBtn.textContent = "Making a plan";
-    const body = { mood: mood };
+    const body = { mood: mood, period: period };
     if (when) body.when = when;
     if (area) body.area = area;
     const budgetN = numberValue(budgetRaw);
@@ -3981,6 +3984,12 @@ function renderPlanRequest(){
   }
 
   on(view, "click", function(e){
+    const perBtn = e.target.closest("[data-period]");
+    if (perBtn) {
+      period = perBtn.getAttribute("data-period");
+      Array.prototype.forEach.call(view.querySelectorAll("[data-period]"), function(b){ b.setAttribute("aria-pressed", b === perBtn ? "true" : "false"); });
+      return;
+    }
     const moodBtn = e.target.closest("[data-mood]");
     if (moodBtn) {
       mood = moodBtn.getAttribute("data-mood");

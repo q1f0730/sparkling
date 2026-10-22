@@ -1,0 +1,39 @@
+// Small helpers around Workers AI. The model writes copy and picks among Qloo candidates;
+// it never supplies an entity of its own.
+const JSON_MODELS = ["@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/meta/llama-4-scout-17b-16e-instruct"];
+
+function parseLoose(t) {
+  if (t && typeof t === "object") return t;
+  if (!t) return null;
+  const s = String(t);
+  try { return JSON.parse(s); } catch (_) {}
+  const a = s.indexOf("{"), b = s.lastIndexOf("}");
+  if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch (_) {} }
+  return null;
+}
+
+export async function llmJSON(env, system, user, schema, maxTokens = 700) {
+  let lastErr;
+  for (const model of JSON_MODELS) {
+    try {
+      const r = await env.AI.run(model, {
+        messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        response_format: schema ? { type: "json_schema", json_schema: schema } : undefined,
+        max_tokens: maxTokens,
+        temperature: 0.2,
+      });
+      const out = parseLoose(r?.response);
+      if (out) return out;
+      lastErr = new Error("unparseable");
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("llm failed");
+}
+
+export async function llmText(env, system, user, maxTokens = 200) {
+  const r = await env.AI.run(JSON_MODELS[0], {
+    messages: [{ role: "system", content: system }, { role: "user", content: user }],
+    max_tokens: maxTokens, temperature: 0.4,
+  });
+  return String(r?.response || "").trim();
+}

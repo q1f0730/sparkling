@@ -1,7 +1,8 @@
 // Sparkling Worker: notebook API + static app.
 import APP from "./app.html";
 import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd } from "./recognize.js";
-import { makePlan, dressPlan } from "./plan.js";
+import { makePlan, dressPlan, cohorts } from "./plan.js";
+import { qlooTagInsights } from "./qloo.js";
 import { SAMPLE_NOTES } from "./sample.js";
 
 const J = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", ...headers } });
@@ -48,7 +49,7 @@ async function cardsFor(env, userId, type) {
     return {
       id: r.id, qloo_id: r.qloo_id, name: r.name, type: r.type, year: r.year || undefined, by: r.byline || undefined,
       image: r.image || undefined, footprints: r.fp, heart: r.heart, last_at: r.last_at, first_at: r.first_at,
-      tags: JSON.parse(r.tags || "[]"), attention, size: attention >= 4 ? 3 : attention >= 2 ? 2 : 1,
+      tags: JSON.parse(r.tags || "[]"), attention, size: attention >= 3.2 ? 3 : attention >= 1.6 ? 2 : 1,
     };
   });
   const want = type && type !== "all" ? (type === "film" ? ["film", "tv"] : [type]) : null;
@@ -219,15 +220,60 @@ async function api(req, env, ctx, url) {
 
   // ---- threads
   if (p === "/api/threads" && m === "GET") {
-    const cards = (await cardsFor(env, U)).filter((c) => c.heart >= 0 && (c.footprints >= 2 || c.heart === 1));
-    const byTag = new Map();
-    for (const c of cards) for (const t of c.tags) { if (!byTag.has(t)) byTag.set(t, []); byTag.get(t).push(c); }
-    const threads = [...byTag.entries()]
-      .filter(([, cs]) => new Set(cs.map((c) => c.type)).size >= 2 && cs.length >= 2)
-      .sort((a, b) => b[1].reduce((s, c) => s + c.footprints, 0) - a[1].reduce((s, c) => s + c.footprints, 0))
-      .slice(0, 6)
-      .map(([tag, cs]) => ({ tag, cards: cs.map((c) => ({ id: c.id, name: c.name, type: c.type, footprints: c.footprints })), read: `This shows up in ${[...new Set(cs.map((c) => ({ film: "a film", tv: "a show", music: "an artist", book: "a book", place: "a place" }[c.type] || "something")))].join(", ").replace(/, ([^,]*)$/, " and $1")} you keep returning to.` }));
-    return J({ threads, reason: threads.length ? undefined : "Threads show up once a few things keep coming back." });
+    const all = (await cardsFor(env, U)).filter((c) => c.heart >= 0 && c.footprints >= 1);
+    const liked = all.filter((c) => c.heart === 1 || c.footprints >= 1);
+    if (liked.length < 4 || new Set(liked.map((c) => c.type)).size < 2)
+      return J({ threads: [], reason: "Threads show up once a few things keep coming back." });
+    const co = cohorts(liked, 6);
+    const KEEP = /theme|style|mood|tone|music:qloo|artist:qloo|setting|subgenre|keyword/;
+    const tagRead = async (cards) => {
+      const d = await qlooTagInsights(env, cards.map((c) => c.qloo_id));
+      return d.filter((t) => KEEP.test(t.subtype || "") && !/genre:brand|person|subgenre/.test(t.subtype || "") && !/speech|politic|rights|commentary|design|religio|war|crime|violence|controvers|anxiety|scandal/i.test(t.name)).slice(0, 12);
+    };
+    let heavy = [...liked].sort((a, b) => b.attention - a.attention).slice(0, 8);
+    let main = [], nowT = [], thenT = [];
+    try {
+      [main, nowT, thenT] = await Promise.all([tagRead(heavy), co.size >= 3 ? tagRead(co.now) : [], co.size >= 3 ? tagRead(co.then) : []]);
+    } catch (e) { return J({ threads: [], reason: "Qloo isn't answering right now. Your cards are fine." }); }
+    const evidence = (tag, pool) => pool.filter((c) => c.tags.some((t) => t.toLowerCase() === tag.toLowerCase()));
+    const quoteFor = async (cards) => {
+      const ids = cards.map((c) => c.id);
+      if (!ids.length) return null;
+      const r = await env.DB.prepare(`SELECT n.text, f.created_at FROM footprints f JOIN notes n ON n.id=f.note_id WHERE f.card_id IN (${ids.map(() => "?").join(",")}) AND f.sentiment='positive' ORDER BY f.created_at DESC LIMIT 1`).bind(...ids).first();
+      return r ? { text: r.text, at: r.created_at } : null;
+    };
+    const nowNames = new Set(nowT.map((t) => t.name)), thenNames = new Set(thenT.map((t) => t.name));
+    const shiftOf = (name) => (co.size < 3 ? null : nowNames.has(name) && !thenNames.has(name) ? "New in recent notes" : thenNames.has(name) && !nowNames.has(name) ? "Fading from recent notes" : nowNames.has(name) ? "Steady" : null);
+    const threads = [];
+    for (const t of main.slice(0, 8)) {
+      const ev = evidence(t.name, liked);
+      const cards = (ev.length >= 2 ? ev : heavy.slice(0, 4));
+      threads.push({
+        tag: t.name, tag_id: t.id, kind: (t.subtype || "").split(":").pop(), affinity: t.affinity,
+        cards: cards.slice(0, 5).map((c) => ({ id: c.id, name: c.name, type: c.type, footprints: c.footprints })),
+        carried_by_cards: ev.length >= 2,
+        your_words: await quoteFor(cards.slice(0, 5)),
+        shift: shiftOf(t.name),
+        read: ev.length >= 2 ? `Shows up in ${[...new Set(ev.map((c) => ({ film: "a film", tv: "a show", music: "an artist", book: "a book", place: "a place" }[c.type] || "something")))].join(", ").replace(/, ([^,]*)$/, " and $1")} you keep returning to.` : "Qloo reads this across the cards you return to most.",
+      });
+    }
+    // Merge threads that rest on the same cards; drop near-duplicate tag names (Intimacy / Intimate).
+    const stem = (w) => w.toLowerCase().replace(/(acy|ate|ity|ness|ive|al|s)$/,"");
+    const merged = [];
+    for (const t of threads) {
+      const key = t.cards.map((c) => c.id).join(",");
+      const same = merged.find((m) => m.key === key);
+      if (same) { if (!same.tags.some((x) => stem(x) === stem(t.tag))) same.tags.push(t.tag); continue; }
+      merged.push({ ...t, key, tags: [t.tag] });
+    }
+    threads.length = 0;
+    for (const m of merged) { const { key, ...rest } = m; threads.push({ ...rest, tag: m.tags.slice(0, 3).join(" · "), read: m.carried_by_cards ? m.read : `Qloo reads ${m.tags.length > 1 ? "these" : "this"} across the cards you return to most.` }); }
+    const pick = (arr) => arr.slice(0, 6).map((t) => t.name);
+    return J({
+      threads,
+      shift: co.size >= 3 ? { based_on: co.size, now: pick(nowT), then: pick(thenT), now_cards: co.now.map((c) => c.name), then_cards: co.then.map((c) => c.name) } : { based_on: co.size, reason: "Not enough notes yet to compare earlier and recent." },
+      receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": heavy.map((c) => c.qloo_id) },
+    });
   }
 
   // ---- plans
@@ -287,9 +333,11 @@ async function api(req, env, ctx, url) {
         const next = pl.items.find((c) => !used.has(c.qloo_id));
         if (!next) return J({ plan, notice: "That's every good option I found for this stop." });
         plan.swapped = [...(plan.swapped || []), stops[i].qloo_id];
+        plan.log = [...(plan.log || []), `You swapped stop ${i + 1}: ${stops[i].name} is out, ${next.name} is in (next Qloo result for ${String(kind).toLowerCase()}).`];
+        plan.notice_swap = `Swapped stop ${i + 1}`;
         stops[i] = { ...next, kind };
       } else if (act === "shorten") {
-        if (stops.length > 1) stops = stops.slice(0, stops.length - 1);
+        if (stops.length > 1) { plan.log = [...(plan.log || []), `You shortened the plan: dropped ${stops[stops.length - 1].name}.`]; stops = stops.slice(0, stops.length - 1); }
         else return J({ plan, notice: "It's already one stop." });
       } else if (act === "budget") {
         const nb = Number(b.budget) || Math.max(10, (plan.meta?.budget || 40) - 15);
@@ -297,11 +345,13 @@ async function api(req, env, ctx, url) {
         const fits = (s) => !s.price_level || s.price_level <= maxP;
         stops = stops.map((s, i) => (fits(s) ? s : ((pool.find((x) => x.kind === s.kind) || { items: [] }).items.find((c) => fits(c) && !stops.some((o) => o.qloo_id === c.qloo_id)) && { ...(pool.find((x) => x.kind === s.kind).items.find((c) => fits(c) && !stops.some((o) => o.qloo_id === c.qloo_id))), kind: s.kind }) || null)).filter(Boolean);
         plan.meta = { ...plan.meta, budget: nb };
+        plan.log = [...(plan.log || []), `You lowered the budget to $${nb}; re-ranked the same Qloo results.`];
         if (!stops.length) return J({ plan, notice: "Nothing I found fits that budget. Try a wider area." });
       }
       const seeds = plan.seeds || [];
       const re = await dressPlan(env, user, seeds, stops, plan.meta);
       plan = { ...plan, header: re.header, stops: re.stops };
+      if (plan.receipt) plan.receipt.stops = plan.stops.map((s) => ({ name: s.name, qloo_id: s.qloo_id }));
       await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run();
       return J({ plan: { ...plan, saved: !!row.saved } });
     }

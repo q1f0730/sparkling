@@ -168,3 +168,9 @@ export async function qlooTags(env, { entity_ids, types, take = 50 }) {
   const data = await qloo(env, "/v2/insights", { "filter.type": "urn:tag", "filter.tag.types": types, "signal.interests.entities": entity_ids, take });
   return (data.results?.tags || []).map((t) => ({ id: t.tag_id || t.id, name: t.name, kind: (t.subtype || t.type || "").split(":").slice(2).join(":") }));
 }
+
+/** Tag-level taste analysis of a set of entities, with affinity and subtype kept. */
+export async function qlooTagInsights(env, entity_ids, take = 40) {
+  const data = await qloo(env, "/v2/insights", { "filter.type": "urn:tag", "signal.interests.entities": entity_ids, take });
+  return (data.results?.tags || []).map((t) => ({ id: t.tag_id || t.id, name: t.name, subtype: t.subtype || "", affinity: t.query?.affinity }));
+}

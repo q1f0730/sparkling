@@ -52,9 +52,62 @@ Rules:
 - sentiment: the user's feeling about THAT thing in this note.
 Return {"mentions":[]} when nothing is named.`;
 
+// Rule-based fallback when the model is unavailable (quota, outage): capitalised phrases,
+// allowing small joining words ("In the Mood for Love"), plus quoted titles.
+const JOIN = new Set(["the", "of", "for", "and", "a", "an", "in", "to", "on", "at", "with", "&", "de", "la", "le"]);
+const STOP_START = new Set(["I", "I'm", "I've", "It", "The", "A", "We", "My", "This", "That", "Today", "Finally", "Still", "So", "And", "But", "Just", "Then"]);
+function heuristicMentions(text) {
+  const found = [];
+  const quoted = text.match(/["“']([^"”']{2,60})["”']/g) || [];
+  for (const q of quoted) found.push(q.slice(1, -1));
+  const words = text.split(/(\s+)/);
+  let cur = [];
+  const flush = () => {
+    while (cur.length && JOIN.has(cur[cur.length - 1].toLowerCase())) cur.pop();
+    if (cur.length) found.push(cur.join(" "));
+    cur = [];
+  };
+  for (const raw of text.split(/\s+/)) {
+    const w = raw.replace(/^[(\[]+|[.,!?;:)\]]+$/g, "");
+    const endsClause = /[.,!?;:]$/.test(raw);
+    if (/^[A-Z0-9][\w'’&-]*$/.test(w)) cur.push(w);
+    else if (cur.length && JOIN.has(w.toLowerCase())) cur.push(w);
+    else flush();
+    if (endsClause) flush();
+  }
+  flush();
+  const out = [];
+  for (let f of found) {
+    let parts = f.split(" ");
+    while (parts.length > 1 && STOP_START.has(parts[0])) parts = parts.slice(1);
+    if (parts.length === 1 && STOP_START.has(parts[0])) continue;
+    f = parts.join(" ");
+    if (f.length < 3 || !text.includes(f)) continue;
+    if (!out.includes(f)) out.push(f);
+  }
+  const low = text.toLowerCase();
+  const kind = /rewatch|again|re-read|reread/.test(low) ? "rewatch" : /listen|on repeat|shuffle|playlist|album|song/.test(low) ? "listen" : /reading|finished reading|started|book/.test(low) ? "read" : /went to|visited|walked to/.test(low) ? "visit" : "note";
+  const sentiment = /too slow|boring|couldn't settle|hated|meh|disappoint|overrated/.test(low) ? "negative" : /love|best|cried|perfect|beautiful|great|devastating|kind|sign|got me/.test(low) ? "positive" : "neutral";
+  return out.slice(0, 4).map((s) => ({ surface: s, title: s, type: "any", kind, sentiment, music_work: "none", heuristic: true }));
+}
+
 export async function extractMentions(env, text) {
   if (!text || text.trim().length < 2) return [];
-  const out = await llmJSON(env, SYSTEM, `Note: """${text.slice(0, 1500)}"""`, EXTRACT_SCHEMA);
+  let out;
+  // Cache by note text: the same sentence always yields the same mentions (saves model quota).
+  const key = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("v1:" + text))), (b) => b.toString(16).padStart(2, "0")).join("");
+  try {
+    const hit = await env.DB.prepare("SELECT value FROM llm_cache WHERE key=?").bind(key).first();
+    if (hit) out = JSON.parse(hit.value);
+  } catch (_) {}
+  if (!out) {
+    try {
+      out = await llmJSON(env, SYSTEM, `Note: """${text.slice(0, 1500)}"""`, EXTRACT_SCHEMA);
+      try { await env.DB.prepare("INSERT OR REPLACE INTO llm_cache (key,value,created_at) VALUES (?,?,?)").bind(key, JSON.stringify(out), Date.now()).run(); } catch (_) {}
+    } catch (e) {
+      return heuristicMentions(text);
+    }
+  }
   const ms = Array.isArray(out?.mentions) ? out.mentions : [];
   // keep only mentions whose surface really appears in the note
   const seen = new Set();
@@ -156,7 +209,17 @@ export async function recognizeNote(env, userId, noteId) {
         }
         if (!pick && !guesses.length) { mentions.push(mention); continue; }
       }
-      if (!pick && !songish) {
+      if (!pick && m.heuristic) {
+        const res = await qsearch(env, m.surface, undefined, 6);
+        const exact = res.filter((x) => norm(x.name) === norm(m.surface));
+        if (exact.length) {
+          const top = exact.sort((a, b) => (b.popularity || 0) - (a.popularity || 0))[0];
+          const rivals = exact.filter((x) => x !== top && (x.popularity || 0) > (top.popularity || 0) * 0.6);
+          if (!rivals.length && (top.popularity || 0) > 0.5 && m.surface.includes(" ")) pick = top; else guesses = exact.slice(0, 3);
+        }
+        if (!pick && !guesses.length) { mentions.push(mention); continue; }
+      }
+      if (!pick && !songish && !m.heuristic) {
         let res = await qsearch(env, m.title || m.surface, TYPE_URNS[m.type]);
         if (!res.length) res = await qsearch(env, m.title || m.surface);
         const j = judge(m, res);
@@ -167,7 +230,7 @@ export async function recognizeNote(env, userId, noteId) {
         const cardId = await upsertCard(env, userId, pick, Date.now());
         const dup = await env.DB.prepare("SELECT id FROM footprints WHERE card_id=? AND note_id=?").bind(cardId, noteId).first();
         if (!dup) await addFootprint(env, userId, cardId, noteId, m, note.created_at);
-        Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had });
+        Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: pick.name, type: pick.type, image: pick.image || null, year: pick.year || null } });
       } else if (guesses.length) {
         await env.DB.prepare("INSERT INTO inbox (id,user_id,note_id,mention,kind,sentiment,guesses,status,created_at) VALUES (?,?,?,?,?,?,?,'open',?)")
           .bind(uid(), userId, noteId, m.surface, m.kind, m.sentiment, JSON.stringify(guesses), Date.now()).run();
@@ -178,7 +241,7 @@ export async function recognizeNote(env, userId, noteId) {
     await env.DB.prepare("UPDATE notes SET mentions=?, status='done' WHERE id=?").bind(JSON.stringify(mentions), noteId).run();
   } catch (e) {
     console.log("recognize failed", e.message);
-    await env.DB.prepare("UPDATE notes SET status='failed' WHERE id=?").bind(noteId).run();
+    await env.DB.prepare("UPDATE notes SET status='failed', meta=? WHERE id=?").bind(JSON.stringify({ error: String(e.message || e).slice(0, 300) }), noteId).run();
   }
 }
 

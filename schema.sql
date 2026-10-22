@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, token TEXT UNIQUE, sample INTEGER DEFAULT 0, area TEXT, budget INTEGER DEFAULT 40, whenx TEXT DEFAULT 'Saturday afternoon', created_at INTEGER);
-CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, user_id TEXT, text TEXT, kind TEXT DEFAULT 'text', link TEXT, media_key TEXT, ocr_text TEXT, status TEXT DEFAULT 'pending', mentions TEXT DEFAULT '[]', created_at INTEGER);
+CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, user_id TEXT, text TEXT, kind TEXT DEFAULT 'text', link TEXT, media_key TEXT, ocr_text TEXT, meta TEXT, status TEXT DEFAULT 'pending', mentions TEXT DEFAULT '[]', created_at INTEGER);
 CREATE INDEX IF NOT EXISTS notes_user ON notes(user_id, created_at);
 CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, user_id TEXT, qloo_id TEXT, name TEXT, type TEXT, year TEXT, byline TEXT, image TEXT, tags TEXT DEFAULT '[]', heart INTEGER DEFAULT 0, created_at INTEGER, UNIQUE(user_id, qloo_id));
 CREATE TABLE IF NOT EXISTS footprints (id TEXT PRIMARY KEY, user_id TEXT, card_id TEXT, note_id TEXT, kind TEXT, sentiment TEXT, quote TEXT, source TEXT DEFAULT 'note', created_at INTEGER);

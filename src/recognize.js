@@ -97,7 +97,9 @@ function judge(m, results) {
     const rivals = typed.filter((r) => r !== top && (r.popularity || 0) > (top.popularity || 0) * 0.6);
     if (!rivals.length && m.surface.length >= 3) return { sure: true, pick: top, guesses: [] };
   }
-  const ordered = [...typed, ...exact.filter((r) => !typed.includes(r)), ...results.filter((r) => !exact.includes(r))];
+  // Only offer guesses whose names actually resemble what the user wrote.
+  const near = (r) => { const n = norm(r.name); return n === t || n === s || (t.length > 3 && n.length > 3 && (n.includes(t) || t.includes(n))) || (s.length > 3 && n.includes(s)); };
+  const ordered = [...typed, ...exact.filter((r) => !typed.includes(r)), ...results.filter((r) => !exact.includes(r) && near(r))];
   return { sure: false, guesses: ordered.slice(0, 3) };
 }
 

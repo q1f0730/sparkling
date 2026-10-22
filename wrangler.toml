@@ -1,0 +1,28 @@
+name = "sparkling-dev"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[ai]
+binding = "AI"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+# Secrets (never commit): npx wrangler secret put QLOO_API_KEY
+# Create your own D1 database and R2 bucket, then fill in the ids below.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sparkling-db"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "sparkling-media"
+
+# If R2 is not enabled on your account, comment out the R2 block above and use KV instead:
+# [[kv_namespaces]]
+# binding = "MEDIA_KV"
+# id = "REPLACE_WITH_YOUR_KV_ID"

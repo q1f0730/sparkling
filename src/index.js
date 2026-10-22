@@ -1,6 +1,6 @@
 // Sparkling Worker: notebook API + static app.
 import APP from "./app.html";
-import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm } from "./recognize.js";
+import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd } from "./recognize.js";
 import { makePlan, dressPlan } from "./plan.js";
 import { SAMPLE_NOTES } from "./sample.js";
 
@@ -305,6 +305,31 @@ async function api(req, env, ctx, url) {
       await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run();
       return J({ plan: { ...plan, saved: !!row.saved } });
     }
+  }
+
+  // ---- import (Letterboxd export CSV; the raw file is not stored)
+  if (p === "/api/import/letterboxd" && m === "POST") {
+    let csv = "";
+    const ct = req.headers.get("content-type") || "";
+    if (ct.includes("multipart")) { const f = (await req.formData()).get("file"); if (!f || typeof f === "string") return ERR("Choose your export file."); if (f.size > 3e6) return ERR("That file is too large."); csv = await f.text(); }
+    else csv = await req.text();
+    const rows = parseLetterboxd(csv);
+    if (!rows) return ERR("That doesn't look like a Letterboxd diary or reviews file.");
+    const stars = (r) => (r == null ? "" : " · " + "★".repeat(Math.floor(r)) + (r % 1 ? "½" : ""));
+    const stmts = rows.slice(0, 1000).map((r) => {
+      const at = r.date ? Date.parse(r.date) || Date.now() : Date.now();
+      const text = r.review || `${r.rewatch ? "Rewatched" : "Watched"} ${r.title}${r.year ? ` (${r.year})` : ""}${stars(r.rating)}`;
+      const full = text.includes(r.title) ? text : `${r.title}: ${text}`;
+      return env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,meta,status,created_at) VALUES (?,?,?,'import',?,'pending',?)").bind(uid(), U, full, JSON.stringify(r), at);
+    });
+    for (let k = 0; k < stmts.length; k += 50) await env.DB.batch(stmts.slice(k, k + 50));
+    ctx.waitUntil(recognizePending(env, U, 20));
+    return J({ read: rows.length, queued: stmts.length });
+  }
+  if (p === "/api/import/status" && m === "GET") {
+    const r = await env.DB.prepare(`SELECT COUNT(*) total, SUM(status='pending') pending, SUM(status='done' AND mentions LIKE '%"matched"%') cards, SUM(status='done' AND mentions LIKE '%"inbox"%') inbox FROM notes WHERE user_id=? AND kind='import'`).bind(U).first();
+    if (r.pending) ctx.waitUntil(recognizePending(env, U, 20));
+    return J({ read: r.total, pending: r.pending || 0, cards: r.cards || 0, inbox: r.inbox || 0, notes: (r.total || 0) - (r.pending || 0) - (r.cards || 0) - (r.inbox || 0) });
   }
 
   // ---- settings

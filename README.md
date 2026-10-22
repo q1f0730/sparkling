@@ -6,6 +6,8 @@ Sparkling is a notebook for people who love films, music, books and places. You 
 
 Built for the Qloo Hackathon. Every card and every plan stop is a real entity returned by [Qloo's Taste AI](https://www.qloo.com/) in that session; the language model only reads notes and writes short copy. It never invents a title, an artist or a place.
 
+![Why this thread? sheet: exact Qloo tags, your own words, receipt](docs/img/threads-why.png)
+
 ## How it works
 
 1. **Capture** – a note is saved before anything else runs. Nothing is ever asked at capture time.

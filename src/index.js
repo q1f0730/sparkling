@@ -1,7 +1,7 @@
 // Sparkling Worker: notebook API + static app.
 import APP from "./app.html";
 import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd } from "./recognize.js";
-import { makePlan, dressPlan, cohorts } from "./plan.js";
+import { makePlan, dressPlan, cohorts, planNotice } from "./plan.js";
 import { qlooTagInsights } from "./qloo.js";
 import { SAMPLE_NOTES } from "./sample.js";
 
@@ -351,6 +351,7 @@ async function api(req, env, ctx, url) {
       const seeds = plan.seeds || [];
       const re = await dressPlan(env, user, seeds, stops, plan.meta);
       plan = { ...plan, header: re.header, stops: re.stops };
+      plan.notice = planNotice(plan.stops, plan.meta?.area, plan.widened);
       if (plan.receipt) plan.receipt.stops = plan.stops.map((s) => ({ name: s.name, qloo_id: s.qloo_id }));
       await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run();
       return J({ plan: { ...plan, saved: !!row.saved } });

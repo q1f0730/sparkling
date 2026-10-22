@@ -7,3 +7,4 @@ CREATE INDEX IF NOT EXISTS fp_card ON footprints(card_id, created_at);
 CREATE TABLE IF NOT EXISTS inbox (id TEXT PRIMARY KEY, user_id TEXT, note_id TEXT, mention TEXT, kind TEXT, sentiment TEXT, guesses TEXT, status TEXT DEFAULT 'open', resolved_card TEXT, resolved_fp TEXT, created_at INTEGER);
 CREATE TABLE IF NOT EXISTS mappings (user_id TEXT, surface TEXT, qloo_id TEXT, PRIMARY KEY(user_id, surface));
 CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, user_id TEXT, request TEXT, plan TEXT, pool TEXT, saved INTEGER DEFAULT 0, went INTEGER, created_at INTEGER);
+CREATE TABLE IF NOT EXISTS llm_cache (key TEXT PRIMARY KEY, value TEXT, created_at INTEGER);

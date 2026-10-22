@@ -35,3 +35,4 @@ POST /api/plan/:id/went {went:true|false, text?}
 
 GET  /api/export -> file ; POST /api/delete {confirm:"DELETE"}
 POST /api/import/letterboxd multipart(file) -> {read, cards, inbox, notes}
+GET  /api/import/status -> {read, pending, cards, inbox, notes}   (poll every 2s while pending > 0)

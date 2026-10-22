@@ -48,3 +48,9 @@ The sample notebook ("Juno Park") is fictional and written by hand; it stores on
 ## License
 
 MIT © Q1f730
+
+## Tests
+
+Run the unit tests (Letterboxd parser, Then/Now cohorts, plan notice):
+
+    node --test tests/unit.test.mjs

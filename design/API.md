@@ -24,7 +24,7 @@ GET  /api/inbox -> {items:[{id, note_id, sentence, mention, guesses:[{qloo_id,na
 POST /api/inbox/:id {action:"accept", qloo_id} | {action:"reject"} | {action:"undo"}
 POST /api/inbox/accept_all
 
-GET  /api/threads -> {threads:[{tag, cards:[{id,name,type,footprints}], read?}], reason?}
+GET  /api/threads?period=all|now|then -> {threads:[{tag, qloo_tags:[{name,id,subtype,affinity,listed_on}], cards:[{id,name,type,footprints,qloo_id,carries_tag}], carried_by_cards, your_words:[{text,at,card,card_id}], shift, read, receipt:{endpoint,filter.type,signal.interests.entities,tag_ids}}], period, shift, receipt, reason?}
 
 POST /api/plan {when, area, budget, mood:"familiar"|"different"|"surprise", text?}
      -> NDJSON stream lines: {type:"log", text} ... then {type:"plan", plan:Plan} or {type:"error", state, text}

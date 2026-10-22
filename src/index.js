@@ -40,7 +40,7 @@ async function noteOut(env, n) {
 }
 
 async function cardsFor(env, userId, type) {
-  const rows = (await env.DB.prepare(`SELECT c.*, COUNT(f.id) fp, MAX(f.created_at) last_at, MIN(f.created_at) first_at
+  const rows = (await env.DB.prepare(`SELECT c.*, COUNT(DISTINCT COALESCE(f.note_id, f.id)) fp, MAX(f.created_at) last_at, MIN(f.created_at) first_at
      FROM cards c LEFT JOIN footprints f ON f.card_id=c.id WHERE c.user_id=? GROUP BY c.id`).bind(userId).all()).results || [];
   const now = Date.now();
   const out = rows.filter((r) => r.fp > 0 || r.heart === 1).map((r) => {
@@ -185,6 +185,7 @@ async function api(req, env, ctx, url) {
       return J({ ok: true });
     }
     const fps = ((await env.DB.prepare(`SELECT f.*, n.text note_text, n.media_key FROM footprints f LEFT JOIN notes n ON n.id=f.note_id WHERE f.card_id=? ORDER BY f.created_at DESC`).bind(c.id).all()).results || [])
+      .filter((f, i, a) => !f.note_id || a.findIndex((g) => g.note_id === f.note_id) === i)
       .map((f) => ({ id: f.id, note_id: f.note_id, kind: f.kind, sentiment: f.sentiment, quote: f.note_text || f.quote || "", created_at: f.created_at, source: f.source, image_url: f.media_key ? `/media/${f.media_key}` : undefined }));
     let view_changed = null;
     const pos = fps.find((f) => f.sentiment === "positive"), neg = fps.find((f) => f.sentiment === "negative");
@@ -228,33 +229,41 @@ async function api(req, env, ctx, url) {
     const KEEP = /theme|style|mood|tone|music:qloo|artist:qloo|setting|subgenre|keyword/;
     const tagRead = async (cards) => {
       const d = await qlooTagInsights(env, cards.map((c) => c.qloo_id));
-      return d.filter((t) => KEEP.test(t.subtype || "") && !/genre:brand|person|subgenre/.test(t.subtype || "") && !/speech|politic|rights|commentary|design|religio|war|crime|violence|controvers|anxiety|scandal/i.test(t.name)).slice(0, 12);
+      return d.filter((t) => KEEP.test(t.subtype || "") && !/genre:brand|person|subgenre|lifestyle/.test(t.subtype || "") && !/speech|politic|rights|commentary|design|religio|war|crime|violence|controvers|anxiety|scandal/i.test(t.name)).slice(0, 12);
     };
-    let heavy = [...liked].sort((a, b) => b.attention - a.attention).slice(0, 8);
+    const period = ["now", "then"].includes(url.searchParams.get("period")) ? url.searchParams.get("period") : "all";
+    if (period !== "all" && co.size < 3) return J({ threads: [], period, reason: "Not enough notes yet to compare earlier and recent you. Keep writing; this fills in on its own." });
+    const heavy = period === "now" ? co.now : period === "then" ? co.then : [...liked].sort((a, b) => b.attention - a.attention).slice(0, 8);
     let main = [], nowT = [], thenT = [];
     try {
-      [main, nowT, thenT] = await Promise.all([tagRead(heavy), co.size >= 3 ? tagRead(co.now) : [], co.size >= 3 ? tagRead(co.then) : []]);
-    } catch (e) { return J({ threads: [], reason: "Qloo isn't answering right now. Your cards are fine." }); }
+      [nowT, thenT] = await Promise.all([co.size >= 3 ? tagRead(co.now) : [], co.size >= 3 ? tagRead(co.then) : []]);
+      main = period === "now" ? nowT : period === "then" ? thenT : await tagRead(heavy);
+    } catch (e) { return J({ threads: [], period, reason: "Qloo isn't answering right now. Your cards are fine." }); }
     const evidence = (tag, pool) => pool.filter((c) => c.tags.some((t) => t.toLowerCase() === tag.toLowerCase()));
-    const quoteFor = async (cards) => {
-      const ids = cards.map((c) => c.id);
-      if (!ids.length) return null;
-      const r = await env.DB.prepare(`SELECT n.text, f.created_at FROM footprints f JOIN notes n ON n.id=f.note_id WHERE f.card_id IN (${ids.map(() => "?").join(",")}) AND f.sentiment='positive' ORDER BY f.created_at DESC LIMIT 1`).bind(...ids).first();
-      return r ? { text: r.text, at: r.created_at } : null;
+    const quotesFor = async (cards) => {
+      const out = [], seen = new Set();
+      for (const c of cards) {
+        const r = await env.DB.prepare("SELECT f.quote, n.text, f.created_at FROM footprints f JOIN notes n ON n.id=f.note_id WHERE f.card_id=? AND f.sentiment!='negative' ORDER BY f.created_at DESC LIMIT 1").bind(c.id).first();
+        if (r && !seen.has(r.text)) { seen.add(r.text); out.push({ text: r.text, at: r.created_at, card: c.name, card_id: c.id }); }
+        if (out.length >= 3) break;
+      }
+      return out;
     };
     const nowNames = new Set(nowT.map((t) => t.name)), thenNames = new Set(thenT.map((t) => t.name));
     const shiftOf = (name) => (co.size < 3 ? null : nowNames.has(name) && !thenNames.has(name) ? "New in recent notes" : thenNames.has(name) && !nowNames.has(name) ? "Fading from recent notes" : nowNames.has(name) ? "Steady" : null);
+    const kindWord = { film: "a film", tv: "a show", music: "an artist", book: "a book", place: "a place" };
     const threads = [];
     for (const t of main.slice(0, 8)) {
-      const ev = evidence(t.name, liked);
-      const cards = (ev.length >= 2 ? ev : heavy.slice(0, 4));
+      const ev = evidence(t.name, heavy.length ? liked : liked);
+      const cards = (ev.length >= 2 ? ev : heavy.slice(0, 4)).slice(0, 5);
       threads.push({
         tag: t.name, tag_id: t.id, kind: (t.subtype || "").split(":").pop(), affinity: t.affinity,
-        cards: cards.slice(0, 5).map((c) => ({ id: c.id, name: c.name, type: c.type, footprints: c.footprints })),
+        qloo_tags: [{ name: t.name, id: t.id, subtype: t.subtype, affinity: t.affinity, listed_on: ev.map((c) => c.name) }],
+        cards: cards.map((c) => ({ id: c.id, name: c.name, type: c.type, footprints: c.footprints, qloo_id: c.qloo_id, carries_tag: ev.some((e) => e.id === c.id) })),
         carried_by_cards: ev.length >= 2,
-        your_words: await quoteFor(cards.slice(0, 5)),
+        your_words: await quotesFor(cards),
         shift: shiftOf(t.name),
-        read: ev.length >= 2 ? `Shows up in ${[...new Set(ev.map((c) => ({ film: "a film", tv: "a show", music: "an artist", book: "a book", place: "a place" }[c.type] || "something")))].join(", ").replace(/, ([^,]*)$/, " and $1")} you keep returning to.` : "Qloo reads this across the cards you return to most.",
+        read: ev.length >= 2 ? `Shows up in ${[...new Set(ev.map((c) => kindWord[c.type] || "something"))].join(", ").replace(/, ([^,]*)$/, " and $1")} you keep returning to.` : "Qloo reads this across the cards you return to most.",
       });
     }
     // Merge threads that rest on the same cards; drop near-duplicate tag names (Intimacy / Intimate).
@@ -263,14 +272,22 @@ async function api(req, env, ctx, url) {
     for (const t of threads) {
       const key = t.cards.map((c) => c.id).join(",");
       const same = merged.find((m) => m.key === key);
-      if (same) { if (!same.tags.some((x) => stem(x) === stem(t.tag))) same.tags.push(t.tag); continue; }
+      if (same) {
+        if (!same.tags.some((x) => stem(x) === stem(t.tag))) { same.tags.push(t.tag); same.qloo_tags.push(...t.qloo_tags); if (!same.shift || same.shift === "Steady") same.shift = t.shift || same.shift; }
+        continue;
+      }
       merged.push({ ...t, key, tags: [t.tag] });
     }
     threads.length = 0;
-    for (const m of merged) { const { key, ...rest } = m; threads.push({ ...rest, tag: m.tags.slice(0, 3).join(" · "), read: m.carried_by_cards ? m.read : `Qloo reads ${m.tags.length > 1 ? "these" : "this"} across the cards you return to most.` }); }
+    const input = heavy.map((c) => ({ qloo_id: c.qloo_id, name: c.name }));
+    for (const m of merged) {
+      const { key, tags, ...rest } = m;
+      threads.push({ ...rest, tag: tags.slice(0, 3).join(" · "), read: m.carried_by_cards ? m.read : `Qloo reads ${tags.length > 1 ? "these" : "this"} across ${period === "now" ? "your most recent cards" : period === "then" ? "your earlier cards" : "the cards you return to most"}, not from any single one.`,
+        receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": input, tag_ids: m.qloo_tags.map((q) => q.id) } });
+    }
     const pick = (arr) => arr.slice(0, 6).map((t) => t.name);
     return J({
-      threads,
+      threads, period,
       shift: co.size >= 3 ? { based_on: co.size, now: pick(nowT), then: pick(thenT), now_cards: co.now.map((c) => c.name), then_cards: co.then.map((c) => c.name) } : { based_on: co.size, reason: "Not enough notes yet to compare earlier and recent." },
       receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": heavy.map((c) => c.qloo_id) },
     });

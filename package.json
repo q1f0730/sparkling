@@ -1,0 +1,9 @@
+{
+  "name": "sparkling",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A notebook for the films, music, books and places that stay with you. Notes become Qloo-backed cards; cards become a real weekend plan.",
+  "scripts": { "dev": "wrangler dev", "deploy": "wrangler deploy" },
+  "devDependencies": { "wrangler": "^4.0.0" },
+  "license": "MIT"
+}

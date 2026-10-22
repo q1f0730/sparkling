@@ -235,7 +235,7 @@ export async function recognizeNote(env, userId, noteId) {
         const dup = await env.DB.prepare("SELECT id FROM footprints WHERE card_id=? AND note_id=?").bind(cardId, noteId).first();
         if (!dup) await addFootprint(env, userId, cardId, noteId, m, note.created_at);
         Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: pick.name, type: pick.type, image: pick.image || null, year: pick.year || null } });
-      } else if (guesses.length) {
+      } else if (guesses.length && !(m.heuristic && !/\s/.test(m.surface))) {
         await env.DB.prepare("INSERT INTO inbox (id,user_id,note_id,mention,kind,sentiment,guesses,status,created_at) VALUES (?,?,?,?,?,?,?,'open',?)")
           .bind(uid(), userId, noteId, m.surface, m.kind, m.sentiment, JSON.stringify(guesses), Date.now()).run();
         mention.state = "inbox";

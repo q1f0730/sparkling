@@ -128,6 +128,7 @@ export async function recognizeNote(env, userId, noteId) {
   const note = await env.DB.prepare("SELECT * FROM notes WHERE id=? AND user_id=?").bind(noteId, userId).first();
   if (!note) return;
   const text = [note.text, note.ocr_text].filter(Boolean).join("\n");
+  if (note.kind === "import") return recognizeImport(env, userId, note);
   try {
     const found = await extractMentions(env, text);
     const mentions = [];
@@ -195,4 +196,57 @@ export async function readImage(env, bytes, mime) {
   });
   const t = (r?.response || "").trim();
   return t === "NONE" ? "" : t;
+}
+
+/** A Letterboxd diary row: title + year are known, so no model runs. */
+async function recognizeImport(env, userId, note) {
+  const meta = JSON.parse(note.meta || "{}");
+  try {
+    const res = await qsearch(env, meta.title, TYPE_URNS.film, 5);
+    const t = norm(meta.title);
+    const hits = res.filter((r) => norm(r.name) === t && r.type === "film");
+    const exact = hits.find((r) => meta.year && r.year === String(meta.year));
+    const pick = exact || (hits.length === 1 && !meta.year ? hits[0] : null);
+    const start = (note.text || "").indexOf(meta.title);
+    const mention = { start, end: start >= 0 ? start + meta.title.length : -1, surface: meta.title, state: "plain" };
+    const m = { kind: meta.rewatch ? "rewatch" : "first_watch", sentiment: meta.rating == null ? "neutral" : meta.rating >= 3.5 ? "positive" : meta.rating <= 2 ? "negative" : "mixed", surface: meta.title };
+    if (pick) {
+      const cardId = await upsertCard(env, userId, pick, Date.now());
+      await addFootprint(env, userId, cardId, note.id, m, note.created_at, meta.dated ? "imported" : "imported_pref");
+      Object.assign(mention, { state: "matched", card_id: cardId });
+    } else if (hits.length) {
+      await env.DB.prepare("INSERT INTO inbox (id,user_id,note_id,mention,kind,sentiment,guesses,status,created_at) VALUES (?,?,?,?,?,?,?,'open',?)")
+        .bind(uid(), userId, note.id, meta.title, m.kind, m.sentiment, JSON.stringify(hits.slice(0, 3)), Date.now()).run();
+      mention.state = "inbox";
+    }
+    await env.DB.prepare("UPDATE notes SET mentions=?, status='done' WHERE id=?").bind(JSON.stringify([mention]), note.id).run();
+  } catch (e) {
+    await env.DB.prepare("UPDATE notes SET status='failed' WHERE id=?").bind(note.id).run();
+  }
+}
+
+/** Parse a Letterboxd diary.csv / reviews.csv / watched.csv export. */
+export function parseLetterboxd(csv) {
+  const rows = [];
+  let row = [], cell = "", q = false;
+  for (let i = 0; i < csv.length; i++) {
+    const c = csv[i];
+    if (q) { if (c === '"' && csv[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && csv[i + 1] === "\n") i++; row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  const head = (rows.shift() || []).map((h) => h.trim().toLowerCase());
+  const col = (n) => head.indexOf(n);
+  const iName = col("name"), iYear = col("year"), iRating = col("rating"), iRe = col("rewatch"), iW = col("watched date"), iD = col("date"), iRev = col("review");
+  if (iName < 0) return null;
+  return rows.filter((r) => r[iName]).map((r) => ({
+    title: r[iName].trim(), year: iYear >= 0 ? r[iYear] : undefined,
+    rating: iRating >= 0 && r[iRating] ? Number(r[iRating]) : null,
+    rewatch: iRe >= 0 && /yes/i.test(r[iRe] || ""),
+    date: (iW >= 0 && r[iW]) || (iD >= 0 && r[iD]) || null, dated: iW >= 0 && !!r[iW],
+    review: iRev >= 0 ? (r[iRev] || "").trim() : "",
+  }));
 }

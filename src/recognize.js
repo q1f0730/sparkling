@@ -172,6 +172,10 @@ export async function upsertCard(env, userId, ent, now) {
 }
 
 export async function addFootprint(env, userId, cardId, noteId, m, at, source = "note") {
+  if (noteId) {
+    const dup = await env.DB.prepare("SELECT id FROM footprints WHERE card_id=? AND note_id=?").bind(cardId, noteId).first();
+    if (dup) return dup.id;
+  }
   const id = uid();
   await env.DB.prepare("INSERT INTO footprints (id,user_id,card_id,note_id,kind,sentiment,quote,source,created_at) VALUES (?,?,?,?,?,?,?,?,?)")
     .bind(id, userId, cardId, noteId, m.kind || "note", m.sentiment || "neutral", m.quote || null, source, at).run();

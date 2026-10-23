@@ -87,6 +87,7 @@ async function api(req, env, ctx, url) {
     return J({ user: pubUser(u) }, 200, { "set-cookie": `sp=${token}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=31536000` });
   }
 
+  if (p === "/api/signout" && m === "POST") return J({ ok: true }, 200, { "set-cookie": "sp=; Path=/; Max-Age=0" });
   const user = await currentUser(env, req);
   if (!user) return ERR("no session", 401);
   const U = user.id;
@@ -401,6 +402,28 @@ async function api(req, env, ctx, url) {
   }
 
   // ---- settings
+  if (p === "/api/prefs") {
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS prefs (user_id TEXT PRIMARY KEY, json TEXT, updated_at INTEGER)").run();
+    if (m === "GET") {
+      const r = await env.DB.prepare("SELECT json FROM prefs WHERE user_id=?").bind(U).first();
+      return J({ prefs: r ? JSON.parse(r.json) : null });
+    }
+    if (m === "PUT") {
+      const b = await req.json().catch(() => ({}));
+      const s = JSON.stringify(b && typeof b.prefs === "object" ? b.prefs : {});
+      if (s.length > 4000) return ERR("prefs too large");
+      await env.DB.prepare("INSERT INTO prefs (user_id,json,updated_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET json=excluded.json, updated_at=excluded.updated_at").bind(U, s, Date.now()).run();
+      return J({ ok: true });
+    }
+  }
+  if (p === "/api/export.md" && m === "GET") {
+    const notes = (await env.DB.prepare("SELECT text,kind,link,created_at FROM notes WHERE user_id=? ORDER BY created_at").bind(U).all()).results || [];
+    const cards = (await env.DB.prepare("SELECT name,type,year,heart FROM cards WHERE user_id=? ORDER BY name").bind(U).all()).results || [];
+    let md = "# Sparkling notes\n\nExported " + new Date().toISOString() + "\n\n## Notes\n\n";
+    for (const n of notes) md += "### " + new Date(n.created_at).toISOString().slice(0, 16).replace("T", " ") + "\n\n" + (n.text || "") + (n.link ? "\n\n<" + n.link + ">" : "") + "\n\n";
+    md += "## Cards\n\n" + cards.map((c) => "- " + (c.heart ? "♥ " : "") + c.name + (c.year ? " (" + c.year + ")" : "") + " · " + c.type).join("\n") + "\n";
+    return new Response(md, { headers: { "content-type": "text/markdown; charset=utf-8", "content-disposition": "attachment; filename=sparkling-notes.md" } });
+  }
   if (p === "/api/export" && m === "GET") {
     const q = (sql) => env.DB.prepare(sql).bind(U).all().then((r) => r.results || []);
     const data = { exported_at: new Date().toISOString(), notes: await q("SELECT id,text,kind,link,ocr_text,created_at FROM notes WHERE user_id=?"), cards: await q("SELECT id,qloo_id,name,type,year,heart FROM cards WHERE user_id=?"), footprints: await q("SELECT card_id,note_id,kind,sentiment,created_at,source FROM footprints WHERE user_id=?"), plans: await q("SELECT plan,saved,went,created_at FROM plans WHERE user_id=? AND saved=1") };
@@ -409,9 +432,10 @@ async function api(req, env, ctx, url) {
   if (p === "/api/delete" && m === "POST") {
     const b = await req.json();
     if (b.confirm !== "DELETE") return ERR("Type DELETE to confirm.");
-    const media = (await env.DB.prepare("SELECT media_key FROM notes WHERE user_id=? AND media_key IS NOT NULL").bind(U).all()).results || [];
-    for (const r of media) await media.del(env, r.media_key);
-    await env.DB.batch(["notes", "cards", "footprints", "inbox", "mappings", "plans"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE user_id=?`).bind(U)).concat([env.DB.prepare("DELETE FROM users WHERE id=?").bind(U)]));
+    const keys = (await env.DB.prepare("SELECT media_key FROM notes WHERE user_id=? AND media_key IS NOT NULL").bind(U).all()).results || [];
+    await env.DB.prepare("CREATE TABLE IF NOT EXISTS prefs (user_id TEXT PRIMARY KEY, json TEXT, updated_at INTEGER)").run();
+    for (const r of keys) await media.del(env, r.media_key).catch(() => {});
+    await env.DB.batch(["notes", "cards", "footprints", "inbox", "mappings", "plans", "prefs"].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE user_id=?`).bind(U)).concat([env.DB.prepare("DELETE FROM users WHERE id=?").bind(U)]));
     return J({ ok: true }, 200, { "set-cookie": "sp=; Path=/; Max-Age=0" });
   }
   return ERR("not found", 404);

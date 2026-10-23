@@ -262,7 +262,13 @@ export async function dressPlan(env, user, seeds, stops, meta) {
   };
   const sourcesFor = (s, i = 0) => {
     const cf = contribFor(s);
-    if (cf) return cf.slice(0, 2).map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image, n: r.n, quote: r.quote, at: r.at, score: r.score }));
+    if (cf) {
+      const fr = cf.filter((r) => !usedSrc.has(r.card_id)), rest = cf.filter((r) => usedSrc.has(r.card_id));
+      const ord = [...fr, ...rest].slice(0, 2);
+      ord.forEach((r) => r.card_id && usedSrc.add(r.card_id));
+      return ord.map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image, n: r.n, quote: r.quote, at: r.at, score: r.score }));
+    }
+    if (false) return cf.slice(0, 2).map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image, n: r.n, quote: r.quote, at: r.at, score: r.score }));
     const k = (s.kind || "").toLowerCase();
     const want = /book|library/.test(k) ? ["book"] : /record|music|venue|bar/.test(k) ? ["music"] : /cinema|theater|theatre|movie/.test(k) ? ["film", "tv"] : null;
     const rel = want ? fps.filter((r) => want.includes(r.type)) : [];

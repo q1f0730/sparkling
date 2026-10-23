@@ -3,6 +3,7 @@ import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd } from "./recognize.js";
 import { makePlan, dressPlan, cohorts, planNotice } from "./plan.js";
+import { llmJSON } from "./llm.js";
 import { qlooTagInsights } from "./qloo.js";
 import { SAMPLE_NOTES } from "./sample.js";
 
@@ -398,6 +399,23 @@ async function api(req, env, ctx, url) {
     if (act && m !== "POST") return ERR("not found", 404); // plan actions change state: POST only
     const b = m === "POST" ? (await readJSON(req)) || {} : {};
     if (!act && m === "GET") return J({ plan: { ...plan, saved: !!row.saved } });
+    if (act === "plain") {
+      if (plan.plain) return J({ plain: plan.plain });
+      const seeds = ((plan.receipt || {}).seeds || []).map((x) => x.name);
+      const area = (JSON.parse(row.request || "{}").area || user.area || "").slice(0, 120);
+      const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
+      const MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
+      let stopsOut = [], note = null;
+      try {
+        const out = await llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence.",
+          `Things this person loves: ${seeds.join(", ")}. Area: ${area}. Plan ${(kinds.length || 3)} stops${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.`,
+          { name: "plain", schema: { type: "object", properties: { stops: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["stops"] } }, 600);
+        stopsOut = (out.stops || []).slice(0, 4).map((x) => ({ name: String(x.name || "").slice(0, 80), kind: String(x.kind || "").slice(0, 30), why: String(x.why || "").slice(0, 240) })).filter((x) => x.name);
+      } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
+      const plain = { model: MODEL, seeds, area, stops: stopsOut, note, verified: false };
+      if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
+      return J({ plain });
+    }
     if (act === "save") { await env.DB.prepare("UPDATE plans SET saved=1 WHERE id=?").bind(row.id).run(); return J({ plan: { ...plan, saved: true } }); }
     if (act === "went") {
       await env.DB.prepare("UPDATE plans SET went=? WHERE id=?").bind(b.went ? 1 : 0, row.id).run();

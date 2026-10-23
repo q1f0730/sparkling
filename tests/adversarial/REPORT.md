@@ -1,6 +1,6 @@
 # Sparkling adversarial test suite — report
 
-Run 2026-10-23, 12:00–13:20 Asia/Shanghai. Code under test: `src/` as deployed to `sparkling-dev` after the hardening patch (`tools/adv_harden.py`).
+Run 2026-10-23, 12:20–12:53 Asia/Shanghai. Code under test: `src/` as deployed to `sparkling-dev` after the hardening patch (`tools/adv_harden.py`).
 
 ## Totals
 

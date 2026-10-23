@@ -168,7 +168,7 @@ function slimPlace(e) {
   const lat = loc.lat ?? p.latitude, lon = loc.lon ?? loc.lng ?? p.longitude;
   const cats = placeCats(e);
   const kinds = cats.slice(0, 4);
-  const vibes = (e.tags || []).filter((t) => !TIME_TAG.test((t.name || "").trim()) && !/time_of_day/.test(t.type || "")).filter((t) => !/^(education learning|casual|shopping|convenient|restroom|clean|wi ?fi|takeout|delivery|dine in|quick bite|credit cards|debit cards|reservations?|walkable|good for groups)$/i.test((t.name || "").trim())).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenit|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price|age_range|customer|dietary|noise|crowd|restroom/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
+  const vibes = (e.tags || []).filter((t) => !TIME_TAG.test((t.name || "").trim()) && !/time_of_day/.test(t.type || "")).filter((t) => !/^(education learning|event catering|catering|food service|casual|shopping|convenient|restroom|clean|wi ?fi|takeout|delivery|dine in|quick bite|credit cards|debit cards|reservations?|walkable|good for groups)$/i.test((t.name || "").trim())).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenit|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price|age_range|customer|dietary|noise|crowd|restroom/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
   const hood = resolveNeighborhood(p, p.address);
   return {
     qloo_id: e.entity_id, name: e.name, address: p.address, ...hood,

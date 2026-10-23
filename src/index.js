@@ -22,8 +22,16 @@ const media = {
 
 function cookie(req, name) {
   const m = (req.headers.get("cookie") || "").match(new RegExp(`(?:^|; )${name}=([^;]+)`));
-  return m ? decodeURIComponent(m[1]) : null;
+  if (!m) return null;
+  try { return decodeURIComponent(m[1]); } catch (_) { return null; } // malformed %-escapes = no session, not a 500
 }
+// Request bodies: a JSON object or null (bad JSON, arrays, strings, null all count as malformed).
+async function readJSON(req) {
+  try { const b = await req.json(); return b && typeof b === "object" && !Array.isArray(b) ? b : null; } catch (_) { return null; }
+}
+const BAD_BODY = () => ERR("That request was not readable.", 400);
+const IMAGE_TYPES = /^image\/(jpeg|png|webp|gif|heic|heif|avif)$/;
+const strField = (v, n) => (typeof v === "string" ? v.trim().slice(0, n) : undefined);
 async function currentUser(env, req) {
   const t = cookie(req, "sp");
   if (!t) return null;
@@ -81,7 +89,7 @@ async function api(req, env, ctx, url) {
   const p = url.pathname, m = req.method;
 
   if (p === "/api/session" && m === "POST") {
-    const body = await req.json().catch(() => ({}));
+    const body = (await readJSON(req)) || {};
     const token = uid() + uid(), id = uid();
     const sample = body.mode === "sample";
     await env.DB.prepare("INSERT INTO users (id,token,sample,area,budget,whenx,created_at) VALUES (?,?,?,?,40,'Saturday afternoon',?)")
@@ -91,7 +99,7 @@ async function api(req, env, ctx, url) {
     return J({ user: pubUser(u) }, 200, { "set-cookie": `sp=${token}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=31536000` });
   }
 
-  if (p === "/api/signout" && m === "POST") return J({ ok: true }, 200, { "set-cookie": "sp=; Path=/; Max-Age=0" });
+  if (p === "/api/signout" && m === "POST") return J({ ok: true }, 200, { "set-cookie": "sp=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0" });
   const user = await currentUser(env, req);
   if (!user) return ERR("no session", 401);
   const U = user.id;
@@ -112,9 +120,17 @@ async function api(req, env, ctx, url) {
     return J({ user: pubUser(user), inbox_count: ib.n, pending: pending.n, did_you_go });
   }
   if (p === "/api/me" && m === "PATCH") {
-    const b = await req.json();
+    const b = await readJSON(req);
+    if (!b) return BAD_BODY();
+    for (const k of ["area", "when"]) if (b[k] != null && typeof b[k] !== "string") return ERR(`${k} must be text`);
+    let budget = null;
+    if (b.budget != null) {
+      const n = typeof b.budget === "number" || (typeof b.budget === "string" && b.budget.trim()) ? Number(b.budget) : NaN;
+      if (!Number.isFinite(n) || n < 0 || n > 100000) return ERR("Budget needs a number above zero.");
+      budget = Math.round(n);
+    }
     await env.DB.prepare("UPDATE users SET area=COALESCE(?,area), budget=COALESCE(?,budget), whenx=COALESCE(?,whenx) WHERE id=?")
-      .bind(b.area ?? null, b.budget ?? null, b.when ?? null, U).run();
+      .bind(strField(b.area, 120) ?? null, budget, strField(b.when, 80) ?? null, U).run();
     return J({ user: pubUser(await env.DB.prepare("SELECT * FROM users WHERE id=?").bind(U).first()) });
   }
 
@@ -131,8 +147,9 @@ async function api(req, env, ctx, url) {
     return J({ notes });
   }
   if (p === "/api/notes" && m === "POST") {
-    const b = await req.json();
-    const text = String(b.text || "").slice(0, 5000);
+    const b = await readJSON(req);
+    if (!b) return BAD_BODY();
+    const text = (typeof b.text === "string" || typeof b.text === "number" ? String(b.text) : "").slice(0, 5000);
     if (!text.trim()) return ERR("empty");
     const link = (text.match(/https?:\/\/\S+/) || [])[0];
     const id = uid(), now = Date.now();
@@ -141,10 +158,12 @@ async function api(req, env, ctx, url) {
     return J({ note: await noteOut(env, await env.DB.prepare("SELECT * FROM notes WHERE id=?").bind(id).first()) });
   }
   if (p === "/api/notes/photo" && m === "POST") {
-    const fd = await req.formData();
-    const file = fd.get("file"); const caption = String(fd.get("caption") || "");
+    let fd;
+    try { fd = await req.formData(); } catch (_) { return ERR("no file"); }
+    const file = fd.get("file"); const caption = String(fd.get("caption") || "").slice(0, 5000);
     if (!file || typeof file === "string") return ERR("no file");
     if (file.size > 8 * 1024 * 1024) return ERR("That image is too large (8 MB max).");
+    if (!IMAGE_TYPES.test(file.type || "")) return ERR("That file is not a photo (JPEG, PNG, WebP, GIF or HEIC).");
     const id = uid(), key = `${U}/${id}`, bytes = await file.arrayBuffer();
     await media.put(env, key, bytes, file.type || "image/jpeg");
     await env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,media_key,status,created_at) VALUES (?,?,?,'photo',?,'pending',?)").bind(id, U, caption, key, Date.now()).run();
@@ -168,7 +187,10 @@ async function api(req, env, ctx, url) {
       return J({ ok: true });
     }
     if (m === "PATCH") {
-      const b = await req.json();
+      const b = await readJSON(req);
+      if (!b || typeof b.text !== "string") return BAD_BODY();
+      if (!b.text.trim()) return ERR("empty"); // never wipe a note through an edit
+      b.text = b.text.slice(0, 5000);
       await env.DB.batch([
         env.DB.prepare("DELETE FROM footprints WHERE note_id=? AND user_id=?").bind(n.id, U),
         env.DB.prepare("DELETE FROM inbox WHERE note_id=? AND user_id=? AND status='open'").bind(n.id, U),
@@ -182,7 +204,8 @@ async function api(req, env, ctx, url) {
     if (!mm[1].startsWith(U + "/")) return ERR("not found", 404);
     const o = await media.get(env, mm[1]);
     if (!o) return ERR("not found", 404);
-    return new Response(o.body, { headers: { "content-type": o.type || "image/jpeg", "cache-control": "private, max-age=86400" } });
+    const type = IMAGE_TYPES.test(o.type || "") ? o.type : "application/octet-stream"; // older uploads were not type-checked
+    return new Response(o.body, { headers: { "content-type": type, "cache-control": "private, max-age=86400", "content-security-policy": "default-src 'none'; sandbox", ...(type.startsWith("image/") ? {} : { "content-disposition": "attachment" }) } });
   }
 
   // ---- cards
@@ -190,7 +213,7 @@ async function api(req, env, ctx, url) {
   if ((mm = p.match(/^\/api\/cards\/(\w+)$/))) {
     const c = await env.DB.prepare("SELECT * FROM cards WHERE id=? AND user_id=?").bind(mm[1], U).first();
     if (!c) return ERR("not found", 404);
-    if (m === "PATCH") { const b = await req.json(); await env.DB.prepare("UPDATE cards SET heart=? WHERE id=?").bind(Math.max(-1, Math.min(1, +b.heart || 0)), c.id).run(); }
+    if (m === "PATCH") { const b = await readJSON(req); if (!b) return BAD_BODY(); await env.DB.prepare("UPDATE cards SET heart=? WHERE id=?").bind(Math.max(-1, Math.min(1, Math.round(+b.heart) || 0)), c.id).run(); }
     if (m === "DELETE") {
       await env.DB.batch([env.DB.prepare("DELETE FROM footprints WHERE card_id=?").bind(c.id), env.DB.prepare("DELETE FROM cards WHERE id=?").bind(c.id)]);
       return J({ ok: true });
@@ -228,7 +251,12 @@ async function api(req, env, ctx, url) {
     for (const r of rows) await inboxAct(env, U, r.id, { action: "accept" });
     return J({ ok: true, accepted: rows.length });
   }
-  if ((mm = p.match(/^\/api\/inbox\/(\w+)$/)) && m === "POST") return J(await inboxAct(env, U, mm[1], await req.json()));
+  if ((mm = p.match(/^\/api\/inbox\/(\w+)$/)) && m === "POST") {
+    const b = await readJSON(req);
+    if (!b) return BAD_BODY();
+    const r = await inboxAct(env, U, mm[1], b);
+    return J(r, r.error === "not found" ? 404 : r.error ? 400 : 200);
+  }
 
   // ---- threads
   if (p === "/api/threads" && m === "GET") {
@@ -306,7 +334,11 @@ async function api(req, env, ctx, url) {
 
   // ---- plans
   if (p === "/api/plan" && m === "POST") {
-    const b = await req.json();
+    const b = await readJSON(req);
+    if (!b) return BAD_BODY();
+    if (b.area != null && typeof b.area !== "string") return ERR("area must be text");
+    if (typeof b.area === "string") b.area = b.area.trim().slice(0, 120);
+    if (b.text != null) b.text = String(b.text).slice(0, 1000);
     const { readable, writable } = new TransformStream();
     const w = writable.getWriter(), enc = new TextEncoder();
     const send = (o) => w.write(enc.encode(JSON.stringify(o) + "\n"));
@@ -334,15 +366,17 @@ async function api(req, env, ctx, url) {
     const row = await env.DB.prepare("SELECT * FROM plans WHERE id=? AND user_id=?").bind(mm[1], U).first();
     if (!row) return ERR("not found", 404);
     let plan = JSON.parse(row.plan); const pool = JSON.parse(row.pool || "[]"); const act = mm[2];
-    const b = m === "POST" ? await req.json().catch(() => ({})) : {};
+    if (act && m !== "POST") return ERR("not found", 404); // plan actions change state: POST only
+    const b = m === "POST" ? (await readJSON(req)) || {} : {};
     if (!act && m === "GET") return J({ plan: { ...plan, saved: !!row.saved } });
     if (act === "save") { await env.DB.prepare("UPDATE plans SET saved=1 WHERE id=?").bind(row.id).run(); return J({ plan: { ...plan, saved: true } }); }
     if (act === "went") {
       await env.DB.prepare("UPDATE plans SET went=? WHERE id=?").bind(b.went ? 1 : 0, row.id).run();
-      if (b.went && b.text) {
+      const stop = (plan.stops || [])[0];
+      if (b.went && typeof b.text === "string" && b.text.trim() && stop) {
+        b.text = b.text.slice(0, 5000);
         const nid = uid(), now = Date.now();
         await env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,status,created_at) VALUES (?,?,?,'text','pending',?)").bind(nid, U, b.text, now).run();
-        const stop = plan.stops[0];
         const cardId = await upsertCard(env, U, { qloo_id: stop.qloo_id, name: stop.name, type: "place", by: stop.neighborhood }, now);
         await addFootprint(env, U, cardId, nid, { kind: "visit", sentiment: "positive" }, now);
         const start = b.text.indexOf(stop.name);
@@ -355,7 +389,8 @@ async function api(req, env, ctx, url) {
     if (act === "swap" || act === "shorten" || act === "budget") {
       let stops = plan.stops.map((s) => ({ ...s, coords: s.coords, vibes: s.vibes || [], kind: s.kind }));
       if (act === "swap") {
-        const i = +b.index || 0, kind = stops[i]?.kind;
+        const i = Number.isInteger(+b.index) ? +b.index : 0, kind = stops[i]?.kind;
+        if (i < 0 || i >= stops.length) return ERR("There is no such stop.");
         const used = new Set([...(plan.swapped || []), ...stops.map((s) => s.qloo_id)]);
         const pl = pool.find((x) => x.kind === kind) || pool[i] || { items: [] };
         const next = pl.items.find((c) => !used.has(c.qloo_id));
@@ -368,7 +403,8 @@ async function api(req, env, ctx, url) {
         if (stops.length > 1) { plan.log = [...(plan.log || []), `You shortened the plan: dropped ${stops[stops.length - 1].name}.`]; stops = stops.slice(0, stops.length - 1); }
         else return J({ plan, notice: "It's already one stop." });
       } else if (act === "budget") {
-        const nb = Number(b.budget) || Math.max(10, (plan.meta?.budget || 40) - 15);
+        const asked = typeof b.budget === "number" || typeof b.budget === "string" ? Number(b.budget) : NaN;
+        const nb = Number.isFinite(asked) && asked > 0 ? Math.min(Math.round(asked), 100000) : Math.max(10, (plan.meta?.budget || 40) - 15);
         const maxP = nb <= 20 ? 1 : nb <= 40 ? 2 : 3;
         const fits = (s) => !s.price_level || s.price_level <= maxP;
         stops = stops.map((s, i) => (fits(s) ? s : ((pool.find((x) => x.kind === s.kind) || { items: [] }).items.find((c) => fits(c) && !stops.some((o) => o.qloo_id === c.qloo_id)) && { ...(pool.find((x) => x.kind === s.kind).items.find((c) => fits(c) && !stops.some((o) => o.qloo_id === c.qloo_id))), kind: s.kind }) || null)).filter(Boolean);
@@ -390,11 +426,12 @@ async function api(req, env, ctx, url) {
   if (p === "/api/import/letterboxd" && m === "POST") {
     let csv = "";
     const ct = req.headers.get("content-type") || "";
-    if (ct.includes("multipart")) { const f = (await req.formData()).get("file"); if (!f || typeof f === "string") return ERR("Choose your export file."); if (f.size > 3e6) return ERR("That file is too large."); csv = await f.text(); }
-    else csv = await req.text();
+    if (+(req.headers.get("content-length") || 0) > 3.5e6) return ERR("That file is too large.");
+    if (ct.includes("multipart")) { let f; try { f = (await req.formData()).get("file"); } catch (_) { return ERR("Choose your export file."); } if (!f || typeof f === "string") return ERR("Choose your export file."); if (f.size > 3e6) return ERR("That file is too large."); csv = await f.text(); }
+    else { csv = await req.text(); if (csv.length > 3e6) return ERR("That file is too large."); }
     const rows = parseLetterboxd(csv);
     if (!rows) return ERR("That doesn't look like a Letterboxd diary or reviews file.");
-    const stars = (r) => (r == null ? "" : " · " + "★".repeat(Math.floor(r)) + (r % 1 ? "½" : ""));
+    const stars = (r) => (r == null || !Number.isFinite(r) ? "" : " · " + "★".repeat(Math.max(0, Math.min(5, Math.floor(r)))) + (r % 1 ? "½" : ""));
     const stmts = rows.slice(0, 1000).map((r) => {
       const at = r.date ? Date.parse(r.date) || Date.now() : Date.now();
       const text = r.review || `${r.rewatch ? "Rewatched" : "Watched"} ${r.title}${r.year ? ` (${r.year})` : ""}${stars(r.rating)}`;
@@ -440,7 +477,7 @@ async function api(req, env, ctx, url) {
     return new Response(JSON.stringify(data, null, 2), { headers: { "content-type": "application/json", "content-disposition": "attachment; filename=sparkling-export.json" } });
   }
   if (p === "/api/delete" && m === "POST") {
-    const b = await req.json();
+    const b = (await readJSON(req)) || {};
     if (b.confirm !== "DELETE") return ERR("Type DELETE to confirm.");
     const keys = (await env.DB.prepare("SELECT media_key FROM notes WHERE user_id=? AND media_key IS NOT NULL").bind(U).all()).results || [];
     await env.DB.prepare("CREATE TABLE IF NOT EXISTS prefs (user_id TEXT PRIMARY KEY, json TEXT, updated_at INTEGER)").run();
@@ -482,7 +519,7 @@ async function inboxAct(env, U, id, b) {
   return { ok: true, card_id: cardId };
 }
 
-export default {
+const app = {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     try {
@@ -494,5 +531,18 @@ export default {
       console.log("error", e.message, e.stack);
       return ERR("Something went wrong. Your notes are safe.", 500);
     }
+  },
+};
+
+// Baseline security headers on every response (no sniffing, no framing, no referrer leak of ids). Added by the adversarial suite.
+export default {
+  async fetch(req, env, ctx) {
+    const res = await app.fetch(req, env, ctx);
+    try {
+      res.headers.set("x-content-type-options", "nosniff");
+      res.headers.set("x-frame-options", "DENY");
+      res.headers.set("referrer-policy", "same-origin");
+    } catch (_) {}
+    return res;
   },
 };

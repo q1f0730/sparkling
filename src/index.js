@@ -258,6 +258,35 @@ async function api(req, env, ctx, url) {
     return J(r, r.error === "not found" ? 404 : r.error ? 400 : 200);
   }
 
+  // ---- monthly taste letter (derived from your own cards and notes; no model call)
+  if (p === "/api/letter" && m === "GET") {
+    const all = (await cardsFor(env, U)).filter((c) => c.heart >= 0);
+    if (all.length < 3) return J({ letter: null, reason: "Your first letter arrives once a few notes have turned into cards." });
+    const byM = {}; for (const c of all) if (c.last_at) { const k = new Date(c.last_at).toISOString().slice(0, 7); byM[k] = (byM[k] || 0) + 1; }
+    const keys = Object.keys(byM).sort().slice(-3), best = keys.sort((x, y2) => byM[y2] - byM[x] || (x < y2 ? 1 : -1))[0];
+    const lastAt = Date.parse(best + "-15T00:00:00Z");
+    const d = new Date(lastAt), y = d.getUTCFullYear(), mo = d.getUTCMonth();
+    const from = Date.UTC(y, mo, 1), to = Date.UTC(y, mo + 1, 1);
+    const inMonth = all.filter((c) => (c.last_at || 0) >= from && (c.last_at || 0) < to);
+    const fresh = all.filter((c) => (c.first_at || 0) >= from && (c.first_at || 0) < to);
+    const month = new Date(from).toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+    const returns = [...inMonth].sort((a, b) => b.footprints - a.footprints).slice(0, 3).filter((c) => c.footprints >= 2);
+    const mix = {}; for (const c of inMonth) mix[c.type] = (mix[c.type] || 0) + 1;
+    const tagCount = {}; for (const c of inMonth) for (const t of c.tags || []) tagCount[t] = (tagCount[t] || 0) + 1;
+    const themes = Object.entries(tagCount).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, n]) => ({ name, cards: n }));
+    const q = await env.DB.prepare("SELECT f.quote, n.text, f.created_at, c.name, c.id FROM footprints f JOIN notes n ON n.id=f.note_id JOIN cards c ON c.id=f.card_id WHERE c.user_id=? AND f.sentiment!='negative' AND f.created_at>=? AND f.created_at<? ORDER BY length(n.text) DESC LIMIT 3").bind(U, from, to).all().catch(() => null);
+    const words = ((q && q.results) || []).map((r) => ({ text: r.text, card: r.name, card_id: r.id, at: r.created_at }));
+    const word = { film: "films", tv: "shows", music: "artists", book: "books", place: "places", other: "things" };
+    const lead = Object.entries(mix).sort((a, b) => b[1] - a[1])[0];
+    const para = [];
+    para.push(`${fresh.length} new ${fresh.length === 1 ? "card" : "cards"} joined your wall in ${month}` + (lead ? `, and mostly it was ${word[lead[0]] || "things"} (${lead[1]} of ${inMonth.length} you touched).` : "."));
+    if (returns.length) para.push(`You went back to ${returns.map((c) => c.name).join(", ")} more than anything else.`);
+    if (themes.length) para.push(`The tags that kept showing up across your cards: ${themes.map((t) => t.name).join(", ")}.`);
+    const gaps = ["film", "music", "book", "place"].filter((t) => !mix[t]).map((t) => word[t]);
+    if (gaps.length) para.push(`Nothing from ${gaps.join(" or ")} this month. That is not a verdict, just an empty shelf.`);
+    return J({ letter: { month, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, your_words: words, paragraphs: para, receipt: "Computed from your cards, footprints and Qloo tags. No model wrote this." } });
+  }
+
   // ---- threads
   if (p === "/api/threads" && m === "GET") {
     const all = (await cardsFor(env, U)).filter((c) => c.heart >= 0 && c.footprints >= 1);

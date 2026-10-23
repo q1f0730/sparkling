@@ -94,6 +94,18 @@ async function placeTag(env, word) {
   return exact ? { id: exact.id || exact.tag_id, name: exact.name } : null;
 }
 
+
+// Keep the model's sentence only if every descriptive word traces to Qloo's facts; else a plain template.
+const READ_OK = new Set("you your youll the a an and of to in for on at it its is be this that with as by from or place spot shop store find enjoy will can good fit fits suits suit feel feels mood kind like same near close nearby afternoon day visit stop here there small space time worth take keep keeps returning back vibe vibes".split(" "));
+function groundedRead(txt, s) {
+  const facts = [s.kind, s.name, s.description, ...(s.vibes || [])].join(" ").toLowerCase();
+  const vibes = (s.vibes || []).slice(0, 2).map((v) => String(v).toLowerCase());
+  const tpl = `A ${String(s.kind || "place").toLowerCase()}${vibes.length ? ", tagged " + vibes.join(" and ") + " by Qloo" : ""}.`;
+  if (!txt) return tpl;
+  const words = String(txt).toLowerCase().replace(/[^a-z\s']/g, " ").split(/\s+/).filter((w) => w.length > 3);
+  const bad = words.filter((w) => !READ_OK.has(w) && !facts.includes(w.replace(/s$/, "")));
+  return bad.length > 1 ? tpl : txt;
+}
 const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", items: { type: "string" } } }, required: ["reads"] };
 
 /**
@@ -300,7 +312,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
         return { attribution: !!cf, contributions: cf, affinity: s.affinity ?? null, qloo_id: s.qloo_id, popularity: s.popularity ?? null, vibes: (s.vibes || []).slice(0, 6), kinds: s.kinds || [], price_level: s.price_level ?? null, area: meta.area, seeds_sent: seedNames.length };
       })(),
       from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Qloo matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
-      read: reads[i] || (s.description ? s.description.replace(/\s+/g, " ").split(/(?<=[.!?])\s/)[0].slice(0, 160) : ""),
+      read: groundedRead(reads[i], s),
       ops: hoursLine(s.hours, meta.when),
       map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.name, s.address].filter(Boolean).join(", "))}`,
       coords: s.coords, vibes: s.vibes, description: s.description, hours: s.hours, price_level: s.price_level,

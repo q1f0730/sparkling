@@ -448,7 +448,9 @@ export function inboxReason(mention, guesses) {
 async function recognizeImport(env, userId, note) {
   const meta = JSON.parse(note.meta || "{}");
   try {
-    const res = await qsearch(env, meta.title, TYPE_URNS.film, 5);
+    let res;
+    try { res = await qsearch(env, meta.title, TYPE_URNS.film, 5); }
+    catch (_) { await new Promise((r) => setTimeout(r, 700)); res = await qsearch(env, meta.title, TYPE_URNS.film, 5); }
     const t = norm(meta.title);
     const hits = res.filter((r) => norm(r.name) === t && r.type === "film");
     const exact = hits.find((r) => meta.year && r.year === String(meta.year));
@@ -467,7 +469,9 @@ async function recognizeImport(env, userId, note) {
     }
     await env.DB.prepare("UPDATE notes SET mentions=?, status='done' WHERE id=?").bind(JSON.stringify([mention]), note.id).run();
   } catch (e) {
-    await env.DB.prepare("UPDATE notes SET status='failed' WHERE id=?").bind(note.id).run();
+    // Transient Qloo errors: back to pending up to 3 tries, with the reason kept for debugging.
+    const tries = (meta.tries || 0) + 1;
+    await env.DB.prepare("UPDATE notes SET status=?, meta=? WHERE id=?").bind(tries < 3 ? "pending" : "failed", JSON.stringify({ ...meta, error: String(e.message || e).slice(0, 300), tries }), note.id).run();
   }
 }
 

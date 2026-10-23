@@ -99,7 +99,8 @@ for (let i = 0; i < 60; i++) {
   const area = ["Greenpoint, Brooklyn", "Greenpoint", "", null][Math.floor(R() * 4)];
   const widened = R() > 0.3;
   add("plan.notice", `case${i}:type`, () => { const n = planNotice(stops, area, widened); ok(n === null || typeof n === "string"); });
-  add("plan.notice", `case${i}:silent_when_not_widened`, () => { if (!widened) eq(planNotice(stops, area, widened), null); });
+  // Contract changed 10-23 (plan quality): an out-of-area stop is always named for a known NYC neighbourhood, widened or not.
+  add("plan.notice", `case${i}:silent_unless_outside`, () => { const n = planNotice(stops, area, widened); const aw = String(area || "").split(",")[0].trim().toLowerCase(); const out = stops.filter((s) => s.neighborhood && s.neighborhood.toLowerCase() !== aw); if (!out.length) eq(n, null); else if (!widened && !aw) eq(n, null); else if (aw) ok(out.every((s) => n && n.includes(s.neighborhood)), "notice must name " + out.map((s) => s.neighborhood)); });
   add("plan.notice", `case${i}:no_undefined_text`, () => { const n = planNotice(stops, area, widened); ok(!n || !/undefined|null/.test(n), n); });
 }
 for (let len = 0; len <= 30; len++) {

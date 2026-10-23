@@ -345,7 +345,7 @@ async function api(req, env, ctx, url) {
     const stem = (w) => w.toLowerCase().replace(/(acy|ate|ity|ness|ive|al|s)$/,"");
     const merged = [];
     for (const t of threads) {
-      const key = t.cards.map((c) => c.id).join(",");
+      const key = t.carried_by_cards ? t.cards.map((c) => c.id).join(",") : "u:" + stem(t.tag);
       const same = merged.find((m) => m.key === key);
       if (same) {
         if (!same.tags.some((x) => stem(x) === stem(t.tag))) { same.tags.push(t.tag); same.qloo_tags.push(...t.qloo_tags); if (!same.shift || same.shift === "Steady") same.shift = t.shift || same.shift; }
@@ -357,9 +357,10 @@ async function api(req, env, ctx, url) {
     const input = heavy.map((c) => ({ qloo_id: c.qloo_id, name: c.name }));
     for (const m of merged) {
       const { key, tags, ...rest } = m;
-      threads.push({ ...rest, tag: tags.slice(0, 3).join(" · "), read: m.carried_by_cards ? m.read : `Qloo reads ${tags.length > 1 ? "these" : "this"} across ${period === "now" ? "your most recent cards" : period === "then" ? "your earlier cards" : "the cards you return to most"}, not from any single one.`,
+      threads.push({ ...rest, tag: tags.slice(0, 2).join(" · "), read: m.carried_by_cards ? m.read : `Qloo reads ${tags.length > 1 ? "these" : "this"} across ${period === "now" ? "your most recent cards" : period === "then" ? "your earlier cards" : "the cards you return to most"}, not from any single one.`,
         receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": input, tag_ids: m.qloo_tags.map((q) => q.id) } });
     }
+    threads.splice(5);
     const pick = (arr) => arr.slice(0, 6).map((t) => t.name);
     return J({
       threads, period,

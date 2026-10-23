@@ -81,7 +81,13 @@ async function recognizePending(env, userId, limit = 6) {
   const rows = (await env.DB.prepare("SELECT id FROM notes WHERE user_id=? AND status='pending' ORDER BY created_at LIMIT ?").bind(userId, limit).all()).results || [];
   for (const r of rows) {
     try { await Promise.race([recognizeNote(env, userId, r.id), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 25000))]); }
-    catch (e) { await env.DB.prepare("UPDATE notes SET meta=? WHERE id=? AND status='pending'").bind(JSON.stringify({ error: String(e.message), tries: 1 }), r.id).run(); }
+    catch (e) {
+      // Timeout path used to reset tries to 1 forever; count it so a note that always times out ends as failed (retryable from the UI).
+      const cur = await env.DB.prepare("SELECT meta FROM notes WHERE id=?").bind(r.id).first();
+      let t = 0; try { t = JSON.parse(cur?.meta || "{}").tries || 0; } catch {}
+      t += 1;
+      await env.DB.prepare("UPDATE notes SET status=?, meta=? WHERE id=? AND status='pending'").bind(t < 3 ? "pending" : "failed", JSON.stringify({ error: String(e.message), tries: t }), r.id).run();
+    }
   }
   return rows.length;
 }

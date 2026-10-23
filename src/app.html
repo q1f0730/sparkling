@@ -1855,7 +1855,7 @@ function trZh(s){
   const raw = String(s);
   const key = raw.trim();
   if (!key) return raw;
-  let out = ZH[key];
+  let out = Object.prototype.hasOwnProperty.call(ZH, key) ? ZH[key] : null; // "constructor"/"toString" are not UI strings
   if (out == null) {
     for (let i = 0; i < ZH_PATTERNS.length; i++) {
       const m = key.match(ZH_PATTERNS[i][0]);

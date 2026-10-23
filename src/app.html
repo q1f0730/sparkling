@@ -1693,7 +1693,7 @@ const ZH = {
   "Remove footprint": "移除足迹", "Footprint removed.": "足迹已移除。", "Not about this?": "说的不是这个？", "Not about this": "说的不是这个",
   "Not about this footprint": "这条足迹说的不是这个", "This footprint will be removed from the card. Your note stays in your notebook.": "这条足迹会从卡片上移除，笔记仍留在笔记本里。",
   "From Qloo": "来自 Qloo", "Qloo catalogue data": "Qloo 目录数据", "From your notes": "来自你的笔记", "From the sample notebook": "来自示例笔记本",
-  "From your Letterboxd export": "来自你的 Letterboxd 导出", "First met": "初次相遇", "First watch": "初看", "Rewatch": "重看",
+  "From your Letterboxd export": "来自你的 Letterboxd 导出", "First met": "初次相遇", "mentioned once": "提到过一次", "First watch": "初看", "Rewatch": "重看",
   "Listen": "听", "Read": "读", "Visit": "去过", "Your view changed": "你的看法变了", "A little different": "有点不一样", "Familiar": "熟悉",
   "This card did not load. Check your connection, then try again.": "卡片没加载出来。检查网络后再试一次。",
   "This card is gone.": "这张卡片不在了。", "This card is no longer here.": "这张卡片已经不在了。",
@@ -1826,6 +1826,7 @@ const ZH_PATTERNS = [
   [/^(.+)\. (Film|TV|Music|Book|Place|Other)( \u00b7 \d{4})?\. (\d+) footprints?$/, function(m, name, ty, yr, n){ return name + "。" + ZH[ty] + (yr || "") + "。" + n + " 条足迹"; }],
   [/^(.+), (\d+) footprints?$/, function(m, name, n){ return name + "，" + n + " 条足迹"; }],
   [/^(\d+) of (\d+)$/, function(m, a, b){ return "第 " + a + " 项，共 " + b + " 项"; }],
+  [/^mentioned (\d+) times$/, function(m){ return "提到过 " + m[1] + " 次"; }],
   [/^First met (.+)$/, function(m, w){ return "初次相遇 " + trZh(w); }],
   [/^last (\d{1,2} \w{3}( \d{4})?|today|yesterday|\w{3})$/, function(m, w){ return "最近 " + trZh(w); }],
   [/^by (.+)$/, function(m, w){ return w; }],
@@ -4345,7 +4346,7 @@ function renderCardDetail(id){
     const last = card.last_at || (newest && newest.created_at);
     const bits = [];
     if (first) bits.push("First met " + monthYear(first));
-    bits.push(n + " " + plural(n, "time", "times") + " since");
+    bits.push(n === 1 ? "mentioned once" : "mentioned " + n + " times");
     if (last) {
       const seen = lastSeen(last);
       bits.push(seen === "today" || seen === "yesterday" ? "last seen " + seen : "last " + seen);

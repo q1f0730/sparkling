@@ -1718,7 +1718,7 @@ const ZH = {
   "On iPhone, add Sparkling to your Home Screen first, then open it from there.": "在 iPhone 上，请先把 Sparkling 添加到主屏幕，再从主屏幕打开。",
   "Notifications are on": "通知已开启", "Sparkling will only tell you about things you started.": "Sparkling 只会告诉你你自己开始的事情。",
   "Not now": "暂不", "On": "", "around": "在", "under $": "预算 $",
-  "again": "再次提到", "new card": "新卡片", "Take a look": "看一眼", "Take a photo": "拍照", "Choose from library": "从相册选择",
+  "again": "再次提到", "new card": "新卡片", "Take a look": "看一眼", "Inbox": "收件箱", "Take a photo": "拍照", "Choose from library": "从相册选择",
   "· Qloo reads these across the cards you return to most, not from any single one.": "· 这是 Qloo 从你最常回到的那几张卡片整体读出的，不来自任何单独一张。",
   "Exports include every note and card. Deleting removes your notebook from the server.": "导出包含所有笔记和卡片。删除会把你的笔记本从服务器上移除。",
   "Open-source hackathon build for the Qloo Taste AI challenge.": "为 Qloo Taste AI 挑战赛打造的开源黑客松版本。",
@@ -4722,7 +4722,7 @@ function renderThreads(){
    --------------------------------------------------------------------------- */
 function renderInbox(){
   const token = beginView();
-  setShell({ title: "Take a look", back: state.lastMain || "#/notes", tabs: false });
+  setShell({ title: "Inbox", back: state.lastMain || "#/notes", tabs: false });
   const ac = abortable();
 
   view.innerHTML =

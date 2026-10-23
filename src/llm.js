@@ -1,6 +1,8 @@
 // Small helpers around Workers AI. The model writes copy and picks among Qloo candidates;
 // it never supplies an entity of its own.
-const JSON_MODELS = ["@cf/meta/llama-4-scout-17b-16e-instruct", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"];
+// 70B fp8-fast first: measured 10-23 at 1.4-5.5 s per call vs 7.7-9.9 s for llama-4-scout, with cleaner extraction
+// (fills music_work, no "radio"/"laundromat" mentions). Scout stays as the fallback.
+const JSON_MODELS = ["@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/meta/llama-4-scout-17b-16e-instruct"];
 
 function parseLoose(t) {
   if (t && typeof t === "object") return t;

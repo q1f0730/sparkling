@@ -69,7 +69,10 @@ async function seedSample(env, userId) {
 
 async function recognizePending(env, userId, limit = 6) {
   const rows = (await env.DB.prepare("SELECT id FROM notes WHERE user_id=? AND status='pending' ORDER BY created_at LIMIT ?").bind(userId, limit).all()).results || [];
-  for (const r of rows) await recognizeNote(env, userId, r.id);
+  for (const r of rows) {
+    try { await Promise.race([recognizeNote(env, userId, r.id), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 25000))]); }
+    catch (e) { await env.DB.prepare("UPDATE notes SET meta=? WHERE id=? AND status='pending'").bind(JSON.stringify({ error: String(e.message), tries: 1 }), r.id).run(); }
+  }
   return rows.length;
 }
 
@@ -91,6 +94,12 @@ async function api(req, env, ctx, url) {
   const user = await currentUser(env, req);
   if (!user) return ERR("no session", 401);
   const U = user.id;
+
+  if (p === "/api/notes/retry" && m === "POST") {
+    const r = await env.DB.prepare("UPDATE notes SET status='pending', meta=NULL WHERE user_id=? AND status='failed'").bind(U).run();
+    ctx.waitUntil(recognizePending(env, U));
+    return J({ requeued: r.meta?.changes ?? 0 });
+  }
 
   if (p === "/api/me" && m === "GET") {
     const ib = await env.DB.prepare("SELECT COUNT(*) n FROM inbox WHERE user_id=? AND status='open'").bind(U).first();

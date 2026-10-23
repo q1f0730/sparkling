@@ -5125,6 +5125,7 @@ function renderInbox(){
       ? '<div class="guess-best">' +
           '<span class="guess-name">' + esc(best.name || "Unnamed") + "</span>" +
           '<span class="guess-meta">' + esc(guessMeta(best)) + "</span>" +
+          (item.reason ? '<span class="guess-meta" style="display:block;margin-top:4px;font-style:italic">' + esc(item.reason) + "</span>" : "") +
         "</div>"
       : '<p class="compact-empty">No close match this time.</p>';
     const altHTML = alternatives.length
@@ -5683,6 +5684,7 @@ function renderPlanResult(id){
           (stop && stop.arrive ? '<p class="stop-time">' + esc(stop.arrive) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + " min" : "") + "</p>" : "") +
           '<h3 class="stop-name">' + esc((stop && stop.name) || "Somewhere") + "</h3>" +
           '<p class="stop-where">' + esc([stop && stop.kind, place].filter(Boolean).join(" · ")) + "</p>" +
+          (stop && (stop.open_on_arrival!=null || (stop.checks&&stop.checks.length)) ? '<p class="stop-where" style="font-family:\'DM Mono\',monospace;font-size:11px;opacity:.7">' + esc([stop.open_on_arrival ? "open on arrival" : "", Array.isArray(stop.checks)?stop.checks.join(" · "):""].filter(Boolean).join(" · ")) + "</p>" : "") +
         "</div>" +
       "</div>" +
       '<div class="evidence">' +

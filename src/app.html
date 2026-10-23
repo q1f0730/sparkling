@@ -683,6 +683,7 @@ svg{flex:0 0 auto}
 .settings-actions{display:flex;gap:7px;flex-wrap:wrap}
 
 /* ---- import (shared) ---- */
+.import-block{background:var(--b-card,#fffdf8);border:1px solid var(--b-line,#e5dfd0);border-radius:20px;padding:16px;margin:16px 0}
 .import-block .settings-title{font-size:14px}
 .import-intro{font-size:12.5px;line-height:1.55;color:var(--muted);margin:0 0 12px}
 .import-result-title{font-family:var(--serif);font-size:24px;line-height:1.1;margin:4px 0 7px;font-weight:400}
@@ -1813,7 +1814,7 @@ const ZH = {
   // import
   "How to get your export": "如何拿到导出文件", "Open Letterboxd on the web and sign in.": "在网页上打开 Letterboxd 并登录。",
   "Go to Settings, then Import and export.": "进入 Settings，再点 Import & Export。", "Choose Export your data and download the zip.": "选择 Export Your Data，下载 zip 文件。",
-  "Unzip it, then choose diary.csv here.": "解压后，在这里选择 diary.csv。", "Choose your export file": "选择导出文件", "Import file": "导入文件",
+  "Unzip it, then choose diary.csv here.": "解压后，在这里选择 diary.csv。", "Choose your export file": "选择导出文件", "Import file": "导入文件", "Import": "导入",
   "No file chosen": "未选择文件", "Choose the diary file from your export. It stays on your server and is discarded after the import.": "从导出文件里选 diary 文件。它只在你的服务器上处理，导入完就删除。",
   "Start from your Letterboxd export. Titles with dates become footprints; anything less certain waits in the inbox.": "用 Letterboxd 导出文件开始。带日期的片名会变成足迹，拿不准的会放进待确认。",
   "Titles with dates become footprints. Anything less certain waits for you in the inbox.": "带日期的片名会变成足迹，拿不准的会在待确认里等你。",
@@ -5936,7 +5937,7 @@ function stGroup(header, rows, footer){
 }
 
 function settingsTitle(page){
-  return { "": "Settings", notifications: "Notifications", language: "Language", appearance: "Appearance", planning: "Planning defaults", import: "Import from Letterboxd", about: "About", qloo: "How Sparkling uses Qloo" }[page || ""];
+  return { "": "Settings", notifications: "Notifications", language: "Language", appearance: "Appearance", planning: "Planning defaults", import: "Import", about: "About", qloo: "How Sparkling uses Qloo" }[page || ""];
 }
 
 function renderSettings(page){

@@ -245,7 +245,11 @@ export async function recognizeNote(env, userId, noteId) {
     await env.DB.prepare("UPDATE notes SET mentions=?, status='done' WHERE id=?").bind(JSON.stringify(mentions), noteId).run();
   } catch (e) {
     console.log("recognize failed", e.message);
-    await env.DB.prepare("UPDATE notes SET status='failed', meta=? WHERE id=?").bind(JSON.stringify({ error: String(e.message || e).slice(0, 300) }), noteId).run();
+    let tries = 0;
+    try { tries = (JSON.parse(note.meta || "{}").tries || 0) + 1; } catch {}
+    // Transient errors (quota, timeouts) go back to pending up to 3 times; then the note stays failed with the reason.
+    const status = tries < 3 ? "pending" : "failed";
+    await env.DB.prepare("UPDATE notes SET status=?, meta=? WHERE id=?").bind(status, JSON.stringify({ error: String(e.message || e).slice(0, 300), tries }), noteId).run();
   }
 }
 

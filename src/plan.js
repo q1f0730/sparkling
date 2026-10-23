@@ -8,7 +8,7 @@ const BASE = "https://hackathon.api.qloo.com";
 async function qloo(env, path, params) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && !v.length)) qs.set(k, Array.isArray(v) ? v.join(",") : String(v));
-  const r = await fetch(`${BASE}${path}?${qs}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" } });
+  const r = await fetch(`${BASE}${path}?${qs}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
   const t = await r.text();
   if (!r.ok) throw Object.assign(new Error(`Qloo ${path} ${r.status}`), { status: r.status, body: t.slice(0, 200) });
   return JSON.parse(t);
@@ -19,7 +19,8 @@ function haversineMi(a, b) {
   const R = 3958.8, rad = Math.PI / 180;
   const dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
   const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(x));
+  const d = 2 * R * Math.asin(Math.sqrt(x));
+  return Number.isFinite(d) ? d : null;
 }
 
 function slimPlace(e) {
@@ -107,7 +108,8 @@ export async function makePlan(env, user, req, log) {
   const kinds = await stopKinds(env, req.text);
   log(`Looking for: ${kinds.join(", then ")}, around ${area}.`);
   const known = new Set(all.map((c) => c.qloo_id));
-  const budget = Number(req.budget || user.budget || 40);
+  const num = (v) => { const n = typeof v === "number" || (typeof v === "string" && v.trim()) ? Number(v) : NaN; return Number.isFinite(n) && n > 0 ? Math.min(n, 100000) : null; };
+  const budget = num(req.budget) ?? num(user.budget) ?? 40;
   const maxPrice = budget <= 20 ? 1 : budget <= 40 ? 2 : budget <= 80 ? 3 : 4;
   const pools = [];
   const ask = async (k, tag, loc) => {
@@ -214,10 +216,10 @@ function hoursLine(hours, when) {
   const day = DAYS.find((d) => (when || "").toLowerCase().includes(d)) || "saturday";
   const h = hours && hours[day];
   const cap = day[0].toUpperCase() + day.slice(1);
-  if (!h || !h.length) return "Hours not listed";
+  if (!Array.isArray(h) || !h.length || !h[0]) return "Hours not listed";
   if (h[0].closed) return `Qloo lists it closed on ${cap}s · not live-checked`;
   const t = (x) => (x || "").replace(/^T/, "").slice(0, 5);
-  return `Qloo lists ${cap} ${h.map((x) => `${t(x.opens)}–${t(x.closes)}`).join(", ")} · not live-checked`;
+  return `Qloo lists ${cap} ${h.filter(Boolean).map((x) => `${t(x.opens)}–${t(x.closes)}`).join(", ")} · not live-checked`;
 }
 
 /** Labelled reasons for each stop. */

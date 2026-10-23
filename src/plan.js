@@ -23,14 +23,156 @@ function haversineMi(a, b) {
   return Number.isFinite(d) ? d : null;
 }
 
+// ---- Place facts and validation (every stop must pass these; see tests/plan-quality.test.mjs)
+// NYC ZIP -> neighbourhoods that ZIP plausibly belongs to (first = default). Border ZIPs list both sides.
+const ZIP_HOODS = {
+  "11201": ["Brooklyn Heights", "DUMBO", "Downtown Brooklyn", "Cobble Hill"], "11205": ["Fort Greene", "Clinton Hill"], "11206": ["Williamsburg", "East Williamsburg", "Bushwick", "Bedford-Stuyvesant"],
+  "11207": ["East New York", "Bushwick"], "11208": ["East New York", "Cypress Hills"], "11209": ["Bay Ridge"], "11210": ["Flatbush", "Midwood"], "11211": ["Williamsburg", "East Williamsburg", "Greenpoint"],
+  "11212": ["Brownsville"], "11213": ["Crown Heights"], "11214": ["Bensonhurst", "Bath Beach"], "11215": ["Park Slope", "Windsor Terrace", "Gowanus"], "11216": ["Bedford-Stuyvesant", "Crown Heights"],
+  "11217": ["Boerum Hill", "Park Slope", "Prospect Heights", "Fort Greene", "Gowanus"], "11218": ["Kensington", "Windsor Terrace", "Ditmas Park"], "11219": ["Borough Park"], "11220": ["Sunset Park"],
+  "11221": ["Bushwick", "Bedford-Stuyvesant"], "11222": ["Greenpoint", "Williamsburg"], "11223": ["Gravesend"], "11224": ["Coney Island"], "11225": ["Prospect Lefferts Gardens", "Crown Heights", "Flatbush"],
+  "11226": ["Flatbush", "Ditmas Park"], "11228": ["Dyker Heights"], "11229": ["Sheepshead Bay"], "11230": ["Midwood"], "11231": ["Carroll Gardens", "Red Hook", "Cobble Hill", "Gowanus"], "11232": ["Sunset Park", "Greenwood Heights"],
+  "11233": ["Bedford-Stuyvesant", "Ocean Hill"], "11234": ["Marine Park"], "11235": ["Brighton Beach"], "11236": ["Canarsie"], "11237": ["Bushwick", "Ridgewood"], "11238": ["Prospect Heights", "Crown Heights", "Clinton Hill"], "11249": ["Williamsburg"],
+  "10001": ["Chelsea", "Hudson Yards"], "10002": ["Lower East Side", "Chinatown"], "10003": ["East Village", "Greenwich Village", "Union Square", "Gramercy"], "10004": ["Financial District"], "10005": ["Financial District"],
+  "10006": ["Financial District"], "10007": ["Tribeca"], "10009": ["East Village", "Alphabet City"], "10010": ["Gramercy", "Flatiron"], "10011": ["Chelsea", "West Village"], "10012": ["SoHo", "Greenwich Village", "NoHo", "Nolita"],
+  "10013": ["SoHo", "Tribeca", "Chinatown", "Little Italy"], "10014": ["West Village", "Greenwich Village"], "10016": ["Murray Hill", "Kips Bay"], "10017": ["Midtown East"], "10018": ["Midtown", "Garment District"],
+  "10019": ["Midtown West", "Hell's Kitchen"], "10021": ["Upper East Side"], "10022": ["Midtown East"], "10023": ["Upper West Side"], "10024": ["Upper West Side"], "10025": ["Upper West Side", "Morningside Heights"],
+  "10026": ["Harlem"], "10027": ["Harlem", "Morningside Heights"], "10028": ["Upper East Side"], "10029": ["East Harlem"], "10030": ["Harlem"], "10031": ["Hamilton Heights"], "10032": ["Washington Heights"],
+  "10033": ["Washington Heights"], "10034": ["Inwood"], "10035": ["East Harlem"], "10036": ["Midtown", "Hell's Kitchen", "Times Square"], "10037": ["Harlem"], "10038": ["Financial District", "Seaport"], "10039": ["Harlem"],
+  "10040": ["Washington Heights"], "10044": ["Roosevelt Island"], "10065": ["Upper East Side"], "10069": ["Upper West Side"], "10075": ["Upper East Side"], "10128": ["Upper East Side"], "10280": ["Battery Park City"], "10282": ["Battery Park City"],
+  "11101": ["Long Island City"], "11102": ["Astoria"], "11103": ["Astoria"], "11104": ["Sunnyside"], "11105": ["Astoria"], "11106": ["Astoria"], "11109": ["Long Island City"], "11354": ["Flushing"], "11355": ["Flushing"],
+  "11372": ["Jackson Heights"], "11373": ["Elmhurst"], "11375": ["Forest Hills"], "11377": ["Woodside"], "11385": ["Ridgewood"],
+};
+const lc = (s) => String(s || "").toLowerCase().trim();
+const title = (s) => String(s || "").toLowerCase().replace(/(^|[\s-])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+export const zipOf = (address) => (String(address || "").match(/\b(1[01]\d{3})(?:-\d{4})?\s*$/) || String(address || "").match(/,\s*NY\s+(1[01]\d{3})\b/) || [])[1] || null;
+
+/** One neighbourhood per place, consistent with its street address (Qloo's own label can disagree with the ZIP). */
+export function resolveNeighborhood(p, address) {
+  const zip = zipOf(address);
+  const set = zip ? ZIP_HOODS[zip] : null;
+  const locs = Array.isArray(p?.localities) ? p.localities : [];
+  const fromLocs = locs.find((l) => l && l.place === "neighbourhood")?.name;
+  const qloo = p?.neighborhood || p?.geocode?.name || null;
+  const inSet = (h) => h && set && set.some((x) => lc(x) === lc(h));
+  let hood, source;
+  if (set) {
+    if (inSet(fromLocs)) { hood = fromLocs; source = "qloo+zip"; }
+    else if (inSet(qloo)) { hood = qloo; source = "qloo+zip"; }
+    else { hood = set[0]; source = "zip"; }
+  } else { hood = fromLocs || qloo || null; source = hood ? "qloo" : null; }
+  const borough = locs.find((l) => l && l.place === "borough")?.name || null;
+  return { neighborhood: hood ? (hood === hood.toUpperCase() ? title(hood) : hood) : null, zip, borough, hood_source: source, qloo_neighborhood: qloo };
+}
+
+// Requested kind -> which Qloo primary genres count as that kind. A place is shown with its own primary genre.
+const KIND_RULES = [
+  { re: /book|librar/, ok: /^(book store|used book store|bookstore|comic book store|library|rare book store)$/i, tag: "urn:tag:genre:place:book_store" },
+  { re: /record|vinyl|music store/, ok: /^(record store|music store|vinyl record store)$/i, tag: "urn:tag:genre:place:record_store" },
+  { re: /cafe|coffee|tea|espresso/, ok: /^(cafe|coffee shop|coffee roasters|espresso bar|tea house|tea room|bakery|patisserie|pastry shop|internet cafe|bubble tea store|dessert shop|pie shop)$/i, tag: "urn:tag:category:place:coffee_shop" },
+  { re: /bakery/, ok: /^(bakery|patisserie|pastry shop|cafe|coffee shop|pie shop)$/i, tag: "urn:tag:genre:place:restaurant:bakery" },
+  { re: /cinema|movie|film/, ok: /^(movie theater|cinema|art house cinema|independent movie theater|drive-in movie theater|film archive)$/i, tag: "urn:tag:genre:place:movie_theater" },
+  { re: /museum/, ok: /^(museum|art museum|history museum|science museum|art gallery)$/i, tag: "urn:tag:genre:place:museum" },
+  { re: /galler/, ok: /^(art gallery|museum|art museum|art center)$/i, tag: "urn:tag:genre:place:art_gallery" },
+  { re: /wine/, ok: /^(wine bar|bar|cocktail bar|wine store)$/i, tag: "urn:tag:genre:place:restaurant:wine_bar" },
+  { re: /jazz|music venue|live music/, ok: /^(jazz club|live music venue|music venue|concert hall|night club|bar)$/i, tag: "urn:tag:genre:place:live_music_venue" },
+  { re: /^bar$|pub|cocktail/, ok: /^(bar|cocktail bar|wine bar|pub|lounge|speakeasy|beer bar|brewery)$/i, tag: "urn:tag:genre:place:restaurant:bar" },
+  { re: /park|garden/, ok: /^(park|garden|botanical garden|state park|city park|playground)$/i, tag: "urn:tag:genre:place:park" },
+  { re: /restaurant|dinner|lunch/, ok: /restaurant|bistro|eatery|diner/i, tag: null },
+];
+export const kindRule = (k) => KIND_RULES.find((r) => r.re.test(lc(k))) || null;
+// Never a taste-plan stop, whatever Qloo files it under (barbers tagged as cafes, chains, services).
+const NEVER = /\b(barber|hair|salon|nail|beauty|spa|tattoo|laundromat|bank|atm|pharmacy|clinic|dental|dentist|doctor|hospital|church|school|daycare|grocery|supermarket|gas station|car wash|storage|fast food|hamburger|wastewater|treatment plant)\b/i;
+const CHAINS = /^(starbucks|dunkin|mcdonald'?s|burger king|pret a manger|le pain quotidien|tim hortons|7-eleven|barnes & noble|chipotle|subway|panera)\b/i;
+const NYC_BOX = { s: 40.49, n: 40.92, w: -74.27, e: -73.68 };
+const inNYC = (c) => !!c && c.lat >= NYC_BOX.s && c.lat <= NYC_BOX.n && c.lon >= NYC_BOX.w && c.lon <= NYC_BOX.e;
+export const boroughOfZip = (zip) => { const z = String(zip || ""); return /^112/.test(z) ? "Brooklyn" : /^10[0-2]/.test(z) ? "Manhattan" : /^103/.test(z) ? "Staten Island" : /^104/.test(z) ? "Bronx" : /^11[0-6]/.test(z) ? "Queens" : null; };
+/** Borough the user asked about: named in the text, or the borough of the named neighbourhood's ZIPs. */
+export function areaBorough(area) {
+  const m = String(area || "").match(/brooklyn|manhattan|queens|bronx|staten island/i);
+  if (m) return m[0].replace(/\b\w/g, (c) => c.toUpperCase()).replace("Staten island", "Staten Island");
+  const hood = lc(String(area || "").split(",")[0]);
+  const zips = Object.entries(ZIP_HOODS).filter(([, hs]) => lc(hs[0]) === hood).map(([z]) => boroughOfZip(z));
+  return zips.length && zips.every((b) => b === zips[0]) ? zips[0] : null;
+}
+export const isNYCArea = (area) => /brooklyn|manhattan|queens|bronx|staten island|new york|\bnyc\b|\bny\b/i.test(area || "") || Object.values(ZIP_HOODS).some((hs) => hs.some((h) => lc(h) === lc(String(area || "").split(",")[0])));
+
+/** Primary genre first, then the place's category tags; generic words dropped. */
+function placeCats(e) {
+  const p = e.properties || {};
+  const prim = p.primary_genre?.name ? [p.primary_genre.name] : [];
+  const cats = (e.tags || []).filter((t) => /category:place|genre:place/.test(t.type || t.subtype || "")).map((t) => t.name);
+  return [...new Set([...prim, ...cats])].filter((n) => n && !/^(place|shopping|store|point of interest|establishment)$/i.test(n));
+}
+
+/**
+ * Is this Qloo place a real, open, correctly-labelled stop for `kind`? Returns {ok, fit, label, reasons}.
+ * fit 2 = its primary genre is the kind, 1 = the kind is a secondary category and the primary is compatible-ish.
+ */
+export function checkPlace(p, kind, ctx = {}) {
+  const reasons = [];
+  const rule = kindRule(kind);
+  const cats = p.cats || [];
+  const primary = p.primary || cats[0] || null;
+  if (!p.name || !p.qloo_id) reasons.push("no_id");
+  if (!p.address && !p.coords) reasons.push("no_location");
+  if (p.is_closed) reasons.push("closed");
+  if (NEVER.test(p.name || "") || NEVER.test(primary || "")) reasons.push("not_a_stop");
+  if (CHAINS.test(p.name || "")) reasons.push("chain");
+  if (ctx.nyc && p.coords && !inNYC(p.coords)) reasons.push("outside_nyc");
+  // An afternoon on foot: never hop the river (Greenpoint -> East Village) unless the user asked for that borough.
+  const pb = p.borough || boroughOfZip(p.zip);
+  if (ctx.borough && pb && pb !== ctx.borough) reasons.push("other_borough");
+  let fit = 0, label = primary;
+  if (rule) {
+    if (primary && rule.ok.test(primary)) fit = 2;
+    else if (cats.slice(0, 3).some((c) => rule.ok.test(c)) && !(primary && /restaurant|bar|brewery|boutique|jewel|clothing|market|grocery|hotel/i.test(primary) && !rule.ok.test(primary))) { fit = 1; label = cats.find((c) => rule.ok.test(c)); }
+  } else {
+    const want = lc(kind).replace(/s$/, "");
+    if (primary && lc(primary).includes(want)) fit = 2; else if (cats.some((c) => lc(c).includes(want))) { fit = 1; label = cats.find((c) => lc(c).includes(want)); }
+  }
+  if (!fit) reasons.push("wrong_category");
+  if (ctx.day && ctx.window) {
+    const o = openWindow(p.hours, ctx.day, ctx.window[0], ctx.window[1]);
+    if (o === false) reasons.push("closed_then");
+  }
+  return { ok: !reasons.length, fit, label: label || kind, reasons };
+}
+
+const hm = (x) => { const m = String(x || "").match(/(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+/** Qloo hours for a day -> [[open,close],...] in minutes (closing after midnight rolls past 1440). null = not listed. */
+export function dayRanges(hours, day) {
+  const h = hours && hours[day];
+  if (!Array.isArray(h) || !h.length || !h[0]) return null;
+  if (h.every((x) => x && x.closed)) return [];
+  return h.filter((x) => x && !x.closed).map((x) => { const o = hm(x.opens), c = hm(x.closes); if (o == null || c == null) return null; return [o, c <= o ? c + 1440 : c]; }).filter(Boolean);
+}
+/** Minutes of [from,to] the place is open on `day`: false when it is not open for at least `need` minutes, null when unknown. */
+export function openWindow(hours, day, from, to, need = 30) {
+  const r = dayRanges(hours, day);
+  if (r == null) return null;
+  const overlap = r.reduce((s, [o, c]) => s + Math.max(0, Math.min(c, to) - Math.max(o, from)), 0);
+  return overlap >= Math.min(need, to - from) ? overlap : false;
+}
+/** Open from arrival until at least arrival+stay (or 30 min, whichever is less)? true/false/null(unknown). */
+export function openAt(hours, day, arrive, stay) {
+  const r = dayRanges(hours, day);
+  if (r == null) return null;
+  return r.some(([o, c]) => arrive >= o && Math.min(c, arrive + stay) - arrive >= Math.min(30, stay));
+}
+
+const TIME_TAG = /^(morning|afternoon|evening|night|late night|early morning|brunch|lunch|dinner|breakfast|weekday|weekend|daytime|happy hour)$/i;
 function slimPlace(e) {
   const p = e.properties || {};
   const loc = e.location || p.geocode || {};
   const lat = loc.lat ?? p.latitude, lon = loc.lon ?? loc.lng ?? p.longitude;
-  const kinds = (e.tags || []).filter((t) => /genre:place|category/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 4);
-  const vibes = (e.tags || []).filter((t) => !/^(education learning|casual|shopping|morning|afternoon|evening|night|late night|early morning|brunch|lunch|dinner|breakfast|weekday|weekend|daytime)$/i.test((t.name || "").trim())).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenity|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
+  const cats = placeCats(e);
+  const kinds = cats.slice(0, 4);
+  const vibes = (e.tags || []).filter((t) => !TIME_TAG.test((t.name || "").trim()) && !/time_of_day/.test(t.type || "")).filter((t) => !/^(education learning|casual|shopping|convenient|restroom|clean|wi ?fi|takeout|delivery|dine in|quick bite|credit cards|debit cards|reservations?|walkable|good for groups)$/i.test((t.name || "").trim())).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenit|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price|age_range|customer|dietary|noise|crowd|restroom/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
+  const hood = resolveNeighborhood(p, p.address);
   return {
-    qloo_id: e.entity_id, name: e.name, address: p.address, neighborhood: p.neighborhood || p.geocode?.city,
+    qloo_id: e.entity_id, name: e.name, address: p.address, ...hood,
+    primary: p.primary_genre?.name || cats[0] || null, cats,
     price_level: p.price_level, kinds, vibes, popularity: e.popularity,
     coords: lat != null && lon != null ? { lat: +lat, lon: +lon } : null,
     description: (p.description || p.short_description || "").slice(0, 240),
@@ -39,6 +181,7 @@ function slimPlace(e) {
     hours: p.hours || null, is_closed: !!p.is_closed, website: Array.isArray(p.websites) ? p.websites[0] : p.website,
   };
 }
+export { slimPlace };
 
 const MOOD_POP = { familiar: undefined, different: undefined, surprise: 0.1 };
 
@@ -57,7 +200,7 @@ export async function pickSeeds(env, userId, mood, period) {
   if (mood === "familiar") seeds = good.slice(0, 4);
   else if (mood === "surprise") seeds = [...good.slice(0, 2), ...good.slice(2).sort(() => Math.random() - 0.5).slice(0, 3)];
   else seeds = [...good.slice(0, 3), ...good.slice(3, 8).filter((_, i) => i % 2 === 0).slice(0, 2)];
-  return { seeds: seeds.filter((s) => s.type !== "place" || true), all: rows };
+  return { seeds, all: rows, good };
 }
 
 /** Equal-sized cohorts of liked cards by their latest footprint: the latest N vs the N before. */
@@ -70,23 +213,43 @@ export function cohorts(cards, n = 6) {
 const DEFAULT_KINDS = ["bookstore", "cafe", "record store"];
 const KW_SCHEMA = { type: "object", properties: { stops: { type: "array", items: { type: "string" } } }, required: ["stops"] };
 
+// ---- small caches in D1 (llm_cache table): Qloo place pools for 6 h, model sentences for 7 days.
+async function sha(s) { return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join(""); }
+export async function cacheGet(env, key, maxAgeMs) {
+  try { const r = await env.DB.prepare("SELECT value, created_at FROM llm_cache WHERE key=?").bind(key).first(); if (r && Date.now() - r.created_at < maxAgeMs) return JSON.parse(r.value); } catch (_) {}
+  return undefined;
+}
+export async function cachePut(env, key, value) {
+  try { await env.DB.prepare("INSERT OR REPLACE INTO llm_cache (key,value,created_at) VALUES (?,?,?)").bind(key, JSON.stringify(value), Date.now()).run(); } catch (_) {}
+}
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+
 async function stopKinds(env, text) {
   if (!text) return DEFAULT_KINDS;
-  const VENUES = ["bookstore", "book store", "record store", "cafe", "coffee", "cinema", "movie theater", "museum", "gallery", "bar", "wine bar", "park", "bakery", "library", "tea", "restaurant", "music venue", "jazz club"];
+  const VENUES = ["bookstore", "book store", "bookshop", "record store", "cafe", "coffee", "cinema", "movie theater", "museum", "gallery", "wine bar", "bar", "park", "bakery", "library", "tea", "restaurant", "music venue", "jazz club"];
   const rule = () => {
     const low = text.toLowerCase();
-    const hits = VENUES.map((v) => [v, low.indexOf(v)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([v]) => (v === "coffee" || v === "tea" ? "cafe" : v === "book store" ? "bookstore" : v));
+    const hits = VENUES.map((v) => [v, low.indexOf(v)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([v]) => (v === "coffee" || v === "tea" ? "cafe" : v === "book store" || v === "bookshop" ? "bookstore" : v));
     if (/somewhere (nearby )?to sit/.test(low) && !hits.includes("cafe")) hits.push("cafe");
-    return [...new Set(hits)].slice(0, 3);
+    return [...new Set(hits)].filter((h, i, arr) => !(h === "bar" && arr.includes("wine bar"))).slice(0, 3);
   };
+  const r0 = rule();
+  if (r0.length >= 2) return r0; // the words already say it; skip the model (saves ~2 s)
+  const key = "kinds:" + (await sha(text));
+  const hit = await cacheGet(env, key, 7 * 86400000);
+  if (hit) return hit;
   try {
-    const o = await llmJSON(env, "Turn a request for an afternoon outing into 1-3 short venue category words Qloo would know (e.g. bookstore, cafe, record store, cinema, museum, bar, park, bakery, gallery). Return {\"stops\":[...]} in visiting order.", text, KW_SCHEMA, 120);
+    const o = await withTimeout(llmJSON(env, "Turn a request for an afternoon outing into 1-3 short venue category words Qloo would know (e.g. bookstore, cafe, record store, cinema, museum, bar, park, bakery, gallery). Return {\"stops\":[...]} in visiting order.", text, KW_SCHEMA, 120), 3000);
     const s = (o?.stops || []).map((x) => String(x).toLowerCase().trim()).filter(Boolean).slice(0, 3);
-    return s.length ? s : rule().length ? rule() : DEFAULT_KINDS;
-  } catch (_) { const r = rule(); return r.length ? r : DEFAULT_KINDS; }
+    const out = s.length ? s : r0.length ? r0 : DEFAULT_KINDS;
+    await cachePut(env, key, out);
+    return out;
+  } catch (_) { return r0.length ? r0 : DEFAULT_KINDS; }
 }
 
 async function placeTag(env, word) {
+  const rule = kindRule(word);
+  if (rule?.tag) return { id: rule.tag, name: word.replace(/^\w/, (c) => c.toUpperCase()) }; // known kinds: no /v2/tags round trip
   const d = await qloo(env, "/v2/tags", { "filter.query": word, "filter.parents.types": "urn:entity:place", take: 5 });
   const tags = d.results?.tags || [];
   const ty = (t) => t.type || t.subtype || "";
@@ -94,10 +257,9 @@ async function placeTag(env, word) {
   return exact ? { id: exact.id || exact.tag_id, name: exact.name } : null;
 }
 
-
 // Keep the model's sentence only if every descriptive word traces to Qloo's facts; else a plain template.
 const READ_OK = new Set("you your youll the a an and of to in for on at it its is be this that with as by from or place spot shop store find enjoy will can good fit fits suits suit feel feels mood kind like same near close nearby afternoon day visit stop here there small space time worth take keep keeps returning back vibe vibes".split(" "));
-function groundedRead(txt, s) {
+export function groundedRead(txt, s) {
   const facts = [s.kind, s.name, s.description, ...(s.vibes || [])].join(" ").toLowerCase();
   const vibes = (s.vibes || []).slice(0, 2).map((v) => String(v).toLowerCase());
   const tpl = `A ${String(s.kind || "place").toLowerCase()}${vibes.length ? ", tagged " + vibes.join(" and ") + " by Qloo" : ""}.`;
@@ -108,127 +270,180 @@ function groundedRead(txt, s) {
 }
 const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", items: { type: "string" } } }, required: ["reads"] };
 
+// ---- timing model shared by selection and the timeline
+export const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+export const planDay = (when) => DAYS.find((d) => lc(when).includes(d)) || (/today|tonight/.test(lc(when)) ? DAYS[new Date().getUTCDay()] : "saturday");
+export const planStart = (when) => (/morning/i.test(when || "") ? 10 * 60 : /evening|night|dinner/i.test(when || "") ? 18 * 60 : /(^|[^a-z])noon|lunch/i.test(when || "") ? 12 * 60 : 14 * 60);
+export const stayFor = (k) => (/book|library|record/i.test(k || "") ? 40 : /cafe|coffee|tea|bakery|patisserie|pastry/i.test(k || "") ? 45 : 60);
+export const travelMin = (d) => (d == null ? 10 : d < 1.3 ? Math.max(1, Math.round(d * 20)) : Math.max(2, Math.round(d * 6)));
+
+const MAX_HOP_MI = 3;
+const tier = (d) => (d <= 1.5 ? 0 : d <= 3 ? 1 : 2);
+const DOMAIN_FOR = (k) => (/book|librar/.test(lc(k)) ? ["book"] : /record|music|jazz|venue|vinyl/.test(lc(k)) ? ["music"] : /cinema|movie|film|theat/.test(lc(k)) ? ["film", "tv"] : null);
+
 /**
  * Generate a plan. `log(text)` streams plain-language activity lines.
  * Returns {plan} or throws {state,text}.
  */
 export async function makePlan(env, user, req, log) {
+  const T0 = Date.now(), timing = {};
   const area = (req.area || user.area || "").trim();
   if (!area) throw { state: "no_area", text: "Where would you like to spend an afternoon?" };
-  const { seeds, all } = await pickSeeds(env, user.id, req.mood, req.period);
+  const { seeds, all, good } = await pickSeeds(env, user.id, req.mood, req.period);
   if (req.period === "now" || req.period === "then") log(`Planning from ${req.period === "now" ? "your recent notes" : "your earlier notes"} only.`);
   if (seeds.length < 2) throw { state: "too_few", text: "I need a few more things you love to plan from. Mark a couple of cards with a heart, or start from one card." };
   log(`Using ${seeds.length} cards as seeds: ${seeds.map((s) => s.name).join(", ")}.`);
   const kinds = await stopKinds(env, req.text);
+  timing.kinds_ms = Date.now() - T0;
   log(`Looking for: ${kinds.join(", then ")}, around ${area}.`);
   const known = new Set(all.map((c) => c.qloo_id));
   const num = (v) => { const n = typeof v === "number" || (typeof v === "string" && v.trim()) ? Number(v) : NaN; return Number.isFinite(n) && n > 0 ? Math.min(n, 100000) : null; };
   const budget = num(req.budget) ?? num(user.budget) ?? 40;
   const maxPrice = budget <= 20 ? 1 : budget <= 40 ? 2 : budget <= 80 ? 3 : 4;
-  const pools = [];
-  const ask = async (k, tag, loc) => {
+  const when = req.when || user.whenx || "Saturday afternoon";
+  const day = planDay(when), start = planStart(when);
+  const ctx = { nyc: isNYCArea(area), borough: areaBorough(area), day, window: [start, start + 210] };
+  // Each stop asks Qloo with the cards that matter for it: books for a bookstore, music for a record store, plus the top seeds.
+  const seedsFor = (k) => {
+    const dom = DOMAIN_FOR(k);
+    const rel = dom ? good.filter((c) => dom.includes(c.type)).slice(0, 3) : [];
+    const out = [...rel, ...seeds].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i).slice(0, 5);
+    return out.length >= 2 ? out : seeds;
+  };
+  let qlooCalls = 0, cacheHits = 0;
+  const ask = async (k, tag, loc, sd) => {
+    const params = {
+      "filter.type": "urn:entity:place", ...loc, "filter.tags": tag?.id,
+      "signal.interests.entities": sd.map((s) => s.qloo_id), "filter.popularity.min": MOOD_POP[req.mood],
+      "feature.explainability": "true", take: 20,
+    };
+    const key = "qp2:" + (await sha(JSON.stringify(params)));
+    const hit = await cacheGet(env, key, 6 * 3600000);
+    if (hit) { cacheHits++; return hit; }
     try {
-      const d = await qloo(env, "/v2/insights", {
-        "filter.type": "urn:entity:place",
-        ...loc,
-        "filter.tags": tag?.id,
-        "signal.interests.entities": seeds.map((s) => s.qloo_id),
-        "filter.popularity.min": MOOD_POP[req.mood],
-        "feature.explainability": "true",
-        take: 15,
-      });
-      return (d.results?.entities || []).map(slimPlace);
+      qlooCalls++;
+      const d = await qloo(env, "/v2/insights", params);
+      const out = (d.results?.entities || []).map(slimPlace);
+      await cachePut(env, key, out);
+      return out;
     } catch (e) {
       throw { state: "qloo_down", text: "Plans need Qloo right now and it isn't answering. Your notes and cards are fine." };
     }
   };
+  const rejected = {};
   const clean = (raw, kindName) => {
-    const dropped = { known: 0, price: 0 };
-    const want = (kindName || "").toLowerCase().replace(/ /g, "");
-    const ok = raw.filter((p) => {
-      // category guard: if Qloo lists categories, one must match what was asked for
-      if (want && p.kinds.length && !p.kinds.some((k) => { const x = k.toLowerCase().replace(/ /g, ""); return x.includes(want) || want.includes(x) || (want === "cafe" && /coffee|tea|bakery/.test(x)) || (want === "bookstore" && /book/.test(x)); })) { dropped.off = (dropped.off || 0) + 1; return false; }
-      if (known.has(p.qloo_id)) { dropped.known++; return false; }
-      if (p.is_closed) { dropped.closed = (dropped.closed || 0) + 1; return false; }
-      if (p.price_level && p.price_level > maxPrice) { dropped.price++; return false; }
-      return true;
-    });
+    const dropped = { known: 0, price: 0, check: 0 };
+    const ok = [];
+    for (const p of raw) {
+      const c = checkPlace(p, kindName, ctx);
+      if (!c.ok) { dropped.check++; for (const r of c.reasons) rejected[r] = (rejected[r] || 0) + 1; continue; }
+      if (known.has(p.qloo_id)) { dropped.known++; continue; }
+      if (p.price_level && p.price_level > maxPrice) { dropped.price++; continue; }
+      ok.push({ ...p, fit: c.fit, label: c.label });
+    }
+    // Stable: best category fit first, Qloo's taste order within a fit.
+    ok.sort((x, y) => y.fit - x.fit);
     return { ok, dropped };
   };
-  for (const k of kinds) {
-    let tag = null;
-    try { tag = await placeTag(env, k); } catch (_) {}
-    const raw = await ask(k, tag, { "filter.location.query": area });
-    const { ok, dropped } = clean(raw, tag?.name || k);
-    log(`Asked Qloo for ${(tag?.name || k).toLowerCase()} near ${area}: ${raw.length} came back` + (dropped.known ? `, left out ${dropped.known} you already know` : "") + (dropped.price ? `, ${dropped.price} over budget` : "") + ".");
-    pools.push({ kind: tag?.name || k, tag, items: ok });
-  }
-  let widened = null;
+  const tags = await Promise.all(kinds.map((k) => placeTag(env, k).catch(() => null)));
+  const T1 = Date.now();
+  const first = await Promise.all(kinds.map((k, i) => { const sd = seedsFor(k); return ask(k, tags[i], { "filter.location.query": area }, sd).then((raw) => ({ k, tag: tags[i], sd, raw })); }));
+  const pools = first.map(({ k, tag, sd, raw }) => {
+    const { ok, dropped } = clean(raw, k);
+    log(`Asked Qloo for ${k} near ${area} with ${sd.map((s) => s.name).slice(0, 3).join(", ")}${sd.length > 3 ? "…" : ""}: ${raw.length} came back, ${ok.length} passed the checks` + (dropped.check ? ` (${dropped.check} wrong kind, closed or not a stop)` : "") + (dropped.known ? `, ${dropped.known} you already know` : "") + (dropped.price ? `, ${dropped.price} over budget` : "") + ".");
+    return { kind: k, tag, seeds: sd, items: ok };
+  });
+  timing.qloo_first_ms = Date.now() - T1;
   // Centre of the area, from whatever Qloo returned there.
-  const pts = pools.flatMap((p) => p.items.map((i) => i.coords).filter(Boolean));
+  const pts = first.flatMap((f) => f.raw.map((i) => i.coords).filter(Boolean));
   const med = (a) => a.sort((x, y) => x - y)[Math.floor(a.length / 2)];
   const centre = pts.length ? { lat: med(pts.map((p) => p.lat)), lon: med(pts.map((p) => p.lon)) } : null;
-  for (const pool of pools) {
-    if (pool.items.length >= 3) continue;
+  let widened = null;
+  const T2 = Date.now();
+  await Promise.all(pools.map(async (pool) => {
+    if (pool.items.length >= 3) return;
     let more = [], where = "";
-    if (centre) {
-      more = clean(await ask(pool.kind, pool.tag, { "filter.location": `POINT(${centre.lon} ${centre.lat})`, "filter.location.radius": 3200 }), pool.kind).ok;
-      where = `within two miles of ${area}`;
-    }
-    if (more.length < 2 && area.includes(",")) {
-      const wide = area.split(",").pop().trim();
-      more = clean(await ask(pool.kind, pool.tag, { "filter.location.query": wide }), pool.kind).ok;
-      where = wide;
-      if (centre) more.sort((a, b) => (haversineMi(centre, a.coords) ?? 99) - (haversineMi(centre, b.coords) ?? 99));
-    }
+    // Ask the two-mile ring and the borough at once; the borough answer is only used if the ring is thin.
+    const wide = area.includes(",") ? area.split(",").pop().trim() : null;
+    const [ring, boro] = await Promise.all([
+      centre ? ask(pool.kind, pool.tag, { "filter.location": `POINT(${centre.lon} ${centre.lat})`, "filter.location.radius": 3200 }, pool.seeds) : [],
+      wide ? ask(pool.kind, pool.tag, { "filter.location.query": wide }, pool.seeds) : [],
+    ]);
+    if (centre) { more = clean(ring, pool.kind).ok; where = `within two miles of ${area}`; }
+    if (more.length < 2 && wide) { more = more.concat(clean(boro, pool.kind).ok); where = wide; }
+    if (centre) { const dc = (x) => haversineMi(centre, x.coords) ?? 99; more = more.filter((x) => dc(x) <= MAX_HOP_MI).sort((a, b) => (tier(dc(a)) - tier(dc(b))) || (b.fit - a.fit) || (dc(a) - dc(b))); }
     const seen = new Set(pool.items.map((i) => i.qloo_id));
-    const add = more.filter((i) => !seen.has(i.qloo_id));
-    if (add.length) { pool.items.push(...add); widened = where; log(`Few ${pool.kind.toLowerCase()} results right in ${area}, so I widened to ${where} and found ${add.length}.`); }
-  }
+    const add = more.filter((i) => !seen.has(i.qloo_id) && (seen.add(i.qloo_id), true));
+    if (add.length) { pool.items.push(...add); widened = where; log(`Few ${pool.kind} results right in ${area}, so I widened to ${where} and found ${add.length}.`); }
+  }));
+  timing.qloo_widen_ms = Date.now() - T2;
   const usable = pools.filter((p) => p.items.length);
   if (!usable.length) throw { state: "weak", text: `Not much near ${area} matched well this time. Try a wider area or a nearby neighbourhood.` };
-  // first stop: top of the first pool; next stops: nearest top-5 candidate from each next pool
+  // Walk the afternoon: each stop must be open when you would arrive and stay open for the visit.
   const stops = [];
+  let clock = start, unknownHours = 0, skippedHours = 0;
   for (const pool of usable) {
     const taken = new Set(stops.map((s) => s.qloo_id));
-    const cands = pool.items.filter((p) => !taken.has(p.qloo_id));
-    if (!cands.length) continue;
-    let pick = cands[0];
     const prev = stops[stops.length - 1];
-    if (prev?.coords) {
-      const near = cands.slice(0, 6).map((c) => ({ c, d: haversineMi(prev.coords, c.coords) ?? 99 })).sort((a, b) => a.d - b.d)[0];
-      pick = near.c;
-    }
-    stops.push({ ...pick, kind: pool.kind });
+    // Walkable first (tier 0 <= 1.5 mi, tier 1 <= 3 mi from the previous stop or the area centre), then category fit, then distance.
+    const from = prev?.coords || centre;
+    let cands = pool.items.filter((p) => !taken.has(p.qloo_id)).slice(0, 12)
+      .map((c, i) => ({ c, i, d: from ? haversineMi(from, c.coords) ?? 1.4 : 0 }))
+      .filter((x) => x.d <= MAX_HOP_MI)
+      .sort((a, b) => (tier(a.d) - tier(b.d)) || (b.c.fit - a.c.fit) || (a.d - b.d) || (a.i - b.i)).map((x) => x.c);
+    const stay = (c) => stayFor(c.label || pool.kind);
+    const arriveAt = (c) => clock + (prev ? travelMin(haversineMi(prev.coords, c.coords)) : 0);
+    let pick = cands.find((c) => openAt(c.hours, day, arriveAt(c), stay(c)) === true);
+    skippedHours += pick ? cands.indexOf(pick) : 0;
+    if (!pick) { pick = cands.find((c) => openAt(c.hours, day, arriveAt(c), stay(c)) === null); if (pick) unknownHours++; }
+    if (!pick) { log(`Nothing ${pool.kind} I found is open around ${fmtT(clock)} on ${day[0].toUpperCase() + day.slice(1)}, so I left that stop out.`); continue; }
+    clock = arriveAt(pick) + stay(pick);
+    stops.push({ ...pick, kind: pick.label || pool.kind, asked: pool.kind, seeds_used: pool.seeds.map((s) => s.qloo_id) });
     if (stops.length >= 3) break;
   }
-  if (stops.length > 1 && stops.length >= 2) log(`Kept stops close together: ${stops.map((s) => s.name).join(" then ")}.`);
-  const plan = await dressPlan(env, user, seeds, stops, { area, budget, mood: req.mood, period: req.period || "all", when: req.when || user.whenx || "Saturday afternoon" });
+  if (!stops.length) throw { state: "weak", text: `Nothing near ${area} is open then for what you asked. Try another time or area.` };
+  if (skippedHours) log(`Skipped ${skippedHours} that would be closed when you got there.`);
+  const rj = Object.entries(rejected).filter(([, n]) => n);
+  if (rj.length) log(`Checks left out ${rj.map(([r, n]) => `${n} ${{ wrong_category: "of the wrong kind", not_a_stop: "that are not places to linger (barbers, grocers…)", chain: "chains", closed: "closed for good", closed_then: "closed that afternoon", outside_nyc: "outside the city", other_borough: "across the river", no_location: "without an address", no_id: "without an id" }[r] || r}`).join(", ")}.`);
+  if (stops.length >= 2) log(`Kept stops close together: ${stops.map((s) => s.name).join(" then ")}.`);
+  const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
+  const T3 = Date.now();
+  const plan = await dressPlan(env, user, allSeeds, stops, { area, budget, mood: req.mood, period: req.period || "all", when });
+  timing.dress_ms = Date.now() - T3;
+  log(`Checked hours for ${day[0].toUpperCase() + day.slice(1)} and wrote one line per stop.`);
   plan.widened = !!widened;
   plan.notice = planNotice(plan.stops, area, !!widened);
+  if (unknownHours) plan.notice = [plan.notice, `Qloo has no hours for ${unknownHours === 1 ? "one stop" : unknownHours + " stops"}; check before you go.`].filter(Boolean).join(" ");
   plan.pool = pools.map((p) => ({ kind: p.kind, items: p.items.slice(0, 8) }));
   plan.receipt = {
-    seeds: seeds.map((s) => ({ name: s.name, qloo_id: s.qloo_id })),
-    queries: pools.map((p) => ({ endpoint: "/v2/insights", "filter.type": "urn:entity:place", "filter.tags": p.tag?.id || null, "filter.location.query": area, "signal.interests.entities": `${seeds.length} card IDs`, returned: p.items.length })),
+    seeds: allSeeds.map((s) => ({ name: s.name, qloo_id: s.qloo_id })),
+    queries: pools.map((p) => ({ endpoint: "/v2/insights", "filter.type": "urn:entity:place", "filter.tags": p.tag?.id || null, "filter.location.query": area, "signal.interests.entities": p.seeds.map((s) => s.name), "feature.explainability": true, returned: p.items.length })),
+    checks: { category: "Qloo primary genre must match the stop kind", hours: `open on arrival (${day})`, never: "barbers, salons, grocers, chains, fast food", neighborhood: "from street ZIP + Qloo locality", rejected },
     sent_to_qloo: "Card IDs and your area. No note text.",
   };
+  timing.total_ms = Date.now() - T0; timing.qloo_calls = qlooCalls; timing.cache_hits = cacheHits;
+  plan.timing = timing;
   return plan;
 }
 
+const fmtT = (m) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${((h + 11) % 12) + 1}:${String(mm).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
+
+/** Honest note whenever a stop sits outside the neighbourhood asked for (not only after widening). */
 export function planNotice(stops, area, widened) {
-  if (!widened) return null;
   const areaWord = String(area || "").split(",")[0].trim();
-  const hoods = stops.map((x) => x.neighborhood).filter(Boolean);
+  const hoods = (stops || []).map((x) => x.neighborhood).filter(Boolean);
   const outside = hoods.filter((h) => h.toLowerCase() !== areaWord.toLowerCase());
   if (!outside.length) return null;
+  if (!widened && !ZIP_HOOD_NAMES.has(lc(areaWord))) return null; // free-text area we cannot compare against
   const uniq = [...new Set(outside)];
-  if (outside.length === stops.length) return `Not much matched right in ${areaWord}, so I looked a little further. ${stops.length === 1 ? `The stop is in ${uniq[0]}.` : uniq.length === 1 ? `${stops.length === 2 ? "Both stops are" : "All stops are"} in ${uniq[0]}.` : `The stops are in ${uniq.join(" and ")}.`}`;
-  return `Not much matched right in ${areaWord} for every stop, so one is in ${uniq.join(" and ")}.`;
+  const lead = widened ? `Not much matched right in ${areaWord}, so I looked a little further.` : `Qloo's best matches near ${areaWord} spill over the border.`;
+  if (outside.length === stops.length) return `${lead} ${stops.length === 1 ? `The stop is in ${uniq[0]}.` : uniq.length === 1 ? `${stops.length === 2 ? "Both stops are" : "All stops are"} in ${uniq[0]}.` : `The stops are in ${uniq.join(" and ")}.`}`;
+  return `${lead} ${outside.length === 1 ? "One stop is" : outside.length + " stops are"} in ${uniq.join(" and ")}.`;
 }
+const ZIP_HOOD_NAMES = new Set(Object.values(ZIP_HOODS).flat().map(lc));
 
-const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-function hoursLine(hours, when) {
-  const day = DAYS.find((d) => (when || "").toLowerCase().includes(d)) || "saturday";
+export function hoursLine(hours, when) {
+  const day = planDay(when);
   const h = hours && hours[day];
   const cap = day[0].toUpperCase() + day.slice(1);
   if (!Array.isArray(h) || !h.length || !h[0]) return "Hours not listed";
@@ -245,12 +460,20 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     ? "You " + fps.slice(0, 2).map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + "."
     : `You kept ${seedNames.slice(0, 2).join(" and ")}.`;
   let reads = [];
-  try {
-    const o = await llmJSON(env,
-      "For each venue write ONE plain sentence addressed to the reader as \"you\" (12-20 words) on why it suits this person's afternoon, connecting a concrete fact about the venue (its kind, vibes or description) to the feel of what they keep returning to (given as seeds). Do not name the seeds as if the venue is about them; no hype, no exclamation marks, use ONLY facts present in the given kind, vibes or description (never invent atmosphere, decor, lighting or style words not listed), no claims about hours, prices or being open. Return {\"reads\":[...]} in order.",
-      JSON.stringify({ seeds: seedNames, venues: stops.map((s) => ({ name: s.name, kind: s.kind, vibes: s.vibes, description: s.description })) }), READ_SCHEMA, 400);
-    reads = o?.reads || [];
-  } catch (_) {}
+  const venues = stops.map((s) => ({ name: s.name, kind: s.kind, vibes: s.vibes, description: s.description }));
+  const rkey = "reads:v2:" + (await sha(JSON.stringify({ seedNames, venues })));
+  const cached = await cacheGet(env, rkey, 7 * 86400000);
+  if (cached) reads = cached;
+  else {
+    try {
+      // The plan never waits more than 3.5 s for prose; a grounded template stands in.
+      const o = await withTimeout(llmJSON(env,
+        "For each venue write ONE plain sentence addressed to the reader as \"you\" (12-20 words) on why it suits this person's afternoon, connecting a concrete fact about the venue (its kind, vibes or description) to the feel of what they keep returning to (given as seeds). Do not name the seeds as if the venue is about them; no hype, no exclamation marks, use ONLY facts present in the given kind, vibes or description (never invent atmosphere, decor, lighting or style words not listed), no claims about hours, prices or being open. Return {\"reads\":[...]} in order.",
+        JSON.stringify({ seeds: seedNames, venues }), READ_SCHEMA, 400), +env.READ_TIMEOUT_MS || 3500);
+      reads = o?.reads || [];
+      if (reads.length === stops.length) await cachePut(env, rkey, reads);
+    } catch (_) {}
+  }
   const fit = (s, i = 0) => {
     const k = (s.kind || "").toLowerCase();
     const want = /book|library/.test(k) ? ["book"] : /record|music|venue|bar/.test(k) ? ["music"] : /cinema|theater|theatre|movie/.test(k) ? ["film", "tv"] : null;
@@ -293,17 +516,16 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     return pick
       .map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image, n: r.n, quote: r.quote ? String(r.quote).slice(0, 140) : null, at: r.quote_at || null }));
   };
-  const startMin = /morning/i.test(meta.when || "") ? 10 * 60 : /evening|night|dinner/i.test(meta.when || "") ? 18 * 60 : /(^|[^a-z])noon|lunch/i.test(meta.when || "") ? 12 * 60 : 14 * 60;
-  const stay = (k) => (/book|library|record/i.test(k || "") ? 40 : /cafe|coffee|tea|bakery/i.test(k || "") ? 45 : 60);
-  const fmtT = (m) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${((h + 11) % 12) + 1}:${String(mm).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
-  let clock = startMin;
+  const day = planDay(meta.when);
+  let clock = planStart(meta.when);
   const out = stops.map((s, i) => {
     const prev = stops[i - 1];
-    if (prev) { const dd = haversineMi(prev.coords, s.coords) ?? 0.5; clock += dd < 1.3 ? Math.max(1, Math.round(dd * 20)) : Math.max(2, Math.round(dd * 6)); }
-    const arrive = clock, leave = clock + stay(s.kind); clock = leave;
+    if (prev) clock += travelMin(haversineMi(prev.coords, s.coords));
+    const arrive = clock, leave = clock + stayFor(s.kind); clock = leave;
+    const open = openAt(s.hours, day, arrive, leave - arrive);
     const d = prev ? haversineMi(prev.coords, s.coords) : null;
     return {
-      qloo_id: s.qloo_id, name: s.name, kind: s.kind, neighborhood: s.neighborhood, address: s.address,
+      qloo_id: s.qloo_id, name: s.name, kind: s.kind, asked: s.asked || null, neighborhood: s.neighborhood, borough: s.borough || null, address: s.address,
       distance: d != null ? (d < 1.3 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${Math.max(2, Math.round(d * 6))} min by bike from stop ${i} (${d.toFixed(1)} mi)`) : null,
       arrive: fmtT(arrive), leave: fmtT(leave), stay_min: leave - arrive, sources: sourcesFor(s, i),
       from_notes: fit(s, i),
@@ -313,7 +535,9 @@ export async function dressPlan(env, user, seeds, stops, meta) {
       })(),
       from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Qloo matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
       read: groundedRead(reads[i], s),
-      ops: hoursLine(s.hours, meta.when),
+      ops: hoursLine(s.hours, meta.when) + (open === false ? " · may be closed when you arrive" : ""),
+      open_on_arrival: open,
+      checks: { category: s.primary || s.kind, fit: s.fit ?? null, neighborhood_source: s.hood_source || null, zip: s.zip || null, open_on_arrival: open, hours_listed: open !== null },
       map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.name, s.address].filter(Boolean).join(", "))}`,
       coords: s.coords, vibes: s.vibes, description: s.description, hours: s.hours, price_level: s.price_level,
     };

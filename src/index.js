@@ -294,6 +294,8 @@ async function api(req, env, ctx, url) {
     para.push(`${fresh.length} new ${fresh.length === 1 ? "card" : "cards"} joined your wall in ${month}` + (lead ? `, and mostly it was ${word[lead[0]] || "things"} (${lead[1]} of ${inMonth.length} you touched).` : "."));
     if (returns.length) para.push(`You went back to ${returns.map((c) => c.name).join(", ")} more than anything else.`);
     if (themes.length) para.push(`The tags that kept showing up across your cards: ${themes.map((t) => t.name).join(", ")}.`);
+    const pl = inMonth.filter((c) => c.type === "place").slice(0, 3);
+    if (pl.length) para.push(`Out in the world, you kept ${pl.map((c) => c.name).join(", ")} on your map. Those are the places your plan can start from.`);
     const gaps = ["film", "music", "book", "place"].filter((t) => !mix[t]).map((t) => word[t]);
     if (gaps.length) para.push(`Nothing from ${gaps.join(" or ")} this month. That is not a verdict, just an empty shelf.`);
     return J({ letter: { month, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, your_words: words, paragraphs: para, receipt: "Computed from your cards, footprints and Qloo tags. No model wrote this." } });

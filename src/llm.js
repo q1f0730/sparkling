@@ -12,8 +12,13 @@ function parseLoose(t) {
   return null;
 }
 
+// Circuit breaker: after a quota/capacity error skip the model for 5 minutes so callers fall back to rules at once.
+let aiDownUntil = 0;
+const isQuota = (e) => /quota|neurons|limit|4006|capacity|429/i.test(String(e && e.message));
+
 export async function llmJSON(env, system, user, schema, maxTokens = 700) {
   let lastErr;
+  if (Date.now() < aiDownUntil) throw new Error("ai paused (quota)");
   for (const model of JSON_MODELS) {
     try {
       const r = await env.AI.run(model, {
@@ -25,7 +30,7 @@ export async function llmJSON(env, system, user, schema, maxTokens = 700) {
       const out = parseLoose(r?.response);
       if (out) return out;
       lastErr = new Error("unparseable");
-    } catch (e) { lastErr = e; }
+    } catch (e) { lastErr = e; if (isQuota(e)) { aiDownUntil = Date.now() + 300000; break; } }
   }
   throw lastErr || new Error("llm failed");
 }

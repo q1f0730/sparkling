@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..600,100;1,9..144,300..500,100&family=Figtree:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
 :root{
   --ground:#f7f6f2; --sheet:#ffffff; --surface:#f1efe9; --border:#e6e3db; --rule:#efede7;
@@ -863,6 +864,105 @@ dialog.modal::backdrop{background:rgba(31,32,29,.34)}
 button:focus-visible,a:focus-visible,[role=button]:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #1b6e66;outline-offset:2px}
 button,a,[role=button]{-webkit-tap-highlight-color:transparent}
 button{touch-action:manipulation}
+/* ---- type direction B tokens (settings first; app-wide pass to follow) ---- */
+:root{
+  --b-paper:#f3eee3; --b-card:#fffdf8; --b-ink:#2a2620; --b-ink2:#5c554a; --b-line:#e7dfcf;
+  --b-sage:#dfe7d3; --b-sage-ink:#3e5a2e; --b-clay:#f1dccd; --b-clay-ink:#8a4227; --b-butter:#f3e7c2; --b-butter-ink:#6e5413;
+  --b-danger:#b4321f; --b-switch-on:#5f8a4a; --b-switch-off:#e4dccb; --b-press:#f4eee2;
+  --b-serif:"Fraunces",Georgia,serif; --b-sans:"Figtree",system-ui,sans-serif; --b-mono:"DM Mono",ui-monospace,monospace;
+  --b-radius:16px;
+}
+/* Light: whiter paper. Dark: System on a dark device. */
+:root[data-theme="light"]{
+  --ground:#ffffff; --surface:#f4f4f2; --rule:#f0f0ee;
+  --b-paper:#f7f6f3; --b-card:#ffffff; --b-line:#ebe8e1; --b-press:#f3f1ec;
+}
+:root[data-theme="dark"]{
+  --ground:#1a1b19; --sheet:#242522; --surface:#2b2c29; --border:#3a3b37; --rule:#121311;
+  --text:#ecebe6; --muted:#a8a69e; --faint:#77756e; --accent:#5fb3a9; --accent-ink:#0f1a18;
+  --b-paper:#1c1b18; --b-card:#272520; --b-ink:#efe9dd; --b-ink2:#b3ab9c; --b-line:#36332c;
+  --b-sage:#2f3a28; --b-sage-ink:#b5cc9f; --b-clay:#3d2c22; --b-clay-ink:#e3a684; --b-butter:#3a3320; --b-butter-ink:#e2c977;
+  --b-danger:#ff6b57; --b-switch-on:#7fae67; --b-switch-off:#45413a; --b-press:#2f2c26;
+}
+:root[data-theme="dark"] body{color-scheme:dark}
+:root[data-theme="dark"] .sheet{background:var(--sheet)}
+#view,.sheet{zoom:var(--ts,1)}
+
+/* ---- settings (iOS grouped inset list) ---- */
+.view.st-view{background:var(--b-paper);color:var(--b-ink);font-family:var(--b-sans);min-height:calc(100dvh - 48px)}
+.st-view.st-push{animation:stPush .32s cubic-bezier(.2,.8,.2,1)}
+.st-view.st-pop{animation:stPop .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes stPush{from{transform:translateX(38%);opacity:.4}to{transform:none;opacity:1}}
+@keyframes stPop{from{transform:translateX(-22%);opacity:.5}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.st-view.st-push,.st-view.st-pop{animation:none}}
+.st{padding:10px 16px 48px}
+.st-group{margin:0 0 26px}
+.st-group-h{font:500 13px/1.3 var(--b-sans);color:var(--b-ink2);letter-spacing:.01em;margin:0 16px 7px}
+.st-group-f{font:400 12.5px/1.45 var(--b-sans);color:var(--b-ink2);margin:7px 16px 0}
+.st-list{background:var(--b-card);border:1px solid var(--b-line);border-radius:var(--b-radius);overflow:hidden}
+.st-row{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:9px 14px 9px 16px;position:relative;
+  text-align:left;color:var(--b-ink);font:400 16px/1.3 var(--b-sans);text-decoration:none;background:transparent}
+a.st-row:hover{text-decoration:none}
+.st-row+.st-row::before{content:"";position:absolute;top:0;right:0;left:16px;border-top:1px solid var(--b-line)}
+.st-ico+.st-row-main{}
+.st-list .st-row:has(.st-ico)+.st-row::before{left:58px}
+button.st-row:active,a.st-row:active{background:var(--b-press)}
+.st-row-main{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
+.st-label{overflow-wrap:anywhere}
+.st-sub{font:400 13px/1.4 var(--b-sans);color:var(--b-ink2)}
+.st-body{font-size:14.5px;line-height:1.5;color:var(--b-ink)}
+.st-value{flex:0 1 auto;max-width:48%;color:var(--b-ink2);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-chev{width:8px;height:14px;fill:none;stroke:#bdb3a0;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-left:2px}
+.st-check{width:16px;height:12px;fill:none;stroke:var(--b-sage-ink);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.st-row.danger .st-label{color:var(--b-danger)}
+.st-row.center{justify-content:center}.st-row.center .st-row-main{flex:0 1 auto;align-items:center}
+.st-row.disabled{opacity:.45}
+.st-row.st-explain{padding-top:12px;padding-bottom:12px}
+.st-row.st-explain .st-label{font-weight:600;font-size:15px}
+.st-ico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:0 0 30px}
+.st-ico svg{width:19px;height:19px;fill:none;stroke:#fff;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.st-dim.is-off .st-row{opacity:.45}
+/* switch: 51x31 like iOS */
+.st-switch{position:relative;flex:0 0 51px;width:51px;height:31px;cursor:pointer}
+.st-switch input{position:absolute;inset:0;opacity:0;margin:0;cursor:inherit}
+.st-knob{position:absolute;inset:0;border-radius:999px;background:var(--b-switch-off);transition:background .22s}
+.st-knob::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 6px rgba(42,38,32,.18),0 0 0 .5px rgba(42,38,32,.06);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}
+.st-switch input:checked+.st-knob{background:var(--b-switch-on)}
+.st-switch input:checked+.st-knob::after{transform:translateX(20px)}
+.st-switch input:focus-visible+.st-knob{outline:2px solid var(--b-sage-ink);outline-offset:2px}
+.st-switch.disabled{opacity:.5;cursor:default}
+.st-time{border:0;background:var(--b-press);border-radius:9px;padding:6px 10px;font:500 15px var(--b-sans);color:var(--b-ink);font-variant-numeric:tabular-nums}
+.st-time:disabled{opacity:.5}
+/* profile header */
+.st-profile{display:flex;align-items:center;gap:14px;background:var(--b-card);border:1px solid var(--b-line);border-radius:var(--b-radius);padding:14px 16px;margin:0 0 26px}
+.st-avatar{width:56px;height:56px;border-radius:50%;background:var(--b-sage);color:var(--b-sage-ink);display:grid;place-items:center;
+  font:400 28px/1 var(--b-serif);font-variation-settings:"SOFT" 100,"opsz" 48}
+.st-profile-main{display:flex;flex-direction:column;gap:2px}
+.st-profile-name{font:400 22px/1.15 var(--b-serif);font-variation-settings:"SOFT" 100,"opsz" 30}
+/* segmented text size */
+.st-segs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px;width:100%}
+.st-seg{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:12px;color:var(--b-ink2)}
+.st-seg span:first-child{font-family:var(--b-serif);font-variation-settings:"SOFT" 100;color:var(--b-ink);line-height:1.1}
+.st-seg-l{font:500 12.5px var(--b-sans)}
+.st-seg.on{background:var(--b-sage);color:var(--b-sage-ink)}
+/* fields */
+.st-field{cursor:text}
+.st-field .st-label{flex:0 0 auto;min-width:96px}
+.st-field input{flex:1 1 auto;min-width:0;border:0;background:transparent;text-align:right;font:400 16px var(--b-sans);color:var(--b-ink);padding:4px 0}
+.st-field input::placeholder{color:#b3a993}
+.st-pad{padding:0 4px}
+.st-btn{width:100%;height:48px;border-radius:14px;background:var(--b-ink);color:var(--b-paper);font:600 16px var(--b-sans)}
+.st-pad .feedback{margin-top:8px;text-align:center}
+/* about hero */
+.st-hero{text-align:center;padding:14px 20px 22px}
+.st-hero-mark{display:inline-grid;place-items:center;width:64px;height:64px;border-radius:16px;background:var(--b-sage);color:var(--b-sage-ink);font-size:30px;margin-bottom:10px}
+.st-hero-name{font:400 30px/1.1 var(--b-serif);font-variation-settings:"SOFT" 100,"opsz" 72;margin-bottom:6px}
+/* export sheet */
+.st-sheet-list{display:flex;flex-direction:column;gap:8px}
+.st-sheet-btn{display:flex;align-items:center;justify-content:center;height:50px;border-radius:14px;background:var(--b-card);border:1px solid var(--b-line);color:var(--b-ink);font:500 16px var(--b-sans)}
+.st-sheet-btn:hover{text-decoration:none}
+.st .import-block,.st .settings-section{background:var(--b-card);border-color:var(--b-line)}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23117a72%27/%3E%3Cpath d=%27M16 5l2.6 8.4L27 16l-8.4 2.6L16 27l-2.6-8.4L5 16l8.4-2.6z%27 fill=%27white%27/%3E%3C/svg%3E">
 </head>
@@ -931,6 +1031,390 @@ const state = {
   focusComposer: false,
 };
 const planCache = new Map();
+
+/* ---------------------------------------------------------------------------
+   i18n: English (default) and Simplified Chinese.
+   t(key) for strings Sparkling builds itself; a DOM pass translates any exact UI
+   string that slipped through. Qloo names/tags and the user's own words are never
+   translated (they are not dictionary keys, and note text is marked translate="no").
+   --------------------------------------------------------------------------- */
+const PREFS_KEY = "sparkling.prefs";
+const PREF_DEFAULTS = {
+  lang: "en", appearance: "system", textSize: 1,
+  notif: { master: false, letter: true, plan: true, planTime: "18:00", inbox: true, imported: true, quiet: false, quietFrom: "22:00", quietTo: "08:00" },
+};
+function loadLocalPrefs(){
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (_) { p = {}; }
+  return mergePrefs(p);
+}
+function mergePrefs(p){
+  const out = JSON.parse(JSON.stringify(PREF_DEFAULTS));
+  if (!p || typeof p !== "object") return out;
+  if (p.lang === "zh" || p.lang === "en") out.lang = p.lang;
+  if (["system", "light", "paper"].includes(p.appearance)) out.appearance = p.appearance;
+  if ([0, 1, 2].includes(p.textSize)) out.textSize = p.textSize;
+  if (p.notif && typeof p.notif === "object") Object.keys(out.notif).forEach(function(k){ if (k in p.notif && typeof p.notif[k] === typeof out.notif[k]) out.notif[k] = p.notif[k]; });
+  return out;
+}
+const prefs = loadLocalPrefs();
+let LANG = prefs.lang;
+
+const ZH = {
+  // shell, tabs, common
+  "Notes": "笔记", "Cards": "卡片", "Plan": "计划", "Inbox": "待确认", "Settings": "设置", "Threads": "线索",
+  "Sample notebook · made-up data": "示例笔记本 · 虚构数据", "Open settings": "打开设置", "Go back": "返回", "Close": "关闭",
+  "Cancel": "取消", "Continue": "继续", "Are you sure?": "确定吗？", "Save": "保存", "Saved": "已保存", "Saving": "正在保存",
+  "Retry": "重试", "Try again": "再试一次", "Trying again": "正在重试", "Undo": "撤销", "Dismiss": "关闭", "More": "更多",
+  "Working": "处理中", "Deleting": "正在删除", "Removing": "正在移除", "Leaving": "正在离开", "Sample": "示例", "Or": "或",
+  "Sparkling needs JavaScript to keep your notebook.": "Sparkling 需要开启 JavaScript 才能保存你的笔记本。",
+  "Something did not load.": "有内容没加载出来。", "Check your connection, then try again.": "检查一下网络，然后再试一次。",
+  "That did not work. Try again.": "没成功，再试一次。", "That did not go through. Try again.": "没发送成功，再试一次。",
+  "That did not save. Try again.": "没保存成功，再试一次。", "That did not work. Trying again in a moment may help.": "没成功，稍等一下再试也许就好了。",
+  "Your notebook could not be reached just now. Try again in a moment.": "暂时连不上你的笔记本，稍后再试。",
+  "Your session ended. Start a fresh notebook when you are ready.": "会话已结束。准备好了就开一本新的笔记本。",
+  "Your session ended. Open the notebook again to save this photo.": "会话已结束。重新打开笔记本后再保存这张照片。",
+  "Film": "电影", "TV": "剧集", "Music": "音乐", "Book": "书", "Place": "地点", "Other": "其他", "Books": "书", "Places": "地点",
+  "Film & TV": "影视", "All": "全部", "Today": "今天", "Earlier": "更早", "Untitled": "未命名", "Unnamed": "未命名",
+  "Note": "笔记", "Card": "卡片", "Photo": "照片", "Photos": "照片", "Link": "链接", "Quote": "引用", "Screenshot": "截图",
+  "Plain notes": "纯笔记", "With cards": "有卡片", "plain note": "纯笔记", "photos": "照片",
+  // onboarding
+  "Keep the things that stay with you.": "留住那些让你念念不忘的东西。",
+  "Write a thought, paste a link, or add a screenshot. Sparkling connects the cultural things you return to.": "写一句想法、贴一个链接，或加一张截图。Sparkling 会把你反复回到的那些作品和地方串起来。",
+  "Start with whatever is on your mind.": "从你此刻想到的开始。", "Write a note": "写一条笔记",
+  "Try a sample notebook": "看看示例笔记本", "Look around a made-up notebook first.": "先逛逛一本虚构的笔记本。",
+  "Start from Letterboxd": "从 Letterboxd 开始", "Start from your Letterboxd export.": "用你的 Letterboxd 导出文件开始。",
+  "Your notes stay yours. Export or delete anytime.": "笔记永远属于你，随时可以导出或删除。",
+  "Opening a notebook.": "正在打开笔记本。", "Opening your notebook.": "正在打开你的笔记本。", "Opening the sample notebook.": "正在打开示例笔记本。",
+  "Back to choices": "返回选择", "Bring some history": "带上你的过往记录", "Bring some history · Sparkling": "带上你的过往记录 · Sparkling",
+  // import
+  "How to get your export": "如何拿到导出文件", "Open Letterboxd on the web and sign in.": "在网页上打开 Letterboxd 并登录。",
+  "Go to Settings, then Import and export.": "进入 Settings，再点 Import & Export。", "Choose Export your data and download the zip.": "选择 Export Your Data，下载 zip 文件。",
+  "Unzip it, then choose diary.csv here.": "解压后，在这里选择 diary.csv。", "Choose your export file": "选择导出文件", "Import file": "导入文件",
+  "No file chosen": "未选择文件", "Choose the diary file from your export. It stays on your server and is discarded after the import.": "从导出文件里选 diary 文件。它只在你的服务器上处理，导入完就删除。",
+  "Start from your Letterboxd export. Titles with dates become footprints; anything less certain waits in the inbox.": "用 Letterboxd 导出文件开始。带日期的片名会变成足迹，拿不准的会放进待确认。",
+  "Titles with dates become footprints. Anything less certain waits for you in the inbox.": "带日期的片名会变成足迹，拿不准的会在待确认里等你。",
+  "We read titles, dates, rewatches and your review text. The file is discarded after import. We do not read your password, profile or social graph.": "我们只读取片名、日期、重看记录和你的短评。导入后文件即删除，不会读取你的密码、个人资料或关注关系。",
+  "We read titles, dates, rewatches and your review text. Nothing is posted anywhere. Unmatched rows are kept as plain notes, never silently dropped.": "我们只读取片名、日期、重看记录和你的短评，不会发布到任何地方。没匹配上的条目会保留为纯笔记，绝不会悄悄丢掉。",
+  "Reading your file. You can leave this screen while it works.": "正在读取文件，你可以先离开这个页面。", "Your history is in.": "过往记录已导入。",
+  "entries read": "条已读取", "became cards": "变成了卡片", "kept as notes": "保留为笔记", "Imported": "已导入",
+  "Nothing was read from that file.": "这个文件里没读到内容。", "That file is too large to read here.": "文件太大，这里读不了。",
+  "That file did not go through. Try the diary.csv file from your export.": "文件没传上去。试试导出包里的 diary.csv。",
+  "Try the diary.csv file from your export. Nothing was added.": "试试导出包里的 diary.csv。这次什么都没添加。",
+  "The import is not available right now. Try again in a little while.": "导入暂时不可用，过一会儿再试。",
+  "About 30 seconds": "大约 30 秒", "See your cards": "查看你的卡片", "Look at the inbox": "去待确认看看", "Go to your notes": "去笔记",
+  // notes
+  "What stayed with you today?": "今天有什么让你念念不忘？", "Something you watched, heard, read or found?": "看了、听了、读了或发现了什么？",
+  "Add a few words, or just save": "写几个字，或者直接保存", "Save note": "保存笔记", "Add a link": "添加链接", "Add link": "添加链接",
+  "Remove link": "移除链接", "A link starts with http:// or https://.": "链接要以 http:// 或 https:// 开头。", "A note needs a line.": "笔记至少要写一句。",
+  "A line or a link is all it needs.": "一句话或一个链接就够了。", "Paste a link or drop a screenshot.": "粘贴链接，或拖入一张截图。",
+  "Saved to your notes.": "已存入笔记。", "Noted. A line when you are ready.": "记下了。想写的时候再补一句。",
+  "That did not save. Your draft is still here.": "没保存成功，草稿还在。", "Search notes": "搜索笔记", "Search your notes": "搜索你的笔记",
+  "Close search": "关闭搜索", "Clear search": "清除搜索", "No notes mention that yet.": "还没有笔记提到这个。",
+  "No notes under this filter yet.": "这个筛选下还没有笔记。", "Show all notes": "显示全部笔记", "Add your first note": "写下第一条笔记",
+  "Nothing here yet. Write one line about something you watched, heard, read or visited. Sparkling will take it from there.": "这里还空着。写一句你看过、听过、读过或去过的东西，剩下的交给 Sparkling。",
+  "Edit note": "编辑笔记", "Delete note": "删除笔记", "Note options": "笔记选项", "Delete this note?": "删除这条笔记？",
+  "The note and what it added will be removed. This cannot be undone.": "这条笔记和它带来的内容都会被删除，无法撤销。",
+  "Note deleted.": "笔记已删除。", "This cannot be undone.": "此操作无法撤销。", "That could not be undone.": "撤销失败。",
+  "Your notes did not load. Check your connection, then try again.": "笔记没加载出来。检查网络后再试一次。", "Your notes did not refresh.": "笔记没刷新成功。",
+  "The note did not come back.": "笔记没能恢复。", "did you go": "去了吗", "Went to": "去了", "Didn't go": "没去", "Didn\u2019t go": "没去",
+  "Yes, add a line": "去了，写一句", "Not a thing": "都不是", "Waiting for a look": "等你看一眼", "waiting for a look": "等你看一眼",
+  "reading the text...": "正在识别文字…", "Mention it again sometime and it will remember.": "下次再提到它，Sparkling 会记住。",
+  // camera
+  "Add a photo of a page, a poster, a screen or a place.": "拍一页书、一张海报、一块屏幕或一个地方。",
+  "A photo joins your notes. Sparkling reads any text in it, then looks for something it recognises.": "照片会存进笔记。Sparkling 会读出里面的文字，再找它认得的东西。",
+  "Save photo": "保存照片", "No photo chosen": "未选择照片", "Photo ready to save": "照片待保存", "Remove photo": "移除照片", "Remove this photo": "移除这张照片",
+  "Saving the photo.": "正在保存照片。", "Photo saved to your notes": "照片已存入笔记", "It will join your notes in a moment.": "马上就会出现在笔记里。",
+  "A card was made from this photo.": "这张照片生成了一张卡片。", "No card this time. The photo and your words are safe in Notes.": "这次没生成卡片。照片和文字都好好地存在笔记里。",
+  "Recognition did not finish this time. The photo and your words are safe in Notes.": "这次识别没完成。照片和文字都好好地存在笔记里。",
+  "Sparkling is still reading in the background. The card will appear when it is ready.": "Sparkling 还在后台识别，卡片好了会出现。",
+  "That photo did not go through.": "照片没传上去。", "That photo is too large. Keep it under 8 MB.": "照片太大了，请控制在 8 MB 以内。",
+  "One photo was larger than 8 MB, so it stayed out.": "有一张照片超过 8 MB，没有加进来。", "Only image files can be added.": "只能添加图片文件。",
+  "Camera access is off for this site. You can still choose a photo from your library.": "此网站的相机权限已关闭，你仍可以从相册选择照片。",
+  "If your camera does not open, choose a photo from your library instead.": "如果相机打不开，可以改从相册选择照片。",
+  "Photo attached to this note": "这条笔记附带的照片", "Photo from this footprint": "这条足迹的照片", "Photo from your notes": "笔记里的照片",
+  "See notes": "查看笔记", "Go to Cards": "去卡片", "Saved. This looks like": "已保存。看起来像是",
+  // cards
+  "Everything you have kept.": "你留下的一切。", "Wall": "卡片墙", "Cards view": "卡片视图", "No cards yet.": "还没有卡片。",
+  "No cards under this filter yet.": "这个筛选下还没有卡片。", "The only card under this filter so far.": "这个筛选下目前只有这一张。",
+  "Show all cards": "显示全部卡片", "Look at your cards": "看看你的卡片", "Back to your cards": "回到卡片", "Back to your notes": "回到笔记",
+  "Cards appear when your notes mention something Sparkling can recognise. Your notes are all still here.": "当笔记提到 Sparkling 认得的东西，卡片就会出现。你的笔记都还在。",
+  "Your cards did not load. Check your connection, then try again.": "卡片没加载出来。检查网络后再试一次。",
+  // card detail
+  "Love this": "喜欢", "Loved": "已喜欢", "Not for me": "不是我的菜", "Use in a plan": "用来做计划", "Remove card": "移除卡片",
+  "Remove this card?": "移除这张卡片？", "The card and its footprints will be removed. Your notes and photos stay in your notebook.": "卡片和它的足迹会被移除，笔记和照片仍留在笔记本里。",
+  "Card removed. Your notes are still here.": "卡片已移除，笔记都还在。", "Footprints": "足迹", "No footprints yet.": "还没有足迹。",
+  "No footprints yet. Write about this again and it will gather here.": "还没有足迹。再写到它时，会汇集到这里。",
+  "Remove footprint": "移除足迹", "Footprint removed.": "足迹已移除。", "Not about this?": "说的不是这个？", "Not about this": "说的不是这个",
+  "Not about this footprint": "这条足迹说的不是这个", "This footprint will be removed from the card. Your note stays in your notebook.": "这条足迹会从卡片上移除，笔记仍留在笔记本里。",
+  "From Qloo": "来自 Qloo", "Qloo catalogue data": "Qloo 目录数据", "From your notes": "来自你的笔记", "From the sample notebook": "来自示例笔记本",
+  "From your Letterboxd export": "来自你的 Letterboxd 导出", "First met": "初次相遇", "First watch": "初看", "Rewatch": "重看",
+  "Listen": "听", "Read": "读", "Visit": "去过", "Your view changed": "你的看法变了", "A little different": "有点不一样", "Familiar": "熟悉",
+  "This card did not load. Check your connection, then try again.": "卡片没加载出来。检查网络后再试一次。",
+  "This card is gone.": "这张卡片不在了。", "This card is no longer here.": "这张卡片已经不在了。",
+  "It may have been removed. Your notes are still here.": "它可能已被移除，你的笔记都还在。", "It may have been deleted, or the link is old.": "它可能已被删除，或者链接已过期。",
+  "The card did not come back.": "卡片没能恢复。", "The card did not refresh.": "卡片没刷新成功。", "Open card": "打开卡片", "last seen": "最近一次", "Many": "很多",
+  "Mark a couple of cards with a heart, then try again.": "先给几张卡片点个喜欢，再试一次。", "I need a few more things you love to plan from.": "还需要多几样你喜欢的东西，才能做计划。",
+  // threads
+  "Patterns across your cards, named with Qloo catalogue tags.": "你卡片之间的规律，用 Qloo 目录标签命名。",
+  "All of you": "全部的你", "Recent you": "最近的你", "Earlier you": "以前的你", "Which you": "哪个你",
+  "New in recent notes": "最近新出现", "Fading from recent notes": "最近渐少", "Why this thread?": "为什么是这条线索？",
+  "What this thread rests on. Qloo\u2019s data and your notes are shown as they are; Sparkling\u2019s own read is marked.": "这条线索的依据。Qloo 的数据和你的笔记按原样展示；Sparkling 自己的解读会单独标出。",
+  "Qloo says": "Qloo 的数据", "Your words": "你的原话", "Cards that feed it": "支撑它的卡片", "Sparkling\u2019s read": "Sparkling 的解读", "Sparkling's read": "Sparkling 的解读",
+  "Receipt": "调用凭据", "Seeds sent to Qloo": "发给 Qloo 的种子", "Also returned for the same cards": "同一组卡片还返回了",
+  "No note quotes yet for these cards.": "这些卡片还没有可引用的笔记。", "carries the tag": "带有该标签", "in the input set": "在输入集合中",
+  "None of these sit on a single card of yours. Qloo returned them for these cards taken together.": "这些标签不在你任何一张卡片上，是 Qloo 根据这组卡片整体返回的。",
+  "Threads show up once a few things keep coming back.": "当有几样东西反复出现，线索就会浮现。", "Threads take a little time.": "线索需要一点时间。",
+  "Your threads did not load. Check your connection, then try again.": "线索没加载出来。检查网络后再试一次。",
+  // inbox
+  "Did you mean": "你说的是", "Keep all guesses": "全部采纳", "All guesses kept.": "已全部采纳。", "Set aside.": "已搁置。", "Back in the pile.": "已放回。",
+  "That\u2019s everything.": "都处理完了。", "No close match this time.": "这次没找到接近的匹配。", "Yes, that": "对，就是它",
+  "Anything less certain will wait here when it needs you.": "拿不准的内容会在这里等你确认。",
+  "Sparkling was sure about everything lately. Anything less certain will wait here.": "最近 Sparkling 都很有把握。拿不准的会在这里等你。",
+  "That item is no longer here. It may have been handled already.": "这一项已经不在了，可能已经处理过。",
+  "The inbox did not load. Check your connection, then try again.": "待确认没加载出来。检查网络后再试一次。", "The inbox did not refresh.": "待确认没刷新成功。",
+  // plan
+  "Plan an afternoon": "规划一个下午", "An afternoon, built from what you keep.": "用你留下的东西，拼出一个下午。",
+  "Where would you like to spend an afternoon?": "想在哪里度过一个下午？", "Make a plan": "生成计划", "Making a plan": "正在生成计划",
+  "Looking through your cards": "正在翻看你的卡片", "Try one of these": "试试这些", "Surprise me": "给我惊喜",
+  "Something a little off my usual track": "稍微偏离我平时的路线", "A quiet bookstore, then somewhere to sit": "一家安静的书店，再找个地方坐坐",
+  "A record shop and a slow coffee": "一家唱片店，一杯慢慢喝的咖啡", "An old cinema, then a late bite": "一家老电影院，再吃点夜宵",
+  "Anything else?": "还有别的吗？", "Area": "区域", "Budget": "预算", "When": "时间", "Mood": "心情", "Somewhere": "某处",
+  "Saturday afternoon": "周六下午", "Saved plans": "已保存的计划", "Your saved plans did not load.": "已保存的计划没加载出来。",
+  "A neighbourhood is enough. GPS is optional.": "填一个街区就够了，不需要 GPS。", "Neighbourhood": "街区",
+  "That plan did not come together.": "这个计划没能拼出来。", "The plan stream ended before a plan arrived.": "计划还没生成完，连接就断了。",
+  "A few more things would help.": "再多几样会更好。", "A number above zero is all it needs.": "填一个大于零的数字就行。",
+  // plan result
+  "Your plan": "你的计划", "your plan": "你的计划", "Untitled plan": "未命名计划", "Swap": "换一个", "Shorten": "缩短", "Swapped stop": "已换掉这一站",
+  "Lower budget": "降低预算", "Lower the budget": "降低预算", "New budget cap": "新的预算上限", "Plan saved.": "计划已保存。",
+  "Open map": "打开地图", "How this was made": "这个计划是怎么来的", "Re-rank stops": "重新排序", "Hours not checked": "营业时间未核实",
+  "That plan did not load. Check your connection, then try again.": "计划没加载出来。检查网络后再试一次。", "This plan is not there.": "这个计划不存在。",
+  // settings (legacy planning form)
+  "Planning": "规划", "Prefills the plan form.": "预先填入计划表单。", "Planning area": "规划区域", "Default budget": "默认预算", "Default time": "默认时间",
+  "Save changes": "保存更改", "Budget needs a number above zero.": "预算需要是大于零的数字。", "Saved.": "已保存。",
+  "What Sparkling sends to Qloo": "Sparkling 会发给 Qloo 什么",
+  "Your notes and photos never go to Qloo. When Sparkling recognises a mention it sends only those few words to Qloo search. When you plan, it sends the IDs of a few cards and your area.": "你的笔记和照片永远不会发给 Qloo。识别提及时，只把那几个词发给 Qloo 搜索；做计划时，只发送几张卡片的 ID 和你的区域。",
+  "Export everything": "导出全部", "Your notes, your photos, your cards. One file, yours to keep.": "你的笔记、照片和卡片，打包成一个文件，由你保存。",
+  "Delete everything": "删除全部", "Delete everything?": "删除全部？", "Type DELETE to continue": "输入 DELETE 以继续", "Type DELETE to continue.": "输入 DELETE 以继续。",
+  "This removes every note, photo, card and plan from Sparkling. It cannot be undone.": "这会从 Sparkling 删除所有笔记、照片、卡片和计划，无法撤销。",
+  "Every note, photo, card and plan will be removed from Sparkling. It cannot be undone.": "所有笔记、照片、卡片和计划都会从 Sparkling 删除，无法撤销。",
+  "Sample notebook": "示例笔记本", "Leave the sample": "离开示例", "Leave the sample?": "离开示例？",
+  "You are looking around a made-up notebook. Leaving removes it from this device.": "你正在浏览一本虚构的笔记本。离开后它会从这台设备上移除。",
+  "The made-up notebook will be removed from this device. You can start your own whenever you like.": "这本虚构的笔记本会从这台设备上移除。随时可以开始你自己的。",
+  // new settings
+  "Account": "账户", "Demo profile": "演示账户", "Sign out": "退出登录", "Sign out?": "退出登录？",
+  "You can open this notebook again from this browser while the session lasts.": "退出后，这个浏览器将不再保持登录。笔记仍保存在服务器上。",
+  "Notifications": "通知", "Language": "语言", "Appearance": "外观", "Text size": "文字大小", "Planning defaults": "规划默认值",
+  "Data": "数据", "Import from Letterboxd": "从 Letterboxd 导入", "Export notes": "导出笔记", "Export as JSON": "导出为 JSON",
+  "Export as Markdown": "导出为 Markdown", "Delete all data": "删除所有数据", "Delete all data?": "删除所有数据？",
+  "Every note, photo, card and plan will be deleted from Sparkling. This cannot be undone.": "所有笔记、照片、卡片和计划都将从 Sparkling 删除，此操作无法撤销。",
+  "Delete All Data": "删除所有数据", "About": "关于", "Version": "版本", "License": "许可证", "Source code": "源代码",
+  "How Sparkling uses Qloo": "Sparkling 如何使用 Qloo", "System": "跟随系统", "Light": "浅色", "Paper": "纸张",
+  "Small": "小", "Default": "默认", "Large": "大", "English": "English", "简体中文": "简体中文",
+  "Qloo names, tags and your own notes are never translated.": "Qloo 的作品名、标签和你自己的笔记不会被翻译。",
+  "System follows your device: Paper by day, dark at night if your device is set to dark.": "跟随系统：设备为浅色时使用纸张色，设为深色时切换为深色。",
+  "Applies to notes, cards and sheets.": "作用于笔记、卡片和弹出面板。",
+  "Allow Notifications": "允许通知", "Your letter is ready": "你的月度信已写好", "Plan reminder": "计划提醒", "Inbox needs you": "待确认需要你",
+  "Import finished": "导入完成", "Quiet hours": "勿扰时段", "From": "开始", "To": "结束", "Remind at": "提醒时间",
+  "Once a month, when your taste letter is written.": "每月一次，你的品味月信写好时通知你。",
+  "The day before a saved outing.": "已保存的出行前一天提醒你。",
+  "A weekly digest of items Sparkling was unsure about.": "每周汇总一次 Sparkling 拿不准的条目。",
+  "When a Letterboxd import is done reading.": "Letterboxd 导入读取完成时通知你。",
+  "Notifications wait until quiet hours end.": "勿扰时段内的通知会推迟到结束后再发。",
+  "Sparkling never sends recommendation pushes. You only hear from it about things you started.": "Sparkling 不推送任何推荐。只有你自己开始的事情，它才会通知你。",
+  "Notifications are off for this site": "此网站的通知已关闭",
+  "Your browser blocked notifications for Sparkling. To turn them on, open your browser's site settings for this page and allow Notifications, then come back.": "浏览器已阻止 Sparkling 的通知。要开启，请在浏览器的网站设置中允许此页面的通知，然后回到这里。",
+  "This browser cannot show notifications": "此浏览器无法显示通知",
+  "On iPhone, add Sparkling to your Home Screen first, then open it from there.": "在 iPhone 上，请先把 Sparkling 添加到主屏幕，再从主屏幕打开。",
+  "Notifications are on": "通知已开启", "Sparkling will only tell you about things you started.": "Sparkling 只会告诉你你自己开始的事情。",
+  "Not now": "暂不", "On": "", "around": "在", "under $": "预算 $",
+  "again": "再次提到", "new card": "新卡片", "Take a look": "看一眼", "Take a photo": "拍照", "Choose from library": "从相册选择",
+  "· Qloo reads these across the cards you return to most, not from any single one.": "· 这是 Qloo 从你最常回到的那几张卡片整体读出的，不来自任何单独一张。",
+  "Exports include every note and card. Deleting removes your notebook from the server.": "导出包含所有笔记和卡片。删除会把你的笔记本从服务器上移除。",
+  "Open-source hackathon build for the Qloo Taste AI challenge.": "为 Qloo Taste AI 挑战赛打造的开源黑客松版本。",
+  "What goes to Qloo": "会发给 Qloo 的内容", "What never goes to Qloo": "绝不会发给 Qloo 的内容", "What comes back": "Qloo 返回什么",
+  "The few words that name a film, book, album or place, so Qloo search can match them to a catalogue entity.": "指代某部电影、书、专辑或地点的那几个词，用来在 Qloo 目录中匹配对应条目。",
+  "When you plan: the IDs of a few cards and the area you typed.": "做计划时：几张卡片的 ID 和你填写的区域。",
+  "Your notes, your photos, your name and your location history.": "你的笔记、照片、名字和位置历史。",
+  "Catalogue entities with their tags, Insights for Threads (tags shared across your cards) and venues near your area for Plan. Sparkling shows Qloo data as it is and marks its own read.": "带标签的目录条目；线索用的 Insights（你卡片之间共有的标签）；以及计划所需的你附近的场所。Sparkling 按原样展示 Qloo 数据，并单独标出自己的解读。",
+  "Every thread and plan has a receipt with the exact Qloo calls behind it.": "每条线索和每个计划都附有调用凭据，列出背后具体的 Qloo 请求。",
+  "Saved on this device only.": "仅保存在本设备。",
+};
+
+const NUM_ZH = { zero:"零", one:"一", two:"两", three:"三", four:"四", five:"五", six:"六", seven:"七", eight:"八", nine:"九", ten:"十", eleven:"十一", twelve:"十二", many:"很多" };
+const DAY_ZH = { Sunday:"周日", Monday:"周一", Tuesday:"周二", Wednesday:"周三", Thursday:"周四", Friday:"周五", Saturday:"周六", Sun:"周日", Mon:"周一", Tue:"周二", Wed:"周三", Thu:"周四", Fri:"周五", Sat:"周六" };
+const MON_IDX = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
+function zhNum(w){ const k = String(w).toLowerCase(); return NUM_ZH[k] || w; }
+const ZH_PATTERNS = [
+  [/^(\w+day)\. (\w+) things came back to you this week\.$/, function(m, d, n){ return (DAY_ZH[d] || d) + "。这周有" + zhNum(n) + "样东西又回到了你身边。"; }],
+  [/^(\w+day)\. One thing came back to you this week\.$/, function(m, d){ return (DAY_ZH[d] || d) + "。这周有一样东西又回到了你身边。"; }],
+  [/^(\w+day)\. (\w+) notes joined your notebook this week\.$/, function(m, d, n){ return (DAY_ZH[d] || d) + "。这周笔记本里多了" + zhNum(n) + "条笔记。"; }],
+  [/^(\w+day)\. One note joined your notebook this week\.$/, function(m, d){ return (DAY_ZH[d] || d) + "。这周笔记本里多了一条笔记。"; }],
+  [/^(\w+day)\. A few things are here when you want them\.$/, function(m, d){ return (DAY_ZH[d] || d) + "。有几样东西在这里，等你想看的时候。"; }],
+  [/^(\w+day)\. A quiet page, ready when you are\.$/, function(m, d){ return (DAY_ZH[d] || d) + "。安静的一页，等你落笔。"; }],
+  [/^(\w+day)\. Your notebook is here\.$/, function(m, d){ return (DAY_ZH[d] || d) + "。你的笔记本在这里。"; }],
+  [/^Inbox, (\d+) waiting$/, function(m, n){ return "待确认，" + n + " 项"; }],
+  [/^(\d+) cards?$/, function(m, n){ return n + " 张卡片"; }],
+  [/^(\d+) footprints?$/, function(m, n){ return n + " 条足迹"; }],
+  [/^(\d+) photos?$/, function(m, n){ return n + " 张照片"; }],
+  [/^(\d+) notes?$/, function(m, n){ return n + " 条笔记"; }],
+  [/^(\d+) stops?$/, function(m, n){ return n + " 站"; }],
+  [/^(\d+) stops? · Saved$/, function(m, n){ return n + " 站 · 已保存"; }],
+  [/^(\d+) times? since$/, function(m, n){ return "此后 " + n + " 次"; }],
+  [/^(\d+) photos? did not go through\. Try again below\.$/, function(m, n){ return n + " 张照片没传上去，在下方重试。"; }],
+  [/^(\d+) waiting$/, function(m, n){ return n + " 项待确认"; }],
+  [/^carries the tag · (\d+) notes?$/, function(m, n){ return "带有该标签 · " + n + " 条笔记"; }],
+  [/^in the input set · (\d+) notes?$/, function(m, n){ return "在输入集合中 · " + n + " 条笔记"; }],
+  [/^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sun|Mon|Tue|Wed|Thu|Fri|Sat)$/, function(m, d){ return DAY_ZH[d]; }],
+  [/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)( \d{4})?$/, function(m, d, mo, y){ return (y ? y.trim() + "年" : "") + MON_IDX[mo] + "月" + d + "日"; }],
+  [/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4})$/, function(m, mo, y){ return y + "年" + MON_IDX[mo] + "月"; }],
+  [/^(\u00b7 )?Shows up in (.+) you keep returning to\.$/, function(m, dot, list){
+    const kw = { "a film": "电影", "a show": "剧集", "an artist": "音乐人", "a book": "书", "a place": "地点", "something": "作品" };
+    const parts = list.split(/, | and /).map(function(x){ return kw[x] || x; });
+    return (dot || "") + "出现在你反复回到的" + parts.join("、") + "里。"; }],
+  [/^(\u00b7 )?Qloo reads this across the cards you return to most\.$/, function(m, dot){ return (dot || "") + "这是 Qloo 从你最常回到的那些卡片整体读出的。"; }],
+  [/^(.+)\. (Film|TV|Music|Book|Place|Other)( \u00b7 \d{4})?\. (\d+) footprints?$/, function(m, name, ty, yr, n){ return name + "。" + ZH[ty] + (yr || "") + "。" + n + " 条足迹"; }],
+  [/^(.+), (\d+) footprints?$/, function(m, name, n){ return name + "，" + n + " 条足迹"; }],
+  [/^(\d+) of (\d+)$/, function(m, a, b){ return "第 " + a + " 项，共 " + b + " 项"; }],
+  [/^First met (.+)$/, function(m, w){ return "初次相遇 " + trZh(w); }],
+  [/^last (\d{1,2} \w{3}( \d{4})?|today|yesterday|\w{3})$/, function(m, w){ return "最近 " + trZh(w); }],
+  [/^by (.+)$/, function(m, w){ return w; }],
+  [/^last seen (.+)$/, function(m, w){ return "最近一次 " + trZh(w); }],
+  [/^today$/, function(){ return "今天"; }], [/^yesterday$/, function(){ return "昨天"; }],
+  [/^An afternoon around (.+)$/, function(m, a){ return a + "的一个下午"; }],
+  [/^Why \u201c(.+)\u201d\?$/, function(m, x){ return "为什么是\u201c" + x + "\u201d？"; }],
+  [/^Qloo lists (.+) \u00b7 not live-checked$/, function(m, x){ return "Qloo 标注营业时间 " + x + " · 未实时核实"; }],
+  [/^Photo (\d+)$/, function(m, n){ return "照片 " + n; }], [/^Show photo (\d+)$/, function(m, n){ return "显示照片 " + n; }],
+  [/^under \$(\d+)$/, function(m, n){ return n + " 美元以内"; }],
+];
+function trZh(s){
+  if (s == null) return s;
+  const raw = String(s);
+  const key = raw.trim();
+  if (!key) return raw;
+  let out = ZH[key];
+  if (out == null) {
+    for (let i = 0; i < ZH_PATTERNS.length; i++) {
+      const m = key.match(ZH_PATTERNS[i][0]);
+      if (m) { out = ZH_PATTERNS[i][1].apply(null, m); break; }
+    }
+  }
+  if (out == null && key.indexOf(" · ") > 0) {
+    const segs = key.split(" · ");
+    const tr = segs.map(function(x){ return trZh(x); });
+    if (tr.some(function(x, i){ return x !== segs[i]; })) out = tr.join(" · ");
+  }
+  if (out == null) return raw;
+  return raw.replace(key, out);
+}
+function t(s){ return LANG === "zh" ? trZh(s) : s; }
+
+/* DOM pass: translate exact UI strings in text nodes and a few attributes. */
+const I18N_ATTRS = ["placeholder", "aria-label", "title"];
+function i18nSkip(el){ return el && el.closest && el.closest('[translate="no"], .notranslate, script, style, textarea'); }
+function translateNode(root){
+  if (LANG !== "zh" || !root) return;
+  if (root.nodeType === 3) {
+    const p = root.parentElement;
+    if (p && !i18nSkip(p)) { const v = trZh(root.nodeValue); if (v !== root.nodeValue) root.nodeValue = v; }
+    return;
+  }
+  if (root.nodeType !== 1 || root.closest('[translate="no"], .notranslate, script, style')) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+    acceptNode: function(n){
+      if (n.nodeType === 1) return i18nSkip(n) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const texts = [];
+  while (walker.nextNode()) texts.push(walker.currentNode);
+  texts.forEach(function(n){ const v = trZh(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; });
+  const els = [root].concat(Array.prototype.slice.call(root.querySelectorAll("[placeholder],[aria-label],[title]")));
+  els.forEach(function(el){
+    if (el.closest('[translate="no"], .notranslate')) return;
+    I18N_ATTRS.forEach(function(a){
+      const v = el.getAttribute && el.getAttribute(a);
+      if (v) { const w = trZh(v); if (w !== v) el.setAttribute(a, w); }
+    });
+  });
+}
+let i18nBusy = false;
+const i18nObserver = new MutationObserver(function(muts){
+  if (LANG !== "zh" || i18nBusy) return;
+  i18nBusy = true;
+  try {
+    muts.forEach(function(m){
+      if (m.type === "characterData") translateNode(m.target);
+      else if (m.type === "attributes") {
+        const el = m.target;
+        if (!el.closest('[translate="no"], .notranslate')) { const v = el.getAttribute(m.attributeName); if (v) { const w = trZh(v); if (w !== v) el.setAttribute(m.attributeName, w); } }
+      }
+      else m.addedNodes.forEach(translateNode);
+    });
+  } finally { i18nBusy = false; }
+});
+i18nObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: I18N_ATTRS });
+const titleObserver = new MutationObserver(function(){ if (LANG === "zh") { const v = document.title.split(" · ").map(trZh).join(" · "); if (v !== document.title) document.title = v; } });
+titleObserver.observe(document.querySelector("title") || document.head, { childList: true, characterData: true, subtree: true });
+
+function applyLang(){
+  document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+  if (LANG === "zh") translateNode(document.body);
+}
+
+/* appearance + text size */
+const darkMQ = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+function applyAppearance(){
+  const a = prefs.appearance;
+  const dark = a === "system" && darkMQ && darkMQ.matches;
+  document.documentElement.dataset.theme = dark ? "dark" : (a === "light" ? "light" : "paper");
+  document.documentElement.style.setProperty("--ts", String([0.92, 1, 1.12][prefs.textSize] || 1));
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", dark ? "#1a1b19" : (a === "light" ? "#ffffff" : "#f7f6f2"));
+}
+if (darkMQ && darkMQ.addEventListener) darkMQ.addEventListener("change", applyAppearance);
+
+let prefsTimer = null;
+function savePrefs(){
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (_) {}
+  if (prefsTimer) clearTimeout(prefsTimer);
+  prefsTimer = setTimeout(function(){
+    if (!state.user) return;
+    api("/api/prefs", { method: "PUT", body: { prefs: prefs } }).catch(function(){});
+  }, 400);
+}
+async function syncPrefsFromServer(){
+  try {
+    const data = await api("/api/prefs");
+    if (data && data.prefs) {
+      const m = mergePrefs(data.prefs);
+      const langChanged = m.lang !== prefs.lang;
+      Object.assign(prefs, m);
+      try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (_) {}
+      applyAppearance();
+      if (langChanged) setLang(prefs.lang, true);
+    } else if (state.user) {
+      api("/api/prefs", { method: "PUT", body: { prefs: prefs } }).catch(function(){});
+    }
+  } catch (_) {}
+}
+function setLang(lang, noSave){
+  LANG = lang === "zh" ? "zh" : "en";
+  prefs.lang = LANG;
+  if (!noSave) savePrefs();
+  document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+  // re-render the static shell text and the current screen
+  Array.prototype.forEach.call(tabsEl.querySelectorAll(".tab"), function(tab){
+    const span = tab.querySelector("span");
+    const en = { notes: "Notes", cards: "Cards", plan: "Plan" }[tab.getAttribute("data-tab")];
+    if (span && en) span.textContent = t(en);
+  });
+  ribbon.textContent = t("Sample notebook · made-up data");
+  if (state.booted) route();
+}
+applyAppearance();
+document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+
 
 let viewToken = 0;
 let cleanups = [];
@@ -1383,7 +1867,7 @@ function parseRoute(){
   if (parts[0] === "threads") return { name: "threads" };
   if (parts[0] === "inbox") return { name: "inbox" };
   if (parts[0] === "plan") return parts[1] ? { name: "planResult", id: parts[1] } : { name: "plan" };
-  if (parts[0] === "settings") return { name: "settings" };
+  if (parts[0] === "settings") return { name: "settings", page: parts[1] || "" };
   if (parts[0] === "camera") return { name: "camera" };
   if (parts[0] === "onboarding") return { name: "onboarding" };
   return { name: "notes" };
@@ -1416,13 +1900,14 @@ function route(){
     case "inbox": renderInbox(); break;
     case "plan": renderPlanRequest(); break;
     case "planResult": renderPlanResult(r.id); break;
-    case "settings": renderSettings(); break;
+    case "settings": renderSettings(r.page); break;
     case "camera": renderCamera(); break;
     default: renderNotes();
   }
 }
 window.addEventListener("hashchange", function(){
   dismissToast();
+  if (modal.open) closeModal();
   route();
 });
 tabsEl.addEventListener("click", function(e){
@@ -1898,7 +2383,7 @@ function noteHTML(note, opts){
   if (time) meta.push('<span class="note-time">' + esc(time) + "</span>");
   meta.push('<span class="note-count">' + esc(cardCountLabel(count)) + "</span>");
   let body = "";
-  if (text.trim()) body += '<p class="note-text">' + mentionedTextHTML(text, note.mentions, o) + "</p>";
+  if (text.trim()) body += '<p class="note-text" translate="no">' + mentionedTextHTML(text, note.mentions, o) + "</p>";
   const grown = (Array.isArray(note.mentions) ? note.mentions : []).filter(function(m){ return m && m.state === "matched" && m.card_id && m.card; });
   if (grown.length) {
     body += '<div class="grown' + (o.draw ? " grow-in" : "") + '">' + grown.slice(0, 3).map(function(m, k){
@@ -2612,6 +3097,7 @@ async function boot(){
     state.inboxCount = Number(me.inbox_count) || 0;
     state.bootError = null;
     state.bootNotice = null;
+    syncPrefsFromServer();
     if (me.did_you_go && me.did_you_go.plan_id && me.did_you_go.place) {
       writeDidYouGo({
         plan_id: String(me.did_you_go.plan_id),
@@ -4364,152 +4850,329 @@ function renderPlanResult(id){
 }
 
 /* ---------------------------------------------------------------------------
-   Settings (screen 10)
+   Settings (iOS Settings model: grouped inset lists, push sub-pages, swipe back)
+   Styled with type direction B tokens (--b-*).
    --------------------------------------------------------------------------- */
-function renderSettings(){
+const APP_VERSION = "0.4.0";
+const SETTINGS_PAGES = ["notifications", "language", "appearance", "planning", "import", "about", "qloo"];
+let settingsDepth = 0;
+
+const stIcons = {
+  chev: '<svg class="st-chev" viewBox="0 0 8 14" aria-hidden="true"><path d="M1.5 1.5L6.5 7l-5 5.5"/></svg>',
+  check: '<svg class="st-check" viewBox="0 0 16 12" aria-hidden="true"><path d="M1.5 6.5l4.2 4L14.5 1.5"/></svg>',
+};
+function stIcon(bg, glyph){ return '<span class="st-ico" style="background:' + bg + '" aria-hidden="true">' + glyph + "</span>"; }
+const STI = {
+  bell: stIcon("var(--b-clay-ink)", '<svg viewBox="0 0 20 20"><path d="M10 3a4.5 4.5 0 0 0-4.5 4.5c0 4-1.5 5.5-1.5 5.5h12s-1.5-1.5-1.5-5.5A4.5 4.5 0 0 0 10 3zM8.3 15.5a1.8 1.8 0 0 0 3.4 0"/></svg>'),
+  globe: stIcon("#5a73b5", '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.5"/><path d="M3.5 10h13M10 3.5c2 2 2.8 4.2 2.8 6.5S12 14.5 10 16.5M10 3.5C8 5.5 7.2 7.7 7.2 10S8 14.5 10 16.5"/></svg>'),
+  sun: stIcon("var(--b-butter-ink)", '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="3.2"/><path d="M10 2.8v1.8M10 15.4v1.8M2.8 10h1.8M15.4 10h1.8M4.9 4.9l1.3 1.3M13.8 13.8l1.3 1.3M4.9 15.1l1.3-1.3M13.8 6.2l1.3-1.3"/></svg>'),
+  text: stIcon("#7b6f5c", '<svg viewBox="0 0 20 20"><path d="M4 15l3.5-9 3.5 9M5.3 12h4.4M12.5 15l2.2-5.6 2.3 5.6M13.3 13.2h2.8"/></svg>'),
+  map: stIcon("var(--b-sage-ink)", '<svg viewBox="0 0 20 20"><path d="M10 17s-5-4.6-5-8.5a5 5 0 0 1 10 0C15 12.4 10 17 10 17z"/><circle cx="10" cy="8.5" r="1.8"/></svg>'),
+  film: stIcon("#e8590c", '<svg viewBox="0 0 20 20"><rect x="3.5" y="4.5" width="13" height="11" rx="2"/><path d="M7 4.5v11M13 4.5v11M3.5 8h3.5M3.5 12h3.5M13 8h3.5M13 12h3.5"/></svg>'),
+  down: stIcon("#5a73b5", '<svg viewBox="0 0 20 20"><path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9M4.5 16h11"/></svg>'),
+  info: stIcon("#8a8170", '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.5"/><path d="M10 9v4.5M10 6.6v.2"/></svg>'),
+  spark: stIcon("var(--b-sage-ink)", '<svg viewBox="0 0 20 20"><path d="M10 3l1.6 5.4L17 10l-5.4 1.6L10 17l-1.6-5.4L3 10l5.4-1.6z"/></svg>'),
+  code: stIcon("#2a2620", '<svg viewBox="0 0 20 20"><path d="M7.5 6L3.5 10l4 4M12.5 6l4 4-4 4"/></svg>'),
+};
+
+function stRow(o){
+  const tag = o.nav ? "button" : (o.href ? "a" : "div");
+  const attrs = (o.nav ? ' type="button" data-st-nav="' + attr(o.nav) + '"' : "") +
+    (o.href ? ' href="' + attr(o.href) + '"' + (o.download ? " download" : "") + (o.external ? ' target="_blank" rel="noopener noreferrer"' : "") : "") +
+    (o.action ? ' type="button" data-st-action="' + attr(o.action) + '"' : "") +
+    (o.disabled ? ' aria-disabled="true"' : "");
+  const realTag = o.action ? "button" : tag;
+  return "<" + realTag + ' class="st-row' + (o.danger ? " danger" : "") + (o.center ? " center" : "") + (o.disabled ? " disabled" : "") + (o.sub ? " has-sub" : "") + '"' + attrs + ">" +
+    (o.icon || "") +
+    '<span class="st-row-main"><span class="st-label">' + esc(o.label) + "</span>" + (o.sub ? '<span class="st-sub">' + esc(o.sub) + "</span>" : "") + "</span>" +
+    (o.value != null ? '<span class="st-value"' + (o.valueNoTr ? ' translate="no"' : "") + ">" + esc(o.value) + "</span>" : "") +
+    (o.control || "") +
+    (o.nav || (o.href && o.chev !== false) ? stIcons.chev : "") +
+    (o.checked ? stIcons.check : "") +
+  "</" + realTag + ">";
+}
+function stToggle(key, on, disabled){
+  return '<label class="st-switch' + (disabled ? " disabled" : "") + '"><input type="checkbox" role="switch" data-st-toggle="' + attr(key) + '"' + (on ? " checked" : "") + (disabled ? " disabled" : "") + '><span class="st-knob" aria-hidden="true"></span></label>';
+}
+function stTime(key, value, disabled){
+  return '<input class="st-time" type="time" data-st-time="' + attr(key) + '" value="' + attr(value) + '"' + (disabled ? " disabled" : "") + ">";
+}
+function stGroup(header, rows, footer){
+  return '<section class="st-group">' +
+    (header ? '<h2 class="st-group-h">' + esc(header) + "</h2>" : "") +
+    '<div class="st-list">' + rows.join("") + "</div>" +
+    (footer ? '<p class="st-group-f">' + footer + "</p>" : "") +
+  "</section>";
+}
+
+function settingsTitle(page){
+  return { "": "Settings", notifications: "Notifications", language: "Language", appearance: "Appearance", planning: "Planning defaults", import: "Import from Letterboxd", about: "About", qloo: "How Sparkling uses Qloo" }[page || ""];
+}
+
+function renderSettings(page){
   beginView();
-  setShell({ title: "Settings", back: state.lastMain || "#/notes", tabs: false });
-  view.className = "view no-tabs";
+  page = SETTINGS_PAGES.includes(page) ? page : "";
+  const parent = page === "qloo" ? "#/settings/about" : (page ? "#/settings" : (state.lastMain || "#/notes"));
+  setShell({ title: t(settingsTitle(page)), back: parent, tabs: false });
+  const newDepth = page ? (page === "qloo" ? 2 : 1) : 0;
+  const dir = newDepth > settingsDepth ? "push" : (newDepth < settingsDepth ? "pop" : "");
+  settingsDepth = newDepth;
+  view.style.transform = "";
+  view.className = "view no-tabs st-view" + (dir ? " st-" + dir : "");
 
   const u = state.user || {};
-  const isSample = !!u.sample;
+  let html = "";
+  if (!page) html = settingsRootHTML(u);
+  else if (page === "notifications") html = notificationsHTML();
+  else if (page === "language") html = languageHTML();
+  else if (page === "appearance") html = appearanceHTML();
+  else if (page === "planning") html = planningHTML(u);
+  else if (page === "import") html = '<div class="st-pad">' + importBlockHTML(t("Start from your Letterboxd export. Titles with dates become footprints; anything less certain waits in the inbox.")) + "</div>";
+  else if (page === "about") html = aboutHTML();
+  else if (page === "qloo") html = qlooHTML();
+  view.innerHTML = '<div class="st">' + html + "</div>";
+  translateNode(view);
 
-  view.innerHTML =
-    '<section class="settings-section">' +
-      '<h2 class="settings-title">Planning</h2>' +
-      '<p class="settings-hint">Prefills the plan form.</p>' +
-      '<form data-prefs novalidate>' +
-        '<div class="field"><label for="setArea">Planning area</label>' +
-          '<input id="setArea" data-pref-area value="' + attr(u.area || "") + '" placeholder="Neighbourhood" autocomplete="off"></div>' +
-        '<div class="field-row">' +
-          '<div class="field"><label for="setBudget">Default budget</label>' +
-            '<input id="setBudget" data-pref-budget inputmode="numeric" value="' + attr(u.budget == null ? "" : u.budget) + '" placeholder="40" autocomplete="off"></div>' +
-          '<div class="field"><label for="setWhen">Default time</label>' +
-            '<input id="setWhen" data-pref-when value="' + attr(u.when || "") + '" placeholder="Saturday afternoon" autocomplete="off"></div>' +
-        "</div>" +
-        '<div class="save-row">' +
-          '<button class="btn btn-primary btn-sm" type="submit">Save changes</button>' +
-          '<p class="feedback" data-pref-feedback role="status"></p>' +
-        "</div>" +
-      "</form>" +
-    "</section>" +
-    '<section class="settings-section">' +
-      '<h2 class="settings-title">Bring some history</h2>' +
-      importBlockHTML("Start from your Letterboxd export. Titles with dates become footprints; anything less certain waits in the inbox.") +
-    "</section>" +
-    '<section class="settings-section">' +
-      '<h2 class="settings-title">What Sparkling sends to Qloo</h2>' +
-      '<p class="settings-hint inline">Your notes and photos never go to Qloo. When Sparkling recognises a mention it sends only those few words to Qloo search. When you plan, it sends the IDs of a few cards and your area.</p>' +
-    "</section>" +
-    '<section class="settings-section">' +
-      '<h2 class="settings-title">Export everything</h2>' +
-      '<p class="settings-hint">Your notes, your photos, your cards. One file, yours to keep.</p>' +
-      '<div class="export-row"><a class="btn btn-sm" href="/api/export">Export everything</a></div>' +
-    "</section>" +
-    '<section class="settings-section danger-section">' +
-      '<h2 class="settings-title">Delete everything</h2>' +
-      '<p class="danger-copy">This removes every note, photo, card and plan from Sparkling. It cannot be undone.</p>' +
-      '<div class="settings-actions"><button class="btn btn-danger btn-sm" type="button" data-delete-all>Delete everything</button></div>' +
-    "</section>" +
-    (isSample ?
-      '<section class="settings-section danger-section">' +
-        '<h2 class="settings-title">Sample notebook</h2>' +
-        '<p class="sample-line">You are looking around a made-up notebook. Leaving removes it from this device.</p>' +
-        '<div class="settings-actions"><button class="btn btn-danger btn-sm" type="button" data-leave-sample>Leave the sample</button></div>' +
-      "</section>" : "");
+  if (page === "import") wireImport(view.querySelector("[data-import-block]"), {});
+  if (page === "planning") wirePlanning(view);
 
-  wireImport(view.querySelector("[data-import-block]"), {});
+  on(view, "click", function(e){
+    const nav = e.target.closest("[data-st-nav]");
+    if (nav) { go(nav.getAttribute("data-st-nav")); return; }
+    const act = e.target.closest("[data-st-action]");
+    if (act) { settingsAction(act.getAttribute("data-st-action"), act); return; }
+    const pick = e.target.closest("[data-st-pick]");
+    if (pick) { settingsPick(pick.getAttribute("data-st-pick"), pick.getAttribute("data-value"), page); return; }
+  });
+  on(view, "change", function(e){
+    const tg = e.target.closest("[data-st-toggle]");
+    if (tg) { settingsToggle(tg.getAttribute("data-st-toggle"), tg.checked, tg); return; }
+    const tm = e.target.closest("[data-st-time]");
+    if (tm) { prefs.notif[tm.getAttribute("data-st-time")] = tm.value || prefs.notif[tm.getAttribute("data-st-time")]; savePrefs(); }
+  });
+  if (page) wireSwipeBack(parent);
+}
 
-  const prefsForm = view.querySelector("[data-prefs]");
-  if (prefsForm) {
-    prefsForm.addEventListener("submit", async function(e){
-      e.preventDefault();
-      const area = view.querySelector("[data-pref-area]");
-      const budget = view.querySelector("[data-pref-budget]");
-      const when = view.querySelector("[data-pref-when]");
-      const feedback = view.querySelector("[data-pref-feedback]");
-      const btn = prefsForm.querySelector('button[type="submit"]');
-      const valueOf = function(el){ return el ? el.value.trim() : ""; };
-      const body = {};
-      const areaV = valueOf(area);
-      const whenV = valueOf(when);
-      const budgetV = valueOf(budget);
-      if (areaV) body.area = areaV;
-      if (whenV) body.when = whenV;
-      if (budgetV) {
-        const n = numberValue(budgetV);
-        if (n === null || n < 1) {
-          feedback.textContent = "Budget needs a number above zero.";
-          feedback.className = "feedback bad";
-          if (budget) budget.focus();
-          return;
-        }
-        body.budget = n;
+function settingsRootHTML(u){
+  const langName = LANG === "zh" ? "简体中文" : "English";
+  const appName = t({ system: "System", light: "Light", paper: "Paper" }[prefs.appearance]);
+  const sizeName = t(["Small", "Default", "Large"][prefs.textSize]);
+  const n = prefs.notif;
+  const notifOn = n.master && notifPermission() === "granted";
+  const notifValue = LANG === "zh" ? (notifOn ? "已开启" : "已关闭") : (notifOn ? "On" : "Off");
+  return '<div class="st-profile">' +
+      '<span class="st-avatar" aria-hidden="true">Q</span>' +
+      '<span class="st-profile-main"><span class="st-profile-name" translate="no">Q1f730</span><span class="st-sub">' + esc(t(u.sample ? "Sample notebook" : "Demo profile")) + "</span></span>" +
+    "</div>" +
+    stGroup("", [
+      stRow({ icon: STI.bell, label: t("Notifications"), value: notifValue, valueNoTr: true, nav: "#/settings/notifications" }),
+      stRow({ icon: STI.globe, label: t("Language"), value: langName, valueNoTr: true, nav: "#/settings/language" }),
+      stRow({ icon: STI.sun, label: t("Appearance"), value: appName + " · " + sizeName, nav: "#/settings/appearance" }),
+      stRow({ icon: STI.map, label: t("Planning defaults"), nav: "#/settings/planning" }),
+    ]) +
+    stGroup(t("Data"), [
+      stRow({ icon: STI.film, label: t("Import from Letterboxd"), nav: "#/settings/import" }),
+      stRow({ icon: STI.down, label: t("Export notes"), action: "export" }),
+      u.sample ? stRow({ label: t("Leave the sample"), danger: true, center: true, action: "leave-sample" }) : "",
+      stRow({ label: t("Delete all data"), danger: true, center: true, action: "delete-all" }),
+    ].filter(Boolean), esc(t("Exports include every note and card. Deleting removes your notebook from the server."))) +
+    stGroup(t("About"), [
+      stRow({ icon: STI.info, label: t("About"), value: "v" + APP_VERSION, valueNoTr: true, nav: "#/settings/about" }),
+      stRow({ icon: STI.spark, label: t("How Sparkling uses Qloo"), nav: "#/settings/qloo" }),
+    ]) +
+    stGroup("", [stRow({ label: t("Sign out"), danger: true, center: true, action: "sign-out" })]);
+}
+
+function notifPermission(){ return ("Notification" in window) ? Notification.permission : "unsupported"; }
+function notificationsHTML(){
+  const n = prefs.notif;
+  const perm = notifPermission();
+  const masterOn = n.master && perm === "granted";
+  const off = !masterOn;
+  let blocked = "";
+  if (perm === "denied") blocked = stGroup("", ['<div class="st-row st-explain"><span class="st-row-main"><span class="st-label">' + esc(t("Notifications are off for this site")) + '</span><span class="st-sub">' + esc(t("Your browser blocked notifications for Sparkling. To turn them on, open your browser's site settings for this page and allow Notifications, then come back.")) + "</span></span></div>"]);
+  else if (perm === "unsupported") blocked = stGroup("", ['<div class="st-row st-explain"><span class="st-row-main"><span class="st-label">' + esc(t("This browser cannot show notifications")) + '</span><span class="st-sub">' + esc(t("On iPhone, add Sparkling to your Home Screen first, then open it from there.")) + "</span></span></div>"]);
+  return blocked +
+    stGroup("", [stRow({ label: t("Allow Notifications"), control: stToggle("master", masterOn, perm === "denied" || perm === "unsupported") })],
+      esc(t("Sparkling never sends recommendation pushes. You only hear from it about things you started."))) +
+    '<div class="st-dim' + (off ? " is-off" : "") + '">' +
+    stGroup("", [
+      stRow({ label: t("Your letter is ready"), sub: t("Once a month, when your taste letter is written."), control: stToggle("letter", n.letter, off) }),
+      stRow({ label: t("Plan reminder"), sub: t("The day before a saved outing."), control: stToggle("plan", n.plan, off) }),
+      (n.plan ? stRow({ label: t("Remind at"), control: stTime("planTime", n.planTime, off) }) : ""),
+      stRow({ label: t("Inbox needs you"), sub: t("A weekly digest of items Sparkling was unsure about."), control: stToggle("inbox", n.inbox, off) }),
+      stRow({ label: t("Import finished"), sub: t("When a Letterboxd import is done reading."), control: stToggle("imported", n.imported, off) }),
+    ].filter(Boolean)) +
+    stGroup("", [
+      stRow({ label: t("Quiet hours"), control: stToggle("quiet", n.quiet, off) }),
+      (n.quiet ? stRow({ label: t("From"), control: stTime("quietFrom", n.quietFrom, off) }) : ""),
+      (n.quiet ? stRow({ label: t("To"), control: stTime("quietTo", n.quietTo, off) }) : ""),
+    ].filter(Boolean), esc(t("Notifications wait until quiet hours end."))) +
+    "</div>";
+}
+function languageHTML(){
+  return stGroup("", [
+    '<button class="st-row" type="button" data-st-pick="lang" data-value="en"><span class="st-row-main" translate="no"><span class="st-label">English</span><span class="st-sub">English</span></span>' + (LANG === "en" ? stIcons.check : "") + "</button>",
+    '<button class="st-row" type="button" data-st-pick="lang" data-value="zh"><span class="st-row-main" translate="no"><span class="st-label">简体中文</span><span class="st-sub">Simplified Chinese</span></span>' + (LANG === "zh" ? stIcons.check : "") + "</button>",
+  ], esc(t("Qloo names, tags and your own notes are never translated.")));
+}
+function appearanceHTML(){
+  const opt = function(v, label){ return '<button class="st-row" type="button" data-st-pick="appearance" data-value="' + v + '"><span class="st-row-main"><span class="st-label">' + esc(t(label)) + "</span></span>" + (prefs.appearance === v ? stIcons.check : "") + "</button>"; };
+  const sizes = ["Small", "Default", "Large"].map(function(l, i){
+    return '<button class="st-seg' + (prefs.textSize === i ? " on" : "") + '" type="button" data-st-pick="textSize" data-value="' + i + '" aria-pressed="' + (prefs.textSize === i) + '"><span style="font-size:' + [13, 16, 19][i] + 'px">Aa</span><span class="st-seg-l">' + esc(t(l)) + "</span></button>";
+  }).join("");
+  return stGroup(t("Appearance"), [opt("system", "System"), opt("light", "Light"), opt("paper", "Paper")],
+      esc(t("System follows your device: Paper by day, dark at night if your device is set to dark."))) +
+    stGroup(t("Text size"), ['<div class="st-segs" role="group">' + sizes + "</div>"], esc(t("Applies to notes, cards and sheets.")));
+}
+function planningHTML(u){
+  return '<form data-prefs novalidate>' +
+    stGroup(t("Planning"), [
+      '<label class="st-row st-field"><span class="st-label">' + esc(t("Planning area")) + '</span><input data-pref-area value="' + attr(u.area || "") + '" placeholder="' + attr(t("Neighbourhood")) + '" autocomplete="off"></label>',
+      '<label class="st-row st-field"><span class="st-label">' + esc(t("Default budget")) + '</span><input data-pref-budget inputmode="numeric" value="' + attr(u.budget == null ? "" : u.budget) + '" placeholder="40" autocomplete="off"></label>',
+      '<label class="st-row st-field"><span class="st-label">' + esc(t("Default time")) + '</span><input data-pref-when value="' + attr(u.when || "") + '" placeholder="' + attr(t("Saturday afternoon")) + '" autocomplete="off"></label>',
+    ], esc(t("Prefills the plan form."))) +
+    '<div class="st-pad"><button class="st-btn" type="submit">' + esc(t("Save changes")) + '</button><p class="feedback" data-pref-feedback role="status"></p></div>' +
+  "</form>";
+}
+function wirePlanning(root){
+  const form = root.querySelector("[data-prefs]");
+  if (!form) return;
+  form.addEventListener("submit", async function(e){
+    e.preventDefault();
+    const v = function(sel){ const el = root.querySelector(sel); return el ? el.value.trim() : ""; };
+    const fb = root.querySelector("[data-pref-feedback]");
+    const body = {};
+    if (v("[data-pref-area]")) body.area = v("[data-pref-area]");
+    if (v("[data-pref-when]")) body.when = v("[data-pref-when]");
+    if (v("[data-pref-budget]")) {
+      const n = numberValue(v("[data-pref-budget]"));
+      if (n === null || n < 1) { fb.textContent = t("Budget needs a number above zero."); fb.className = "feedback bad"; return; }
+      body.budget = n;
+    }
+    try {
+      const data = await api("/api/me", { method: "PATCH", body: body });
+      if (data && data.user) state.user = data.user;
+      fb.textContent = t("Saved."); fb.className = "feedback ok";
+    } catch (err) { fb.textContent = t("That did not save. Try again."); fb.className = "feedback bad"; }
+  });
+}
+function aboutHTML(){
+  return '<div class="st-hero"><span class="st-hero-mark" aria-hidden="true">✦</span><h2 class="st-hero-name">Sparkling</h2><p class="st-sub">' + esc(t("Open-source hackathon build for the Qloo Taste AI challenge.")) + "</p></div>" +
+    stGroup("", [
+      stRow({ label: t("Version"), value: APP_VERSION, valueNoTr: true }),
+      stRow({ label: t("License"), value: "MIT © Q1f730", valueNoTr: true, href: "https://github.com/q1f0730/sparkling/blob/main/LICENSE", external: true }),
+      stRow({ label: t("Source code"), value: "GitHub", valueNoTr: true, href: "https://github.com/q1f0730/sparkling", external: true }),
+    ]) +
+    stGroup("", [stRow({ icon: STI.spark, label: t("How Sparkling uses Qloo"), nav: "#/settings/qloo" })]);
+}
+function qlooHTML(){
+  const para = function(s){ return '<div class="st-row st-explain"><span class="st-row-main"><span class="st-sub st-body">' + esc(t(s)) + "</span></span></div>"; };
+  return stGroup(t("What goes to Qloo"), [
+      para("The few words that name a film, book, album or place, so Qloo search can match them to a catalogue entity."),
+      para("When you plan: the IDs of a few cards and the area you typed."),
+    ]) +
+    stGroup(t("What never goes to Qloo"), [para("Your notes, your photos, your name and your location history.")]) +
+    stGroup(t("What comes back"), [
+      para("Catalogue entities with their tags, Insights for Threads (tags shared across your cards) and venues near your area for Plan. Sparkling shows Qloo data as it is and marks its own read."),
+    ], esc(t("Every thread and plan has a receipt with the exact Qloo calls behind it.")));
+}
+
+function settingsPick(kind, value, page){
+  if (kind === "lang") { setLang(value); return; }
+  if (kind === "appearance") { prefs.appearance = value; applyAppearance(); savePrefs(); renderSettings(page); return; }
+  if (kind === "textSize") { prefs.textSize = Number(value); applyAppearance(); savePrefs(); renderSettings(page); return; }
+}
+async function settingsToggle(key, on, input){
+  if (key === "master") {
+    if (on) {
+      let perm = notifPermission();
+      if (perm === "default") {
+        try { perm = await Notification.requestPermission(); } catch (_) { perm = notifPermission(); }
       }
-      if (feedback) { feedback.textContent = ""; feedback.className = "feedback"; }
-      btn.disabled = true;
-      const old = btn.textContent;
-      btn.textContent = "Saving";
-      try {
-        const data = await api("/api/me", { method: "PATCH", body: body });
-        if (data && data.user) state.user = data.user;
-        if (feedback) { feedback.textContent = "Saved."; feedback.className = "feedback ok"; }
-      } catch (err) {
-        if (feedback) { feedback.textContent = (err && err.message) || "That did not save. Try again."; feedback.className = "feedback bad"; }
-      } finally {
-        btn.disabled = false;
-        btn.textContent = old;
+      prefs.notif.master = perm === "granted";
+      if (perm === "granted") {
+        try { new Notification(t("Notifications are on"), { body: t("Sparkling will only tell you about things you started.") }); } catch (_) {}
       }
+    } else prefs.notif.master = false;
+    savePrefs();
+    renderSettings("notifications");
+    return;
+  }
+  prefs.notif[key] = !!on;
+  savePrefs();
+  if (key === "plan" || key === "quiet") renderSettings("notifications");
+}
+function settingsAction(action){
+  if (action === "export") {
+    openSheet({ title: t("Export notes"), body:
+      '<div class="st-sheet-list">' +
+        '<a class="st-sheet-btn" href="/api/export" download="sparkling-export.json">' + esc(t("Export as JSON")) + "</a>" +
+        '<a class="st-sheet-btn" href="/api/export.md" download="sparkling-notes.md">' + esc(t("Export as Markdown")) + "</a>" +
+      "</div>",
+      onMount: function(root){ root.querySelectorAll("a").forEach(function(a){ a.addEventListener("click", function(){ setTimeout(closeModal, 300); }); }); },
     });
+    return;
   }
-
-  function clearLocalNotebook(){
-    clearPlanStorage();
-    clearDidYouGo();
-    clearDraft();
-  }
-  function openDeleteEverything(){
+  if (action === "delete-all" || action === "leave-sample") {
+    const sample = action === "leave-sample";
     confirmSheet({
-      title: "Delete everything?",
-      copy: "Every note, photo, card and plan will be removed from Sparkling. It cannot be undone.",
-      extra: sheetField("Type DELETE to continue", "deleteConfirm", "text", "", "DELETE", true),
+      title: t(sample ? "Leave the sample?" : "Delete all data?"),
+      copy: t(sample ? "The made-up notebook will be removed from this device. You can start your own whenever you like." : "Every note, photo, card and plan will be deleted from Sparkling. This cannot be undone."),
       danger: true,
-      confirmLabel: "Delete everything",
-      busyLabel: "Deleting",
+      confirmLabel: t(sample ? "Leave the sample" : "Delete All Data"),
+      cancelLabel: t("Cancel"),
+      busyLabel: t(sample ? "Leaving" : "Deleting"),
       onConfirm: async function(){
-        const input = modal.querySelector("#deleteConfirm");
-        if (!input || input.value.trim() !== "DELETE") throw new Error("Type DELETE to continue.");
         await api("/api/delete", { method: "POST", body: { confirm: "DELETE" } });
-        clearLocalNotebook();
-        location.reload();
+        clearPlanStorage(); clearDidYouGo(); clearDraft();
+        state.user = null; state.inboxCount = 0;
+        history.replaceState(null, "", "#/onboarding");
+        renderOnboarding();
       },
     });
+    return;
   }
-  function openLeaveSample(){
+  if (action === "sign-out") {
     confirmSheet({
-      title: "Leave the sample?",
-      copy: "The made-up notebook will be removed from this device. You can start your own whenever you like.",
-      danger: true,
-      confirmLabel: "Leave the sample",
-      busyLabel: "Leaving",
+      title: t("Sign out?"),
+      copy: t("You can open this notebook again from this browser while the session lasts."),
+      confirmLabel: t("Sign out"), cancelLabel: t("Cancel"), danger: true, busyLabel: t("Working"),
       onConfirm: async function(){
-        await api("/api/delete", { method: "POST", body: { confirm: "DELETE" } });
-        clearLocalNotebook();
-        state.user = null;
-        state.inboxCount = 0;
+        await api("/api/signout", { method: "POST", body: {} });
+        state.user = null; state.inboxCount = 0;
         history.replaceState(null, "", "#/onboarding");
         renderOnboarding();
       },
     });
   }
+}
 
-  on(view, "click", function(e){
-    if (e.target.closest("[data-delete-all]")) { openDeleteEverything(); return; }
-    if (e.target.closest("[data-leave-sample]")) { openLeaveSample(); return; }
+/* iOS-like edge swipe back for settings sub-pages */
+function wireSwipeBack(parent){
+  let sx = null, sy = 0, dx = 0;
+  on(view, "touchstart", function(e){
+    const tch = e.touches[0];
+    if (tch.clientX - frame.getBoundingClientRect().left > 28) { sx = null; return; }
+    sx = tch.clientX; sy = tch.clientY; dx = 0;
+  }, { passive: true });
+  on(view, "touchmove", function(e){
+    if (sx === null) return;
+    const tch = e.touches[0];
+    dx = tch.clientX - sx;
+    if (Math.abs(tch.clientY - sy) > Math.abs(dx)) { sx = null; view.style.transform = ""; return; }
+    if (dx > 0) view.style.transform = "translateX(" + Math.min(dx, 300) + "px)";
+  }, { passive: true });
+  on(view, "touchend", function(){
+    if (sx === null) return;
+    view.style.transform = "";
+    if (dx > 90) go(parent);
+    sx = null;
   });
 }
 
 
+if (LANG === "zh") setLang("zh", true);
 boot();
 
 </script>

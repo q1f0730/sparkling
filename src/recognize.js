@@ -139,7 +139,9 @@ async function qsearch(env, query, types, take = 5) {
 }
 
 // Decide whether the best search result is a sure match.
+const GENERIC = new Set(['live','live recording','recording','not','the','song','album','film','movie','book','show','music','track','single','radio']);
 function judge(m, results) {
+  if (GENERIC.has(norm(m.surface))) return { sure: false, guesses: [] };
   if (!results.length) return { sure: false, guesses: [] };
   const t = norm(m.title || m.surface), s = norm(m.surface);
   const exact = results.filter((r) => norm(r.name) === t || norm(r.name) === s);

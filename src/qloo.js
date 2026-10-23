@@ -50,7 +50,7 @@ async function qloo(env, path, params) {
     const gate = env.__gate || (env.__gate = makeGate());
     await gate.acquire();
     try {
-      res = await fetch(url, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" } });
+      res = await fetch(url, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
       text = await res.text();
     } finally {
       gate.release();
@@ -69,7 +69,8 @@ const short = (s, n = 220) => (s && s.length > n ? s.slice(0, n - 1) + "…" : s
 
 export function slimEntity(e) {
   const p = e.properties || {};
-  const domain = DOMAIN_BY_URN[e.subtype] || DOMAIN_BY_URN[(e.types || [])[0]] || (e.subtype || "").split(":").pop();
+  const types = Array.isArray(e.types) ? e.types : [];
+  const domain = DOMAIN_BY_URN[e.subtype] || DOMAIN_BY_URN[types[0]] || String(e.subtype || "").split(":").pop();
   return {
     id: e.entity_id,
     name: e.name,
@@ -80,8 +81,8 @@ export function slimEntity(e) {
     description: short(p.short_description || p.description || p.plot_summary || ""),
     address: p.address || undefined,
     affinity: e.query?.affinity != null ? Math.round(e.query.affinity * 100) / 100 : undefined,
-    tags: (e.tags || [])
-      .filter((t) => /genre|style|theme|mood|subgenre|audience/.test(t.type || t.subtype || "") && !/^(Place|Shopping|Restaurant)$/.test(t.name))
+    tags: (Array.isArray(e.tags) ? e.tags : [])
+      .filter((t) => t && typeof t.name === "string" && /genre|style|theme|mood|subgenre|audience/.test(t.type || t.subtype || "") && !/^(Place|Shopping|Restaurant)$/.test(t.name))
       .slice(0, 6)
       .map((t) => t.name),
     url: Array.isArray(p.websites) ? p.websites[0] : undefined,
@@ -119,6 +120,7 @@ export async function compareTastes(env, { a_ids, b_ids, take = 10 }) {
   const dedupe = (arr) => {
     const seen = new Set();
     return arr.filter((t) => {
+      if (typeof t.name !== "string") return false;
       const k = t.name.toLowerCase();
       if (seen.has(k)) return false;
       seen.add(k);
@@ -140,7 +142,7 @@ export async function recommend(env, { domain, entity_ids, tag_ids, location, pl
     "filter.type": type,
     "signal.interests.entities": entity_ids,
     "signal.interests.tags": tag_ids,
-    take: Math.min(Math.max(take, 1), 30) + (exclude_ids?.length || 0),
+    take: Math.min(Math.max(Number(take) || 6, 1), 30) + (exclude_ids?.length || 0),
     "filter.popularity.min": popularity,
   };
   if (location && (domain === "place" || domain === "destination")) params["filter.location.query"] = location;

@@ -262,7 +262,7 @@ const READ_OK = new Set("you your youll the a an and of to in for on at it its i
 export function groundedRead(txt, s) {
   const facts = [s.kind, s.name, s.description, ...(s.vibes || [])].join(" ").toLowerCase();
   const vibes = (s.vibes || []).slice(0, 2).map((v) => String(v).toLowerCase());
-  const tpl = `A ${String(s.kind || "place").toLowerCase()}${vibes.length ? ", tagged " + vibes.join(" and ") + " by Qloo" : ""}.`;
+  const tpl = `${String(s.kind || "Place")}${vibes.length ? " with a " + vibes.join(", ") + " feel, per Qloo" : " picked by Qloo for your taste"}.`;
   if (!txt) return tpl;
   const words = String(txt).toLowerCase().replace(/[^a-z\s']/g, " ").split(/\s+/).filter((w) => w.length > 3);
   const bad = words.filter((w) => !READ_OK.has(w) && !facts.includes(w.replace(/s$/, "")));

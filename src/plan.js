@@ -259,14 +259,15 @@ async function placeTag(env, word) {
 
 // Keep the model's sentence only if every descriptive word traces to Qloo's facts; else a plain template.
 const READ_OK = new Set("you your youll the a an and of to in for on at it its is be this that with as by from or place spot shop store find enjoy will can good fit fits suits suit feel feels mood kind like same near close nearby afternoon day visit stop here there small space time worth take keep keeps returning back vibe vibes".split(" "));
-export function groundedRead(txt, s) {
+export function groundedRead(txt, s, note) {
   const facts = [s.kind, s.name, s.description, ...(s.vibes || [])].join(" ").toLowerCase();
   const vibes = (s.vibes || []).slice(0, 2).map((v) => String(v).toLowerCase());
   const tpl = `${String(s.kind || "Place")}${vibes.length ? " with a " + vibes.join(", ") + " feel, per Qloo" : " picked by Qloo for your taste"}.`;
-  if (!txt) return tpl;
+  const noteTpl = note ? `${String(s.kind || "Place")}${vibes.length ? " with a " + vibes.join(", ") + " feel" : ""}, a fit for your note on ${note}.` : tpl;
+  if (!txt) return noteTpl;
   const words = String(txt).toLowerCase().replace(/[^a-z\s']/g, " ").split(/\s+/).filter((w) => w.length > 3);
   const bad = words.filter((w) => !READ_OK.has(w) && !facts.includes(w.replace(/s$/, "")));
-  return bad.length > 1 ? tpl : txt;
+  return bad.length > 1 ? noteTpl : txt;
 }
 const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", items: { type: "string" } } }, required: ["reads"] };
 
@@ -524,17 +525,18 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     const arrive = clock, leave = clock + stayFor(s.kind); clock = leave;
     const open = openAt(s.hours, day, arrive, leave - arrive);
     const d = prev ? haversineMi(prev.coords, s.coords) : null;
+    const fn_ = fit(s, i);
     return {
       qloo_id: s.qloo_id, name: s.name, kind: s.kind, asked: s.asked || null, neighborhood: s.neighborhood, borough: s.borough || null, address: s.address,
       distance: d != null ? (d < 1.3 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${Math.max(2, Math.round(d * 6))} min by bike from stop ${i} (${d.toFixed(1)} mi)`) : null,
       arrive: fmtT(arrive), leave: fmtT(leave), stay_min: leave - arrive, sources: sourcesFor(s, i),
-      from_notes: fit(s, i),
+      from_notes: fn_,
       why: (() => {
         const cf = contribFor(s);
         return { attribution: !!cf, contributions: cf, affinity: s.affinity ?? null, qloo_id: s.qloo_id, popularity: s.popularity ?? null, vibes: (s.vibes || []).slice(0, 6), kinds: s.kinds || [], price_level: s.price_level ?? null, area: meta.area, seeds_sent: seedNames.length };
       })(),
       from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Qloo matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
-      read: groundedRead(reads[i], s),
+      read: groundedRead(reads[i], s, (fn_[0] && fn_[0].name) || null),
       ops: hoursLine(s.hours, meta.when) + (open === false ? " · may be closed when you arrive" : ""),
       open_on_arrival: open,
       checks: { category: s.primary || s.kind, fit: s.fit ?? null, neighborhood_source: s.hood_source || null, zip: s.zip || null, open_on_arrival: open, hours_listed: open !== null },

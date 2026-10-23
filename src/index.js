@@ -375,9 +375,10 @@ async function api(req, env, ctx, url) {
     }
     threads.length = 0;
     const input = heavy.map((c) => ({ qloo_id: c.qloo_id, name: c.name }));
+    let mi = 0;
     for (const m of merged) {
-      const { key, tags, ...rest } = m;
-      threads.push({ ...rest, tag: tags.slice(0, 2).join(" · "), read: m.carried_by_cards ? m.read : `Qloo reads ${tags.length > 1 ? "these" : "this"} across ${period === "now" ? "your most recent cards" : period === "then" ? "your earlier cards" : "the cards you return to most"}, not from any single one.`,
+      const { key, tags, ...rest } = m; const idx = mi++;
+      threads.push({ ...rest, tag: tags.slice(0, 2).join(" · "), read: m.carried_by_cards ? m.read : (() => { const top = [...(m.cards || [])].sort((a, b) => (b.footprints || 0) - (a.footprints || 0)); top.push(...top.splice(0, idx % Math.max(1, top.length))); top.length = Math.min(top.length, 2); const names = top.map((c) => c.name); const lead = names.length > 1 ? `${names[0]} and ${names[1]}` : names[0]; const w = (m.your_words || [])[idx % Math.max(1, (m.your_words || []).length)]; const q = w ? (w.text || w.quote || (typeof w === "string" ? w : "")) : ""; return `${tags.map((x) => "“" + x + "”").join(" and ")} is how Qloo reads the pull of ${lead || (period === "now" ? "your recent cards" : "your cards")}${q ? ` — you wrote “${String(q).replace(/[.\s]+$/, "").slice(0, 70)}”` : ""}.`; })(),
         receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": input, tag_ids: m.qloo_tags.map((q) => q.id) } });
     }
     threads.splice(5);

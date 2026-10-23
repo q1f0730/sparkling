@@ -102,6 +102,12 @@ async function api(req, env, ctx, url) {
 
   if (p === "/api/session" && m === "POST") {
     const body = (await readJSON(req)) || {};
+    // anonymous-session throttle: per-IP, KV counter, 20/hour (sample sessions cost LLM+Qloo calls)
+    const ip = req.headers.get("cf-connecting-ip") || "unknown";
+    const rk = "rl:sess:" + ip + ":" + Math.floor(Date.now() / 3600000);
+    const used = parseInt((await env.MEDIA_KV.get(rk)) || "0", 10);
+    if (used >= 20) return ERR("Too many new sessions from this network. Try again in an hour.", 429);
+    await env.MEDIA_KV.put(rk, String(used + 1), { expirationTtl: 7200 }).catch(() => {}); // KV allows 1 write/s per key; best-effort
     const token = uid() + uid(), id = uid();
     const sample = body.mode === "sample";
     await env.DB.prepare("INSERT INTO users (id,token,sample,area,budget,whenx,created_at) VALUES (?,?,?,?,40,'Saturday afternoon',?)")

@@ -5372,14 +5372,14 @@ function renderPlanResult(id){
       '<details class="why-details"><summary>Receipt</summary>' + rc + "</details>";
   }
   async function openPlain(){
-    openSheet({ title: "Same notes, no Qloo", cls: "why-sheet", body: '<p class="muted">Asking a plain model…</p>' });
+    openSheet({ title: "Same notes, no Qloo", cls: "why-sheet", body: '<div class="plain-skel" aria-busy="true"><p class="muted">Asking a plain model, no Qloo… usually 5–15 seconds.</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
     let d = null;
     try { d = await api("/api/plan/" + encodeURIComponent(planId) + "/plain", { method: "POST", body: "{}" }); } catch (e) {}
     const pl = d && d.plain;
     const mine = (currentPlan.stops || []).map(function(s){ return '<li><b>' + esc(s.name) + '</b><br><small>' + esc(s.read || "") + '</small></li>'; }).join("");
-    const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b>' + esc(s.name) + '</b> <small>(' + esc(s.kind || "") + ')</small><br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || "Could not load.") + '</li>';
+    const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b style="text-decoration:line-through;text-decoration-thickness:1px;opacity:.75">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(s.kind) + ')</small>' : '') + ' <small class="muted">· unverified</small><br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || "Could not load.") + '</li>';
     const body = '<p class="muted">Same ' + esc(String(((pl && pl.seeds) || []).length)) + ' cards and area' + (pl ? ', model ' + esc(String(pl.model).split("/").pop()) : '') + '. Only change: Qloo.</p>' +
-      '<h3>Plain model</h3><ol>' + theirs + '</ol><p class="muted"><small>Names come from the model\'s memory. Nothing checks they exist, are open, or are nearby.</small></p>' +
+      '<h3>Plain model</h3><ol>' + theirs + '</ol><p class="muted"><small>Struck-through names are the model\'s guesses from memory. Nothing checks that they exist, are open, or are nearby, so treat them as unverified.</small></p>' +
       '<h3>Sparkling + Qloo</h3><ol>' + mine + '</ol><p class="muted"><small>Every stop is a Qloo place with coordinates, hours flag and per-note credit.</small></p>';
     openSheet({ title: "Same notes, no Qloo", cls: "why-sheet", body: body });
   }

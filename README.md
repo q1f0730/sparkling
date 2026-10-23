@@ -26,7 +26,7 @@ Built for the Qloo Hackathon. Every card and every plan stop is a real entity re
 - Cloudflare Workers (single Worker, no framework), D1 (SQLite), R2 or KV for photos
 - Workers AI: Llama 3.3 70B for mention extraction and copy, Llama 4 Scout for reading text in photos
 - Qloo Taste AI REST API: `/search`, `/entities`, `/v2/insights`, `/v2/tags`
-- Front end: one vanilla HTML/JS file, mobile first
+- Front end: one vanilla HTML/JS file, mobile first. A small inline motion layer (WebGL1 liquid gradient and paper-strata headers, word reveal, morphing tab bar, swipe deck, slide to confirm) with no libraries; it pauses offscreen and respects `prefers-reduced-motion`
 
 ## Run it yourself
 
@@ -48,6 +48,10 @@ The sample notebook ("Juno Park") is fictional and written by hand; it stores on
 ## License
 
 MIT © Q1f730
+
+## Credits
+
+The r6 motion layer's look (liquid cursor gradient, layered paper waves, fluid orb, morphing tab, slide to confirm, card deck) was inspired by [RewampUI](https://www.rewampui.com) by palakonweb. RewampUI's repository has no license, so no code was copied: Sparkling's versions are original vanilla JS/CSS/GLSL written for this app, in its own warm paper palette.
 
 ## Tests
 

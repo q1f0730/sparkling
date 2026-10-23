@@ -1137,6 +1137,16 @@ a{color:var(--b-sage-ink)}
 .ent.type-music{background:var(--b-music);color:var(--b-music-ink)}
 .ent.type-place{background:var(--b-clay);color:var(--b-clay-ink)}
 /* B labelled card + dot label */
+
+.why-stop-btn{margin:10px 0 0}
+.ws-row{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--b-line);padding:12px 0 4px;color:inherit;font:inherit;cursor:pointer}
+.ws-row:first-of-type{border-top:0}
+.ws-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.ws-top b{font-family:var(--serif);font-weight:420;font-size:17px}
+.ws-pct{font-family:var(--mono);font-size:12px;color:var(--b-faint)}
+.ws-bar{display:block;height:5px;border-radius:3px;background:var(--b-line);margin:8px 0 6px;overflow:hidden}
+.ws-bar i{display:block;height:100%;border-radius:3px;background:var(--b-sage-ink,#5f7a62)}
+.ws-quote{display:block;font-family:var(--serif);font-style:italic;font-size:15px;line-height:20px;color:var(--b-ink2);padding-bottom:8px}
 .bcard{background:var(--b-card);border:1px solid var(--b-line);border-radius:20px;padding:16px;margin:0 0 12px}
 .blabel{display:flex;align-items:center;gap:8px;font:600 13px/18px var(--sans);color:var(--text);margin:0 0 12px}
 .blabel i{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 8px;background:var(--b-sage-ink)}
@@ -1716,7 +1726,7 @@ const ZH = {
   // threads
   "Patterns across your cards, named with Qloo catalogue tags.": "你卡片之间的规律，用 Qloo 目录标签命名。",
   "All of you": "全部的你", "Recent you": "最近的你", "Earlier you": "以前的你", "Which you": "哪个你",
-  "New in recent notes": "最近新出现", "Fading from recent notes": "最近渐少", "Why this thread?": "为什么是这条线索？",
+  "New in recent notes": "最近新出现", "Fading from recent notes": "最近渐少", "Why this thread?": "为什么是这条线索？", "Why this stop?": "为什么是这一站？", "Your notes": "你的笔记", "Qloo evidence": "Qloo 的依据", "Per-input attribution unavailable for this stop. Qloo returned it for your cards taken together.": "这一站没有逐项归因。Qloo 是根据你的卡片整体返回的。", "Three layers, kept apart: what you wrote, what Qloo says, and what Sparkling adds.": "三层分开呈现：你写的、Qloo 说的、Sparkling 补充的。",
   "What this thread rests on. Qloo\u2019s data and your notes are shown as they are; Sparkling\u2019s own read is marked.": "这条线索的依据。Qloo 的数据和你的笔记按原样展示；Sparkling 自己的解读会单独标出。",
   "Qloo says": "Qloo 的数据", "Your words": "你的原话", "Cards that feed it": "支撑它的卡片", "Sparkling\u2019s read": "Sparkling 的解读", "Sparkling's read": "Sparkling 的解读",
   "Receipt": "调用凭据", "Seeds sent to Qloo": "发给 Qloo 的种子", "Also returned for the same cards": "同一组卡片还返回了",
@@ -5312,6 +5322,49 @@ function renderPlanResult(id){
           (when ? '<span class="trace-at">' + esc(when) + "</span>" : "") + "</span></button>";
       }).join("") + "</div></div>";
   }
+  function whyStopHTML(stop, plan){
+    const w = stop && stop.why || {};
+    const cf = Array.isArray(w.contributions) ? w.contributions : [];
+    const max = cf.reduce(function(m, r){ return Math.max(m, r.score || 0); }, 0) || 1;
+    const notesCard = '<section class="bcard"><div class="blabel"><i class="clay"></i><span>Your notes</span><small>' + esc(cf.length + " " + plural(cf.length, "card", "cards")) + "</small></div>" +
+      (cf.length ? cf.slice(0, 4).map(function(r){
+        const pct = Math.round((r.score || 0) * 100);
+        return '<button type="button" class="ws-row type-' + attr(r.type || "other") + '" data-close-nav="#/cards/' + attr(r.card_id) + '">' +
+          '<span class="ws-top"><b translate="no">' + esc(r.name) + '</b><span class="ws-pct num">' + pct + "%</span></span>" +
+          '<span class="ws-bar"><i style="width:' + Math.max(4, Math.round((r.score || 0) / max * 100)) + '%"></i></span>' +
+          (r.quote ? '<span class="ws-quote" translate="no">&ldquo;' + esc(r.quote) + "&rdquo;" + (r.at ? " &middot; " + esc(formatDate(r.at)) : "") + "</span>" : "") +
+        "</button>";
+      }).join("") : '<p class="why-line">Per-input attribution unavailable for this stop. Qloo returned it for your cards taken together.</p>') +
+    "</section>";
+    const vibes = Array.isArray(w.vibes) ? w.vibes : [];
+    const qlooCard = '<section class="bcard"><div class="blabel"><i></i><span>Qloo evidence</span><small>' + (w.affinity != null ? "affinity " + Number(w.affinity).toFixed(2) : "") + "</small></div>" +
+      (cf.length ? '<p class="why-line">Qloo reports how much each of your cards contributed to this match. The shares add up to 100%; they describe the match, not why you would enjoy it.</p>' : "") +
+      (vibes.length ? '<div class="seeds">' + vibes.slice(0, 4).map(function(v, k){ return seedHTML({ name: v, type: "vibe" }, "sm" + (k < 2 ? " s" + (k + 1) : "")); }).join("") + "</div>" : "") +
+      (w.popularity != null ? '<p class="why-line">Popularity ' + Number(w.popularity).toFixed(2) + " (0 is obscure, 1 is everywhere).</p>" : "") +
+    "</section>";
+    const readCard = stop && stop.read ? '<section class="bcard bread"><div class="blabel"><span>Sparkling&rsquo;s read</span></div><p>' + esc(stop.read) + "</p><p class=\"why-line\">A sentence written by a model from the venue&rsquo;s description. It is not Qloo data.</p></section>" : "";
+    const rc = '<div class="why-receipt" translate="no">' +
+      "<div>GET /v2/insights &middot; filter.type=urn:entity:place</div>" +
+      "<div class=\"ind\">feature.explainability=true</div>" +
+      "<div class=\"ind\">near " + esc((w.area || "")) + " &middot; " + esc(String(w.seeds_sent || cf.length)) + " card IDs sent</div>" +
+      "<div class=\"ind\">place " + esc(String(w.qloo_id || "").slice(0, 8)) + "&hellip;</div>" +
+      cf.map(function(r){ return '<div class="ind">' + esc(String(r.qloo_id || "").slice(0, 8)) + "&hellip; " + esc(String(r.score)) + ' <span class="why-faint">' + esc(r.name) + "</span></div>"; }).join("") +
+      "</div>";
+    return '<span tabindex="-1" data-autofocus class="why-focus"></span>' +
+      '<h3 class="why-h1" translate="no">' + esc((stop && stop.name) || "This stop") + "</h3>" +
+      '<p class="why-intro">Three layers, kept apart: what you wrote, what Qloo says, and what Sparkling adds.</p>' +
+      notesCard + qlooCard + readCard +
+      '<details class="why-details"><summary>Receipt</summary>' + rc + "</details>";
+  }
+  function openWhyStop(i){
+    const stop = currentPlan && currentPlan.stops && currentPlan.stops[i];
+    if (!stop) return;
+    openSheet({ title: "Why this stop?", cls: "why-sheet", body: whyStopHTML(stop, currentPlan), onMount: function(m){
+      m.querySelectorAll("[data-close-nav]").forEach(function(btn){
+        btn.addEventListener("click", function(){ const h = btn.getAttribute("data-close-nav"); closeModal(); location.hash = h; });
+      });
+    }});
+  }
   function stopHTML(stop, i, all){
     const mapUrl = safeHttpUrl(stop && stop.map_url);
     const opsText = (stop && stop.ops) || "Hours not checked";
@@ -5336,6 +5389,7 @@ function renderPlanResult(id){
         (mapUrl ? '<span class="sep" aria-hidden="true">&middot;</span><a href="' + attr(mapUrl) + '" target="_blank" rel="noopener">Open map</a>' : "") +
         '<span class="sep" aria-hidden="true">&middot;</span><button type="button" data-swap="' + i + '"' + (busyAction ? " disabled" : "") + ">Swap</button>" +
       "</div>" +
+      '<button class="why-btn why-stop-btn" type="button" data-why-stop="' + i + '">Why this stop?</button>' +
     "</section>";
   }
   function routeMapHTML(stops){
@@ -5480,6 +5534,8 @@ function renderPlanResult(id){
   }
 
   on(view, "click", function(e){
+    const wsBtn = e.target.closest("[data-why-stop]");
+    if (wsBtn) { openWhyStop(Number(wsBtn.getAttribute("data-why-stop")) || 0); return; }
     const swapBtn = e.target.closest("[data-swap]");
     if (swapBtn) {
       runPlanAction("swap", { index: Number(swapBtn.getAttribute("data-swap")) || 0 });

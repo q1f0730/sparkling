@@ -34,6 +34,8 @@ function slimPlace(e) {
     price_level: p.price_level, kinds, vibes, popularity: e.popularity,
     coords: lat != null && lon != null ? { lat: +lat, lon: +lon } : null,
     description: (p.description || p.short_description || "").slice(0, 240),
+    affinity: typeof e.query?.affinity === "number" ? +e.query.affinity.toFixed(3) : null,
+    expl: Array.isArray(e.query?.explainability?.["signal.interests.entities"]) ? e.query.explainability["signal.interests.entities"].filter((x) => x && x.entity_id && typeof x.score === "number").map((x) => ({ id: x.entity_id, score: +x.score.toFixed(3) })) : null,
     hours: p.hours || null, is_closed: !!p.is_closed, website: Array.isArray(p.websites) ? p.websites[0] : p.website,
   };
 }
@@ -120,6 +122,7 @@ export async function makePlan(env, user, req, log) {
         "filter.tags": tag?.id,
         "signal.interests.entities": seeds.map((s) => s.qloo_id),
         "filter.popularity.min": MOOD_POP[req.mood],
+        "feature.explainability": "true",
         take: 15,
       });
       return (d.results?.entities || []).map(slimPlace);
@@ -245,7 +248,21 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     return "You " + [...use.slice(i % use.length), ...use.slice(0, i % use.length)].slice(0, 2).map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + ".";
   };
   const usedSrc = new Set();
+  const byQ = new Map(fps.map((r) => [String(r.qloo_id).toLowerCase(), r]));
+  const seedByQ = new Map(seeds.map((x) => [String(x.qloo_id).toLowerCase(), x]));
+  /** Real Qloo per-seed contributions for a stop, joined to the user's cards and note quotes. */
+  const contribFor = (s) => {
+    if (!Array.isArray(s.expl) || !s.expl.length) return null;
+    const rows = s.expl.map((x) => {
+      const k = String(x.id).toLowerCase(), r = byQ.get(k), sd = seedByQ.get(k);
+      if (!r && !sd) return null;
+      return { card_id: r?.card_id || sd?.id || null, qloo_id: r?.qloo_id || sd?.qloo_id, name: r?.name || sd?.name, type: r?.type || sd?.type, image: r?.image || null, n: r?.n || 0, quote: r?.quote ? String(r.quote).slice(0, 140) : null, at: r?.quote_at || null, score: x.score };
+    }).filter(Boolean).sort((a, b) => b.score - a.score);
+    return rows.length ? rows : null;
+  };
   const sourcesFor = (s, i = 0) => {
+    const cf = contribFor(s);
+    if (cf) return cf.slice(0, 2).map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image, n: r.n, quote: r.quote, at: r.at, score: r.score }));
     const k = (s.kind || "").toLowerCase();
     const want = /book|library/.test(k) ? ["book"] : /record|music|venue|bar/.test(k) ? ["music"] : /cinema|theater|theatre|movie/.test(k) ? ["film", "tv"] : null;
     const rel = want ? fps.filter((r) => want.includes(r.type)) : [];
@@ -272,7 +289,11 @@ export async function dressPlan(env, user, seeds, stops, meta) {
       distance: d != null ? (d < 1.3 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${Math.max(2, Math.round(d * 6))} min by bike from stop ${i} (${d.toFixed(1)} mi)`) : null,
       arrive: fmtT(arrive), leave: fmtT(leave), stay_min: leave - arrive, sources: sourcesFor(s, i),
       from_notes: fit(s, i),
-      from_qloo: (() => { const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
+      why: (() => {
+        const cf = contribFor(s);
+        return { attribution: !!cf, contributions: cf, affinity: s.affinity ?? null, qloo_id: s.qloo_id, popularity: s.popularity ?? null, vibes: (s.vibes || []).slice(0, 6), kinds: s.kinds || [], price_level: s.price_level ?? null, area: meta.area, seeds_sent: seedNames.length };
+      })(),
+      from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Qloo matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
       read: reads[i] || (s.description ? s.description.replace(/\s+/g, " ").split(/(?<=[.!?])\s/)[0].slice(0, 160) : ""),
       ops: hoursLine(s.hours, meta.when),
       map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.name, s.address].filter(Boolean).join(", "))}`,

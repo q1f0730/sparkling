@@ -1974,6 +1974,9 @@ const DAY_ZH = { Sunday:"周日", Monday:"周一", Tuesday:"周二", Wednesday:"
 const MON_IDX = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
 function zhNum(w){ const k = String(w).toLowerCase(); return NUM_ZH[k] || w; }
 const ZH_PATTERNS = [
+  [/^(.+?) with a (.+?) feel, per Qloo\.$/, function(m, k, v){ return "Qloo 说这是一家" + v + "气质的" + k + "。"; }],
+  [/^(.+?) picked by Qloo for your taste\.$/, function(m, k){ return "Qloo 按你的品味挑的" + k + "。"; }],
+  [/^(.+?) with a (.+?) feel$/, function(m, k, v){ return v + "气质的" + k; }],
   [/^(\w+day)\. (\w+) things came back to you this week\.$/, function(m, d, n){ return (DAY_ZH[d] || d) + "。这周有" + zhNum(n) + "样东西又回到了你身边。"; }],
   [/^(\w+day)\. One thing came back to you this week\.$/, function(m, d){ return (DAY_ZH[d] || d) + "。这周有一样东西又回到了你身边。"; }],
   [/^(\w+day)\. (\w+) notes joined your notebook this week\.$/, function(m, d, n){ return (DAY_ZH[d] || d) + "。这周笔记本里多了" + zhNum(n) + "条笔记。"; }],

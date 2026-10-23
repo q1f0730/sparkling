@@ -64,10 +64,11 @@ export function cohorts(cards, n = 6) {
   return { size, now: byLast.slice(0, size), then: byLast.slice(size, size * 2) };
 }
 
+const DEFAULT_KINDS = ["bookstore", "cafe", "record store"];
 const KW_SCHEMA = { type: "object", properties: { stops: { type: "array", items: { type: "string" } } }, required: ["stops"] };
 
 async function stopKinds(env, text) {
-  if (!text) return ["bookstore", "cafe"];
+  if (!text) return DEFAULT_KINDS;
   const VENUES = ["bookstore", "book store", "record store", "cafe", "coffee", "cinema", "movie theater", "museum", "gallery", "bar", "wine bar", "park", "bakery", "library", "tea", "restaurant", "music venue", "jazz club"];
   const rule = () => {
     const low = text.toLowerCase();
@@ -78,8 +79,8 @@ async function stopKinds(env, text) {
   try {
     const o = await llmJSON(env, "Turn a request for an afternoon outing into 1-3 short venue category words Qloo would know (e.g. bookstore, cafe, record store, cinema, museum, bar, park, bakery, gallery). Return {\"stops\":[...]} in visiting order.", text, KW_SCHEMA, 120);
     const s = (o?.stops || []).map((x) => String(x).toLowerCase().trim()).filter(Boolean).slice(0, 3);
-    return s.length ? s : rule().length ? rule() : ["bookstore", "cafe"];
-  } catch (_) { const r = rule(); return r.length ? r : ["bookstore", "cafe"]; }
+    return s.length ? s : rule().length ? rule() : DEFAULT_KINDS;
+  } catch (_) { const r = rule(); return r.length ? r : DEFAULT_KINDS; }
 }
 
 async function placeTag(env, word) {

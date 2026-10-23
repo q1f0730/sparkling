@@ -223,7 +223,7 @@ function hoursLine(hours, when) {
 /** Labelled reasons for each stop. */
 export async function dressPlan(env, user, seeds, stops, meta) {
   const seedNames = seeds.map((s) => s.name);
-  const fps = (await env.DB.prepare(`SELECT c.name, c.type, COUNT(f.id) n FROM cards c JOIN footprints f ON f.card_id=c.id WHERE c.user_id=? AND c.qloo_id IN (${seeds.map(() => "?").join(",")}) GROUP BY c.id ORDER BY n DESC`).bind(user.id, ...seeds.map((s) => s.qloo_id)).all()).results || [];
+  const fps = (await env.DB.prepare(`SELECT c.id card_id, c.qloo_id, c.image, c.name, c.type, COUNT(f.id) n, (SELECT f2.quote FROM footprints f2 WHERE f2.card_id=c.id AND f2.quote IS NOT NULL AND LENGTH(f2.quote)>8 ORDER BY f2.created_at DESC LIMIT 1) quote, (SELECT f2.created_at FROM footprints f2 WHERE f2.card_id=c.id AND f2.quote IS NOT NULL AND LENGTH(f2.quote)>8 ORDER BY f2.created_at DESC LIMIT 1) quote_at FROM cards c JOIN footprints f ON f.card_id=c.id WHERE c.user_id=? AND c.qloo_id IN (${seeds.map(() => "?").join(",")}) GROUP BY c.id ORDER BY n DESC`).bind(user.id, ...seeds.map((s) => s.qloo_id)).all()).results || [];
   const notesLine = fps.length
     ? "You " + fps.slice(0, 2).map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + "."
     : `You kept ${seedNames.slice(0, 2).join(" and ")}.`;
@@ -242,12 +242,33 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     if (!use.length) return notesLine;
     return "You " + [...use.slice(i % use.length), ...use.slice(0, i % use.length)].slice(0, 2).map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + ".";
   };
+  const usedSrc = new Set();
+  const sourcesFor = (s, i = 0) => {
+    const k = (s.kind || "").toLowerCase();
+    const want = /book|library/.test(k) ? ["book"] : /record|music|venue|bar/.test(k) ? ["music"] : /cinema|theater|theatre|movie/.test(k) ? ["film", "tv"] : null;
+    const rel = want ? fps.filter((r) => want.includes(r.type)) : [];
+    const use = rel.length ? rel : fps;
+    if (!use.length) return [];
+    const rot = [...use.slice(i % use.length), ...use.slice(0, i % use.length)];
+    const fresh = rot.filter((r) => !usedSrc.has(r.card_id));
+    const pick = [...fresh, ...rot.filter((r) => usedSrc.has(r.card_id))].slice(0, fresh.length >= 2 ? 2 : Math.min(2, Math.max(1, rot.length)));
+    pick.forEach((r) => usedSrc.add(r.card_id));
+    return pick
+      .map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image, n: r.n, quote: r.quote ? String(r.quote).slice(0, 140) : null, at: r.quote_at || null }));
+  };
+  const startMin = /morning/i.test(meta.when || "") ? 10 * 60 : /evening|night|dinner/i.test(meta.when || "") ? 18 * 60 : /(^|[^a-z])noon|lunch/i.test(meta.when || "") ? 12 * 60 : 14 * 60;
+  const stay = (k) => (/book|library|record/i.test(k || "") ? 40 : /cafe|coffee|tea|bakery/i.test(k || "") ? 45 : 60);
+  const fmtT = (m) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${((h + 11) % 12) + 1}:${String(mm).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
+  let clock = startMin;
   const out = stops.map((s, i) => {
     const prev = stops[i - 1];
+    if (prev) { const dd = haversineMi(prev.coords, s.coords) ?? 0.5; clock += dd < 1.3 ? Math.max(1, Math.round(dd * 20)) : Math.max(2, Math.round(dd * 6)); }
+    const arrive = clock, leave = clock + stay(s.kind); clock = leave;
     const d = prev ? haversineMi(prev.coords, s.coords) : null;
     return {
       qloo_id: s.qloo_id, name: s.name, kind: s.kind, neighborhood: s.neighborhood, address: s.address,
       distance: d != null ? (d < 1.3 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${Math.max(2, Math.round(d * 6))} min by bike from stop ${i} (${d.toFixed(1)} mi)`) : null,
+      arrive: fmtT(arrive), leave: fmtT(leave), stay_min: leave - arrive, sources: sourcesFor(s, i),
       from_notes: fit(s, i),
       from_qloo: (() => { const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
       read: reads[i] || (s.description ? s.description.replace(/\s+/g, " ").split(/(?<=[.!?])\s/)[0].slice(0, 160) : ""),

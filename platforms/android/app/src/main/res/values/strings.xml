@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sparkling</string>
+    <string name="title_activity_main">Sparkling</string>
+    <string name="package_name">dev.q1f730.sparkling</string>
+    <string name="custom_url_scheme">dev.q1f730.sparkling</string>
+</resources>

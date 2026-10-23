@@ -1,0 +1,12 @@
+{
+  "appId": "dev.q1f730.sparkling",
+  "appName": "Sparkling",
+  "webDir": "www",
+  "server": {
+    "url": "https://sparkling-dev.q1f0730.workers.dev",
+    "cleartext": false,
+    "allowNavigation": ["sparkling-dev.q1f0730.workers.dev"]
+  },
+  "android": { "path": "android", "backgroundColor": "#f3eee3", "appendUserAgent": "SparklingApp/0.1" },
+  "ios": { "path": "ios", "backgroundColor": "#f3eee3", "contentInset": "never", "appendUserAgent": "SparklingApp/0.1", "scrollEnabled": true }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "sparkling-mac",
+  "productName": "Sparkling",
+  "version": "0.1.0",
+  "description": "Sparkling for macOS: a thin Electron window around the hosted web app.",
+  "author": "Q1f730",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac dmg zip --universal --publish never"
+  },
+  "devDependencies": {
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "dev.q1f730.sparkling",
+    "productName": "Sparkling",
+    "copyright": "Q1f730",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "offline.html", "package.json"],
+    "mac": {
+      "category": "public.app-category.lifestyle",
+      "icon": "build/icon.png",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "target": ["dmg", "zip"]
+    },
+    "dmg": { "title": "Sparkling", "background": null }
+  }
+}

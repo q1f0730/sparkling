@@ -1,0 +1,7 @@
+node_modules/
+mac/dist/
+mac/node_modules/
+web/__pycache__/
+web/head.html
+/build/
+*.zip

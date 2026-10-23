@@ -1,0 +1,18 @@
+{
+  "name": "sparkling-native",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Native shells for Sparkling (Capacitor Android + iOS, Electron macOS). They load the hosted web app.",
+  "license": "MIT",
+  "scripts": {
+    "sync": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.0",
+    "@capacitor/core": "^7.4.0",
+    "@capacitor/ios": "^7.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.0"
+  }
+}

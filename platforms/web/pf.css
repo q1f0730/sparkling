@@ -1,0 +1,155 @@
+/* Sparkling platform layer: desktop layout, PWA chrome, Apple "Liquid Glass" theme.
+   Served as /pf.css. Source: platforms/web/pf.css (build with platforms/web/build.py). */
+
+/* ---------- installed app (all platforms) ---------- */
+html.pf-standalone body{overscroll-behavior-y:none}
+html.pf-standalone .topbar{-webkit-user-select:none;user-select:none}
+
+/* ---------- desktop: centered app column + left rail (two-pane), not a stretched phone ---------- */
+.pf-rail{display:none}
+@media (min-width:1024px){
+  html{background:var(--b-paper)}
+  body{min-height:100dvh;background:
+    radial-gradient(60vw 60vh at 8% 92%,color-mix(in srgb,var(--b-sage) 70%,transparent),transparent 70%),
+    radial-gradient(50vw 50vh at 96% 4%,color-mix(in srgb,var(--b-butter) 60%,transparent),transparent 70%),
+    var(--b-paper);background-attachment:fixed}
+  .frame{max-width:540px;border:0;box-shadow:0 0 0 1px var(--b-line),0 40px 90px -50px rgba(64,50,28,.42)}
+  .tabs{max-width:400px}
+  .tabs::before{left:-70px;right:-70px}
+  .pf-rail{display:flex;flex-direction:column;position:fixed;z-index:20;top:0;bottom:0;width:250px;
+    right:calc(50% + 270px + 44px);padding:max(56px,8vh) 0 36px;color:var(--b-ink);font-family:var(--sans)}
+  .pf-word{display:flex;align-items:center;gap:10px;font:400 30px/1 var(--serif);letter-spacing:-.015em;margin:0 0 22px}
+  .pf-word svg{width:34px;height:34px;flex:none}
+  .pf-tag{font:400 22px/1.22 var(--serif);color:var(--b-ink2);margin:0 0 34px;max-width:230px;letter-spacing:-.005em}
+  .pf-nav{display:flex;flex-direction:column;gap:4px}
+  .pf-nav[hidden]{display:none}
+  .pf-nav button{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;border-radius:14px;color:var(--b-ink2);font:500 15px/1 var(--sans);text-align:left;transition:background .2s ease-out,color .2s ease-out}
+  .pf-nav button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+  .pf-nav button:hover{background:color-mix(in srgb,var(--b-card) 70%,transparent);color:var(--b-ink)}
+  .pf-nav button[aria-current="page"]{background:var(--b-card);color:var(--b-ink);box-shadow:0 1px 0 var(--b-line),0 8px 20px -14px rgba(64,50,28,.4)}
+  .pf-nav button[aria-current="page"] svg{color:var(--b-sage-ink)}
+  .pf-foot{margin-top:auto;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+  .pf-install{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 15px;border-radius:999px;background:var(--b-ink);color:var(--b-paper);font:500 13px/1 var(--sans)}
+  .pf-install[hidden]{display:none}
+  .pf-install svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .pf-hint{font:400 12px/1.45 var(--sans);color:var(--b-faint);max-width:230px}
+  .pf-chip{display:inline-flex;align-items:center;gap:7px;font:400 11px/1 var(--mono);color:var(--b-faint);letter-spacing:.02em}
+  .pf-chip i{width:7px;height:7px;border-radius:50%;background:var(--b-switch-on)}
+  html.pf-offline .pf-chip i{background:var(--b-danger)}
+}
+@media (min-width:1360px){
+  .frame{max-width:560px}
+  .tabs::before{left:-80px;right:-80px}
+  .pf-rail{right:calc(50% + 280px + 64px);width:270px}
+}
+
+/* offline ribbon (all sizes) */
+.pf-offline-bar{display:none}
+html.pf-offline .pf-offline-bar{display:block;position:fixed;z-index:90;left:50%;transform:translateX(-50%);
+  top:calc(8px + env(safe-area-inset-top));padding:7px 13px;border-radius:999px;background:var(--b-ink);color:var(--b-paper);
+  font:500 12px/1 var(--sans);box-shadow:0 10px 24px -12px rgba(0,0,0,.4)}
+
+/* =====================================================================
+   Liquid Glass (Apple platforms: iOS / iPadOS / macOS). Enabled by html.pf-glass.
+   Light warm palette and direction B type are kept; only materials change.
+   ===================================================================== */
+html.pf-glass{
+  --g-tint:color-mix(in srgb,var(--b-card) 50%,transparent);
+  --g-tint-strong:color-mix(in srgb,var(--b-card) 74%,transparent);
+  --g-blur:blur(22px) saturate(1.9) brightness(1.03);
+  --g-blur-strong:blur(34px) saturate(1.7) brightness(1.02);
+  --g-rim:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.18) 32%,rgba(255,255,255,.04) 58%,rgba(255,255,255,.62) 100%);
+  --g-spec-layer:radial-gradient(130% 70% at 50% -28%,rgba(255,255,255,.62),rgba(255,255,255,0) 62%);
+  --g-spec:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 1px rgba(255,255,255,.3),inset 0 0 0 .5px rgba(255,255,255,.3);
+  --g-drop:0 18px 40px -20px rgba(64,50,28,.42),0 2px 8px -3px rgba(64,50,28,.14);
+}
+html.pf-glass[data-theme="dark"]{
+  --g-tint:color-mix(in srgb,var(--b-card) 46%,transparent);
+  --g-tint-strong:color-mix(in srgb,var(--b-card) 70%,transparent);
+  --g-rim:linear-gradient(135deg,rgba(255,255,255,.34),rgba(255,255,255,.06) 32%,rgba(255,255,255,0) 58%,rgba(255,255,255,.2) 100%);
+  --g-spec-layer:radial-gradient(130% 70% at 50% -28%,rgba(255,255,255,.14),rgba(255,255,255,0) 62%);
+  --g-spec:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 1px rgba(255,255,255,.06),inset 0 0 0 .5px rgba(255,255,255,.08);
+  --g-drop:0 18px 40px -20px rgba(0,0,0,.6),0 2px 8px -3px rgba(0,0,0,.3);
+}
+/* ambient light under the glass so it has something to refract */
+html.pf-glass body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(80vw 50vh at 0% 100%,color-mix(in srgb,var(--b-sage) 55%,transparent),transparent 70%),
+  radial-gradient(70vw 45vh at 100% 0%,color-mix(in srgb,var(--b-butter) 50%,transparent),transparent 70%),var(--b-paper)}
+html.pf-glass .frame{background:transparent}
+
+/* nav bar: frosted, content scrolls under it */
+html.pf-glass #chrome{background:var(--g-spec-layer),var(--g-tint);-webkit-backdrop-filter:var(--g-blur-strong);backdrop-filter:var(--g-blur-strong);
+  box-shadow:inset 0 -.5px 0 color-mix(in srgb,var(--b-line-strong) 70%,transparent),0 10px 24px -22px rgba(64,50,28,.4)}
+html.pf-glass #chrome .topbar{background:transparent}
+
+/* floating tab bar: Liquid Glass capsule with rim refraction + specular */
+html.pf-glass .tabs{border:1px solid transparent;
+  background:var(--g-spec-layer) padding-box,var(--g-tint) padding-box,var(--g-rim) border-box;
+  -webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);box-shadow:var(--g-drop),var(--g-spec)}
+html.pf-glass .tabs::before{background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--b-paper) 55%,transparent) 80%)}
+/* the moving pill: a lens. Rim light on all sides, caustic top highlight, sage tint, slight magnification of the label */
+html.pf-glass .fx-blob{
+  background:radial-gradient(90% 120% at 50% -10%,rgba(255,255,255,.85),rgba(255,255,255,0) 55%),
+    radial-gradient(80% 90% at 50% 125%,color-mix(in srgb,var(--b-sage) 80%,transparent),transparent 70%),
+    color-mix(in srgb,var(--b-sage) 55%,transparent);
+  -webkit-backdrop-filter:blur(2px) saturate(2.2) brightness(1.08);backdrop-filter:blur(2px) saturate(2.2) brightness(1.08);
+  box-shadow:inset 0 1.5px 1px rgba(255,255,255,.95),inset 0 -2px 3px rgba(255,255,255,.5),
+    inset 3px 0 4px -2px rgba(255,255,255,.65),inset -3px 0 4px -2px rgba(255,255,255,.65),
+    inset 0 0 0 .5px color-mix(in srgb,var(--b-sage-ink) 22%,transparent),0 6px 16px -8px color-mix(in srgb,var(--b-sage-ink) 55%,transparent)}
+html.pf-glass .tabs .tab{transition:transform .35s cubic-bezier(.2,.9,.25,1.25),color .2s ease-out}
+html.pf-glass .tabs .tab[aria-current="page"]{transform:scale(1.06)}
+html.pf-glass.pf-lens .fx-blob{-webkit-backdrop-filter:url(#pf-lens) blur(1px) saturate(2.1) brightness(1.07);backdrop-filter:url(#pf-lens) blur(1px) saturate(2.1) brightness(1.07)}
+
+/* sheets: thicker glass for legibility */
+html.pf-glass dialog.modal::backdrop{background:rgba(42,38,32,.18);-webkit-backdrop-filter:blur(4px) saturate(1.1);backdrop-filter:blur(4px) saturate(1.1)}
+html.pf-glass .sheet{border:1px solid transparent;
+  background:var(--g-spec-layer) padding-box,var(--g-tint-strong) padding-box,var(--g-rim) border-box;
+  -webkit-backdrop-filter:var(--g-blur-strong);backdrop-filter:var(--g-blur-strong);box-shadow:var(--g-drop),var(--g-spec)}
+html.pf-glass .sheet::before{background:color-mix(in srgb,var(--b-ink) 22%,transparent)}
+
+/* buttons: glass capsules; primary keeps its sage/ink fill under a glass coat */
+html.pf-glass .btn:not(.btn-primary):not(.btn-ink):not(.btn-danger-solid):not(.btn-ghost),
+html.pf-glass .icon-btn{border:1px solid transparent;
+  background:var(--g-spec-layer) padding-box,var(--g-tint) padding-box,var(--g-rim) border-box;
+  -webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);box-shadow:var(--g-spec),0 4px 12px -8px rgba(64,50,28,.35)}
+html.pf-glass .btn-primary,html.pf-glass .btn-ink{box-shadow:inset 0 1px 0 rgba(255,255,255,.38),inset 0 -1px 1px rgba(0,0,0,.12),0 8px 18px -10px color-mix(in srgb,var(--b-sage-ink) 70%,transparent);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,0) 52%)}
+html.pf-glass .btn,html.pf-glass .icon-btn{transition:transform .25s cubic-bezier(.2,.9,.25,1.3),box-shadow .2s ease-out}
+html.pf-glass .btn:active,html.pf-glass .icon-btn:active{transform:scale(.96)}
+html.pf-glass .toast{-webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);
+  background:color-mix(in srgb,var(--b-ink) 78%,transparent);box-shadow:var(--g-drop),inset 0 1px 0 rgba(255,255,255,.22)}
+
+/* desktop + glass: rail items become glass too */
+@media (min-width:1024px){
+  /* no backdrop-filter on .frame: it would become the containing block for the fixed tab bar */
+  html.pf-glass .frame{background:color-mix(in srgb,var(--b-paper) 90%,transparent);
+    box-shadow:0 0 0 1px rgba(255,255,255,.6),0 40px 90px -50px rgba(64,50,28,.45)}
+  html.pf-glass .pf-nav button[aria-current="page"]{border:1px solid transparent;background:var(--g-spec-layer) padding-box,var(--g-tint) padding-box,var(--g-rim) border-box;
+    -webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);box-shadow:var(--g-spec),0 8px 20px -14px rgba(64,50,28,.4)}
+}
+
+/* accessibility: solid materials when transparency is reduced, no springs when motion is reduced */
+@media (prefers-reduced-transparency:reduce){
+  html.pf-glass #chrome,html.pf-glass .tabs,html.pf-glass .sheet,html.pf-glass .fx-blob,html.pf-glass .toast,
+  html.pf-glass .btn,html.pf-glass .icon-btn,html.pf-glass .frame,html.pf-glass .pf-nav button,html.pf-glass dialog.modal::backdrop{
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  html.pf-glass #chrome{background:var(--b-paper)}
+  html.pf-glass .tabs{background:var(--b-card) padding-box,var(--b-line) border-box}
+  html.pf-glass .sheet{background:var(--b-card) padding-box,var(--b-line) border-box}
+  html.pf-glass .fx-blob{background:var(--b-sage)}
+  html.pf-glass .btn:not(.btn-primary):not(.btn-ink):not(.btn-danger-solid):not(.btn-ghost),html.pf-glass .icon-btn{background:var(--b-card) padding-box,var(--b-line) border-box}
+  html.pf-glass .frame{background:var(--b-paper)}
+  html.pf-glass body::before{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  html.pf-glass .tabs .tab,html.pf-glass .btn,html.pf-glass .icon-btn{transition:none}
+  html.pf-glass .tabs .tab[aria-current="page"]{transform:none}
+  html.pf-glass .btn:active,html.pf-glass .icon-btn:active{transform:none}
+}
+
+/* ---------- Mac app (Electron, hidden inset title bar): drag region + room for the traffic lights ---------- */
+html.pf-macapp body::after{content:"";position:fixed;top:0;left:0;right:0;height:30px;z-index:5;-webkit-app-region:drag;pointer-events:none}
+html.pf-macapp #chrome{-webkit-app-region:drag}
+html.pf-macapp #chrome button,html.pf-macapp #chrome a,html.pf-macapp #chrome input{-webkit-app-region:no-drag}
+@media (max-width:1023px){html.pf-macapp .topbar{padding-left:calc(var(--pad) + 70px)}}
+@media (min-width:1024px){html.pf-macapp .pf-rail{padding-top:max(76px,9vh)}}

@@ -373,11 +373,11 @@ async function api(req, env, ctx, url) {
     const w = writable.getWriter(), enc = new TextEncoder();
     const send = (o) => w.write(enc.encode(JSON.stringify(o) + "\n"));
     ctx.waitUntil((async () => {
-      const logs = [];
+      const logs = [], trace = [], t0 = Date.now();
       try {
         if (b.area && b.area !== user.area) await env.DB.prepare("UPDATE users SET area=? WHERE id=?").bind(b.area, U).run();
-        const plan = await makePlan(env, user, b, (t) => { logs.push(t); send({ type: "log", text: t }); });
-        plan.log = logs;
+        const plan = await makePlan(env, user, b, (t) => { logs.push(t); trace.push({ ms: Date.now() - t0, text: t }); send({ type: "log", text: t }); });
+        plan.log = logs; plan.trace = trace;
         const { pool, ...rest } = plan;
         await env.DB.prepare("INSERT INTO plans (id,user_id,request,plan,pool,saved,created_at) VALUES (?,?,?,?,?,0,?)").bind(plan.id, U, JSON.stringify(b), JSON.stringify(rest), JSON.stringify(pool), Date.now()).run();
         await send({ type: "plan", plan: rest });

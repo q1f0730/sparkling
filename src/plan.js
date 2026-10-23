@@ -249,7 +249,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
       distance: d != null ? (d < 0.6 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${d.toFixed(1)} mi from stop ${i}`) : null,
       from_notes: fit(s, i),
       from_qloo: (() => { const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
-      read: reads[i] || (s.vibes.length ? `A ${String(s.kind || "place").toLowerCase()} Qloo describes as ${s.vibes.slice(0, 2).join(" and ").toLowerCase()}.` : ""),
+      read: reads[i] || (s.description ? s.description.replace(/\s+/g, " ").split(/(?<=[.!?])\s/)[0].slice(0, 160) : ""),
       ops: hoursLine(s.hours, meta.when),
       map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.name, s.address].filter(Boolean).join(", "))}`,
       coords: s.coords, vibes: s.vibes, description: s.description, hours: s.hours, price_level: s.price_level,

@@ -28,7 +28,7 @@ function slimPlace(e) {
   const loc = e.location || p.geocode || {};
   const lat = loc.lat ?? p.latitude, lon = loc.lon ?? loc.lng ?? p.longitude;
   const kinds = (e.tags || []).filter((t) => /genre:place|category/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 4);
-  const vibes = (e.tags || []).filter((t) => !/^(education learning|casual|shopping)$/i.test(t.name || "")).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenity|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
+  const vibes = (e.tags || []).filter((t) => !/^(education learning|casual|shopping|morning|afternoon|evening|night|late night|early morning|brunch|lunch|dinner|breakfast|weekday|weekend|daytime)$/i.test((t.name || "").trim())).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenity|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
   return {
     qloo_id: e.entity_id, name: e.name, address: p.address, neighborhood: p.neighborhood || p.geocode?.city,
     price_level: p.price_level, kinds, vibes, popularity: e.popularity,

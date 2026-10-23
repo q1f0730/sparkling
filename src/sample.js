@@ -21,7 +21,7 @@ export const SAMPLE_NOTES = [
   { daysAgo: 5, text: "watched Her again on the plane, still a lot" },
   { daysAgo: 3, minutes: 1300, text: "finally watched Solaris. the long drive into the city, I didn't want it to end" },
   { daysAgo: 6, text: "someone left The Rings of Saturn on the bench outside the library. took it as a sign." },
-  { daysAgo: 9, text: "Big Thief live recording, Not, at full volume while cleaning. best twenty minutes of the week", map: { "Big Thief": BIGTHIEF } },
+  { daysAgo: 9, text: "Big Thief live recording of Not at full volume while cleaning. best twenty minutes of the week", map: { "Big Thief": BIGTHIEF } },
   { daysAgo: 13, text: "Paterson on a rainy Sunday. small poems, bus routes, a dog. I want my life to be this size.", map: { "Paterson": PATERSON } },
   { daysAgo: 20, text: "Klara is slow in the best way. the sun as a god. underlined half a page.", map: { "Klara": KLARA } },
   { daysAgo: 27, text: "Adrianne Lenker, anything, songs that sound like a kitchen at 7am", map: { "Adrianne Lenker": LENKER } },

@@ -1,0 +1,110 @@
+/* ==== r6 motion layer: original code, look inspired by RewampUI (rewampui.com) ==== */
+.fx-host{position:relative;isolation:isolate}
+.fx-bg{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.fx-bg canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fx-bg::after{content:"";position:absolute;inset:0;opacity:.24;mix-blend-mode:multiply;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .4 0 0 0 0 .32 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.fx-bg.fx-static{background:
+  radial-gradient(60% 70% at 18% 20%,color-mix(in srgb,var(--b-sage) 90%,var(--b-sage-ink)) 0,transparent 70%),
+  radial-gradient(55% 60% at 85% 65%,var(--b-butter) 0,transparent 70%),
+  radial-gradient(50% 50% at 50% 100%,var(--b-clay) 0,transparent 70%),var(--b-paper)}
+/* fade the backdrop into the paper below it */
+.fx-fade .fx-bg{-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
+
+/* Notes greeting hero + onboarding hero */
+.fx-greet{margin:-12px calc(-1 * var(--pad)) 4px;padding:22px var(--pad) 26px}
+.fx-greet .greeting{margin-bottom:6px}
+.onboard.fx-host{background:transparent}
+.onboard .fx-bg{bottom:auto;height:min(72dvh,600px)}
+
+/* paper-strata header (Threads, Plan result) */
+.fx-paper{margin:-12px calc(-1 * var(--pad)) 8px;padding:16px var(--pad) 22px}
+.fx-paper .fx-bg{-webkit-mask-image:linear-gradient(#000 84%,transparent);mask-image:linear-gradient(#000 84%,transparent)}
+.fx-paper .plan-header{padding-right:18%}
+
+/* word / letter reveal */
+.fx-w{display:inline-block;overflow:hidden;vertical-align:top;padding:0 .06em .12em 0;margin:0 -.06em -.12em 0}
+.fx-wi{display:inline-block;transform:translateY(105%);opacity:0;filter:blur(5px);
+  animation:fxRise .8s cubic-bezier(.16,1,.3,1) forwards;animation-delay:calc(var(--i) * 42ms + 60ms)}
+.fx-word{display:inline-block;white-space:nowrap}
+.fx-rv-c .fx-wi{animation-duration:.7s;animation-delay:calc(var(--i) * 18ms + 40ms)}
+@keyframes fxRise{to{transform:none;opacity:1;filter:none}}
+
+/* fluid orb (CSS, cheap enough for many at once) */
+.fx-orb{--s:18px;position:relative;display:inline-block;flex:none;width:var(--s);height:var(--s);border-radius:50%;
+  box-shadow:0 2px 8px -2px color-mix(in srgb,var(--b-clay-ink) 45%,transparent),inset 0 0 0 .5px rgba(255,255,255,.5);overflow:hidden;
+  animation:fxMorph 5.2s ease-in-out infinite}
+.fx-orb i{position:absolute;inset:-30%;border-radius:45%;
+  background:conic-gradient(from 20deg,#a9c48d,#f0cf6e,#e39a72,#fbf3e6,#8fb08a,#e8a987,#a9c48d);
+  filter:blur(calc(var(--s) * .12));animation:fxSpin 5.5s linear infinite}
+.fx-orb i::after{content:"";position:absolute;inset:22%;border-radius:40% 60% 55% 45%;
+  background:radial-gradient(circle at 40% 40%,rgba(255,250,240,.95),rgba(255,250,240,0) 65%);animation:fxSpin 3.3s linear infinite reverse}
+.fx-orb::after{content:"";position:absolute;left:16%;top:10%;width:46%;height:34%;border-radius:50%;background:radial-gradient(rgba(255,255,255,.9),rgba(255,255,255,0) 70%)}
+@keyframes fxSpin{to{transform:rotate(360deg)}}
+@keyframes fxMorph{0%,100%{border-radius:50%}30%{border-radius:56% 44% 52% 48%/47% 55% 45% 53%}65%{border-radius:45% 55% 47% 53%/55% 46% 54% 45%}}
+.fx-orb-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 3px;border-radius:999px;background:var(--b-card);border:1px solid var(--b-line);font:500 12px/16px var(--sans);color:var(--b-ink2)}
+.fx-shine{background:linear-gradient(100deg,var(--b-ink2) 0 40%,var(--b-faint) 48%,var(--b-ink2) 56% 100%);background-size:250% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:fxShine 2.2s linear infinite}
+@keyframes fxShine{from{background-position:120% 0}to{background-position:-130% 0}}
+.log-panel .fx-orb{--s:34px;margin-right:0;vertical-align:middle}
+.log-panel .log-status{gap:10px}
+.log-panel .log-status{display:flex;align-items:center}
+
+/* floating morphing tab bar */
+.tabs{bottom:calc(10px + env(safe-area-inset-bottom));width:calc(100% - 40px);max-width:380px;padding:5px;border:1px solid color-mix(in srgb,var(--b-line) 80%,transparent);border-radius:999px;
+  background:color-mix(in srgb,var(--b-card) 93%,transparent);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);
+  box-shadow:0 14px 34px -16px rgba(64,50,28,.35),0 2px 6px -2px rgba(64,50,28,.12),inset 0 1px 0 rgba(255,255,255,.55)}
+.tabs .tab{position:relative;z-index:1;flex-direction:row;gap:6px;height:44px;padding:0;border-radius:999px;font:500 13px/1 var(--sans)}
+.tabs .tab svg{width:19px;height:19px}
+.fx-blob{position:absolute;z-index:0;top:5px;left:0;height:44px;width:10px;border-radius:999px;pointer-events:none;transform-origin:50% 50%;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--b-sage) 70%,#fff),var(--b-sage));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -1px 0 color-mix(in srgb,var(--b-sage-ink) 12%,transparent),0 4px 12px -6px color-mix(in srgb,var(--b-sage-ink) 45%,transparent)}
+.view{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+
+/* primary buttons: gloss + one slow shimmer pass */
+.btn-primary,.btn-ink{position:relative;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(42,38,32,.6)}
+.btn-primary::after,.btn-ink::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:45%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,250,235,.22),transparent);transform:skewX(-18deg);animation:fxSweep 7s ease-in-out 1.2s infinite}
+.btn-primary:disabled::after,.btn-ink:disabled::after{animation:none}
+@keyframes fxSweep{0%{left:-60%}16%,100%{left:130%}}
+.btn:active{transform:scale(.98)}
+
+/* slide to confirm */
+.fx-slide{position:relative;height:56px;border-radius:999px;background:color-mix(in srgb,var(--b-danger) 10%,var(--b-card));border:1px solid color-mix(in srgb,var(--b-danger) 25%,transparent);
+  overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;margin-top:16px}
+.fx-slide-fill{position:absolute;inset:0 auto 0 0;width:56px;border-radius:999px;background:linear-gradient(90deg,color-mix(in srgb,var(--b-danger) 22%,transparent),color-mix(in srgb,var(--b-danger) 55%,transparent))}
+.fx-slide-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-left:40px;font:500 15px/1 var(--sans);color:var(--b-danger);
+  background:linear-gradient(100deg,var(--b-danger) 0 40%,color-mix(in srgb,var(--b-danger) 35%,#fff) 50%,var(--b-danger) 60% 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:fxShine 2.6s linear infinite}
+.fx-slide-knob{position:absolute;left:4px;top:4px;width:46px;height:46px;border-radius:50%;border:0;background:var(--b-danger);color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 14px -6px color-mix(in srgb,var(--b-danger) 80%,transparent),inset 0 1px 0 rgba(255,255,255,.3);cursor:grab;touch-action:none}
+.fx-slide-knob svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.fx-slide.fx-back .fx-slide-knob,.fx-slide.fx-back .fx-slide-fill{transition:transform .45s cubic-bezier(.34,1.56,.64,1),width .45s cubic-bezier(.34,1.56,.64,1)}
+.fx-slide.fx-done .fx-slide-label{animation:none;-webkit-text-fill-color:#fff;color:#fff;padding-left:0}
+.fx-slide.fx-done .fx-slide-fill{background:var(--b-danger)}
+
+/* inbox: a real deck with swipe */
+.inbox-stack{perspective:1200px;isolation:isolate}
+.inbox-stack .fx-peek{transform-origin:50% 100%;position:absolute;left:0;right:0;top:0;bottom:0;border-radius:20px;background:var(--b-card);border:1px solid var(--b-line);pointer-events:none}
+.inbox-stack .fx-peek.p1{transform:translateY(12px) scale(.95) rotate(-1.2deg);z-index:-1;box-shadow:0 10px 24px -18px rgba(64,50,28,.4)}
+.inbox-stack .fx-peek.p2{transform:translateY(24px) scale(.9) rotate(1.6deg);z-index:-2;background:var(--b-soft)}
+.inbox-stack.fx-deck::before{display:none}
+.inbox-card{position:relative;touch-action:pan-y;will-change:transform;box-shadow:0 18px 36px -24px rgba(64,50,28,.45);animation:fxDeal .5s cubic-bezier(.16,1,.3,1)}
+@keyframes fxDeal{from{transform:translateY(14px) scale(.96) rotate(-1deg);opacity:.6}to{transform:none;opacity:1}}
+.fx-stamp{position:absolute;top:-13px;background:var(--b-card);padding:4px 10px;border-radius:8px;font:600 13px/1 var(--sans);letter-spacing:.04em;text-transform:uppercase;opacity:0;pointer-events:none;border:1.5px solid}
+.fx-stamp.yes{left:16px;color:var(--b-sage-ink);border-color:var(--b-sage-ink);transform:rotate(-8deg)}
+.fx-stamp.no{right:16px;color:var(--b-clay-ink);border-color:var(--b-clay-ink);transform:rotate(8deg)}
+.fx-swipe-hint{text-align:center;font:400 12px/16px var(--mono);color:var(--b-faint);margin:26px 0 0}
+
+/* card tile -> detail hero */
+.fx-ghost{position:fixed;z-index:70;margin:0;pointer-events:none;overflow:hidden;transform-origin:50% 0;box-shadow:0 30px 60px -30px rgba(64,50,28,.55)}
+.fx-enter > *{animation:fxUp .55s cubic-bezier(.16,1,.3,1) both}
+.fx-enter > *:nth-child(2){animation-delay:40ms}.fx-enter > *:nth-child(3){animation-delay:80ms}.fx-enter > *:nth-child(n+4){animation-delay:120ms}
+@keyframes fxUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.card-tile{transition:transform .25s cubic-bezier(.16,1,.3,1),box-shadow .25s ease-out}
+.card-tile:active{transform:scale(.97)}
+
+@media (prefers-reduced-motion:reduce){
+  .fx-wi{transform:none;opacity:1;filter:none;animation:none}
+  .fx-orb,.fx-orb i,.fx-orb i::after,.fx-shine,.fx-slide-label{animation:none}
+  .btn-primary::after,.btn-ink::after{display:none}
+}

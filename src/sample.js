@@ -33,4 +33,6 @@ export const SAMPLE_NOTES = [
   { daysAgo: 150, text: "Nujabes while writing, again. it makes the cursor feel kind", map: { "Nujabes": NUJABES } },
   { daysAgo: 210, text: "In the Mood for Love first time, restrained and devastating.", map: { "In the Mood for Love": ITML } },
   { daysAgo: 230, text: "Big Thief, Masterpiece, on repeat walking home over the Pulaski Bridge", map: { "Big Thief": BIGTHIEF } },
+  { daysAgo: 4, minutes: 900, text: "the Wong one with the noodles and the neon, borrowed the DVD from Marcus" },
+  { daysAgo: 7, minutes: 400, text: "Heard Sunday on the radio at the laundromat. no idea who, wrote down the hook" },
 ];

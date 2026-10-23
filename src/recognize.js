@@ -112,7 +112,7 @@ export async function extractMentions(env, text) {
   // keep only mentions whose surface really appears in the note
   const seen = new Set();
   return ms.filter((m) => {
-    if (!m || !m.surface || !text.includes(m.surface)) return false;
+    if (!m || typeof m.surface !== "string" || !m.surface.trim() || !text.includes(m.surface)) return false;
     const k = m.surface.toLowerCase();
     if (seen.has(k)) return false;
     seen.add(k);
@@ -123,7 +123,7 @@ export async function extractMentions(env, text) {
 async function qsearch(env, query, types, take = 5) {
   const qs = new URLSearchParams({ query, take: String(take) });
   if (types) qs.set("types", types.join(","));
-  const r = await fetch(`${BASE}/search?${qs}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" } });
+  const r = await fetch(`${BASE}/search?${qs}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
   if (!r.ok) throw new Error(`Qloo search ${r.status}`);
   const d = await r.json();
   return (d.results || []).map((e) => {
@@ -300,6 +300,7 @@ async function recognizeImport(env, userId, note) {
 
 /** Parse a Letterboxd diary.csv / reviews.csv / watched.csv export. */
 export function parseLetterboxd(csv) {
+  csv = String(csv || "").replace(/^\uFEFF/, "");
   const rows = [];
   let row = [], cell = "", q = false;
   for (let i = 0; i < csv.length; i++) {
@@ -315,9 +316,10 @@ export function parseLetterboxd(csv) {
   const col = (n) => head.indexOf(n);
   const iName = col("name"), iYear = col("year"), iRating = col("rating"), iRe = col("rewatch"), iW = col("watched date"), iD = col("date"), iRev = col("review");
   if (iName < 0) return null;
-  return rows.filter((r) => r[iName]).map((r) => ({
+  const rate = (v) => { const n = v ? Number(v) : NaN; return Number.isFinite(n) ? Math.max(0, Math.min(5, n)) : null; };
+  return rows.filter((r) => (r[iName] || "").trim()).map((r) => ({
     title: r[iName].trim(), year: iYear >= 0 ? r[iYear] : undefined,
-    rating: iRating >= 0 && r[iRating] ? Number(r[iRating]) : null,
+    rating: iRating >= 0 ? rate(r[iRating]) : null,
     rewatch: iRe >= 0 && /yes/i.test(r[iRe] || ""),
     date: (iW >= 0 && r[iW]) || (iD >= 0 && r[iD]) || null, dated: iW >= 0 && !!r[iW],
     review: iRev >= 0 ? (r[iRev] || "").trim() : "",

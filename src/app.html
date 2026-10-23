@@ -2023,7 +2023,7 @@ const ZH_PATTERNS = [
 /* r7i18n:begin */
 /* r7 designer pass strings */
 Object.assign(ZH, {
-  "The wall": "卡片墙", "Everything": "你留下的", "you kept.": "一切。", "cards": "卡片", "mentions": "提及", "loved": "喜欢",
+  "The wall": "卡片墙", "Everything": "你留下的", "you kept.": "一切。", "cards": "卡片", "mentions": "提及", "loved": "喜欢", "kinds": "类型",
   "Most on your mind": "最近最常想起", "mentioned": "提及", "mentioned once": "提到一次",
   "Card": "卡片", "mention": "提及", "first met": "初次相遇", "last seen": "最近一次",
 });
@@ -4437,6 +4437,7 @@ function renderCards(){
     if (!allCards.length) { mast.hidden = true; return; }
     const mentions = allCards.reduce(function(a, c){ return a + (Number(c.footprints) || 0); }, 0);
     const loved = allCards.filter(function(c){ return Number(c.heart) === 1; }).length;
+    const kinds = Object.keys(allCards.reduce(function(a, c){ a[c.type || c.kind || '?'] = 1; return a; }, {})).length;
     const latest = allCards.reduce(function(a, c){ return Math.max(a, Number(c.last_at) || 0); }, 0);
     mast.hidden = false;
     mast.innerHTML =
@@ -4445,7 +4446,7 @@ function renderCards(){
       '<dl class="r7-stats">' +
         '<div><dt>cards</dt><dd class="num">' + allCards.length + '</dd></div>' +
         '<div><dt>mentions</dt><dd class="num">' + mentions + '</dd></div>' +
-        '<div><dt>loved</dt><dd class="num">' + loved + '</dd></div>' +
+        (loved ? '<div><dt>loved</dt><dd class="num">' + loved + '</dd></div>' : '<div><dt>kinds</dt><dd class="num">' + kinds + '</dd></div>') +
       '</dl>';
     Array.prototype.forEach.call(view.querySelectorAll("[data-cards-type]"), function(button){
       const f = button.getAttribute("data-cards-type");

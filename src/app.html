@@ -378,6 +378,7 @@ svg{flex:0 0 auto}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;
 }
 .card-meta{display:flex;align-items:center;gap:5px;margin-top:9px;min-height:10px}
+.fp-label{font:500 11px/1 "DM Mono",monospace;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3,#8a8478)}
 .fp-dots{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
 .fp-dot{width:4px;height:4px;border-radius:50%;background:var(--text);opacity:.28;display:inline-block}
 .fp-more{font-size:10.5px;color:var(--faint);line-height:1;margin-left:1px;font-variant-numeric:tabular-nums}
@@ -2197,11 +2198,8 @@ function guessMeta(g){
 function footprintsDots(n){
   const count = Math.max(0, Number(n) || 0);
   if (!count) return "";
-  const shown = Math.min(7, count);
-  let out = "";
-  for (let i = 0; i < shown; i++) out += '<span class="fp-dot"></span>';
-  if (count > 7) out += '<span class="fp-more">' + count + "</span>";
-  return '<span class="fp-dots" aria-label="' + attr(count + " " + plural(count, "footprint", "footprints")) + '">' + out + "</span>";
+  const label = count === 1 ? "Mentioned once" : "Mentioned " + count + "\u00d7";
+  return '<span class="fp-dots fp-label" aria-label="' + attr(label) + '">' + label + "</span>";
 }
 
 /* ---- icons ---- */

@@ -27,7 +27,7 @@ function slimPlace(e) {
   const loc = e.location || p.geocode || {};
   const lat = loc.lat ?? p.latitude, lon = loc.lon ?? loc.lng ?? p.longitude;
   const kinds = (e.tags || []).filter((t) => /genre:place|category/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 4);
-  const vibes = (e.tags || []).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenity|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
+  const vibes = (e.tags || []).filter((t) => !/^(education learning|casual|shopping)$/i.test(t.name || "")).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenity|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
   return {
     qloo_id: e.entity_id, name: e.name, address: p.address, neighborhood: p.neighborhood || p.geocode?.city,
     price_level: p.price_level, kinds, vibes, popularity: e.popularity,
@@ -233,13 +233,13 @@ export async function dressPlan(env, user, seeds, stops, meta) {
       JSON.stringify({ seeds: seedNames, venues: stops.map((s) => ({ name: s.name, kind: s.kind, vibes: s.vibes, description: s.description })) }), READ_SCHEMA, 400);
     reads = o?.reads || [];
   } catch (_) {}
-  const fit = (s) => {
+  const fit = (s, i = 0) => {
     const k = (s.kind || "").toLowerCase();
     const want = /book|library/.test(k) ? ["book"] : /record|music|venue|bar/.test(k) ? ["music"] : /cinema|theater|theatre|movie/.test(k) ? ["film", "tv"] : null;
     const rel = want ? fps.filter((r) => want.includes(r.type)) : [];
     const use = rel.length ? rel : fps;
     if (!use.length) return notesLine;
-    return "You " + use.slice(0, 2).map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + ".";
+    return "You " + [...use.slice(i % use.length), ...use.slice(0, i % use.length)].slice(0, 2).map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + ".";
   };
   const out = stops.map((s, i) => {
     const prev = stops[i - 1];
@@ -247,8 +247,8 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     return {
       qloo_id: s.qloo_id, name: s.name, kind: s.kind, neighborhood: s.neighborhood, address: s.address,
       distance: d != null ? (d < 0.6 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${d.toFixed(1)} mi from stop ${i}`) : null,
-      from_notes: fit(s),
-      from_qloo: `Returned for your seeds: ${seedNames.slice(0, 3).join(", ")}.` + (s.vibes.length ? ` Tagged ${s.vibes.slice(0, 2).join(", ").toLowerCase()}.` : ""),
+      from_notes: fit(s, i),
+      from_qloo: (() => { const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
       read: reads[i] || (s.vibes.length ? `A ${String(s.kind || "place").toLowerCase()} Qloo describes as ${s.vibes.slice(0, 2).join(" and ").toLowerCase()}.` : ""),
       ops: hoursLine(s.hours, meta.when),
       map_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.name, s.address].filter(Boolean).join(", "))}`,

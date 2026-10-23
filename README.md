@@ -41,7 +41,7 @@ Qloo is the only source of entities, tags and places. All calls go from the Work
 | Widening | same, with `filter.location=POINT(lon lat)` + `filter.location.radius=3200`, then the borough | Only when the area is thin; the plan says so. |
 | Hours | `properties.hours`, `is_closed` | "Qloo lists Saturday 11:00–20:00 · not live-checked"; closed places dropped. |
 
-Explainability is shown as a *contribution share*, never as a probability or a cause. Only entity IDs, tag IDs and a neighbourhood string go to Qloo, never note text, names or account data.
+Explainability is shown as a *contribution share*, never as a probability or a cause. Qloo never sees a note: search gets only the short name being looked up, and every other call gets only entity IDs, tag IDs and a neighbourhood.
 
 ## Architecture
 

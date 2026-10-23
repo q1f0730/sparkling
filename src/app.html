@@ -1250,6 +1250,26 @@ a{color:var(--b-sage-ink)}
 .saved-plan-stops{font-size:13px;line-height:18px}
 .saved-plan-date{font:400 12px/16px var(--mono)}
 /* plan result: vertical day timeline */
+
+.trace-list{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:6px}
+button.trace{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;padding:10px;border:1px solid var(--b-line);border-left:3px solid var(--b-clay-ink,#a5502e);border-radius:14px;background:var(--b-soft);color:inherit;font:inherit;cursor:pointer;transition:transform .15s}
+button.trace:active{transform:scale(.985)}
+button.trace.t-film,button.trace.film{border-left-color:#3a5a8c}
+.trace-img{flex:none;width:44px;height:62px;object-fit:cover;border-radius:6px;background:var(--b-receipt,#ebe4d5)}
+.trace-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.trace-name{font:400 17px/21px var(--serif)}.trace-name i{font:500 11px var(--mono,monospace);color:var(--muted);font-style:normal}
+.trace-quote{font:italic 300 14px/19px var(--serif);color:var(--text);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.trace-at{font:500 10.5px/1 var(--mono,monospace);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+
+.route-map{margin:12px 0;padding:8px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-card)}
+.route-map svg{display:block;width:100%;height:auto}
+.route-map figcaption{font:500 10.5px/1 var(--mono,monospace);color:var(--faint);padding:4px 6px 2px}
+.rm-grid line{stroke:var(--b-line);stroke-width:1}
+.rm-path{fill:none;stroke:#3f5a36;stroke-width:2;stroke-dasharray:5 5;stroke-linecap:round;stroke-linejoin:round}
+.rm-pin circle{fill:#dfe6d6;stroke:#3f5a36;stroke-width:1.5}
+.rm-pin text{font:600 12px var(--sans);fill:#2c3a26}
+.plan-chip{background:#ebe4d5!important;color:#3b3328}
+.plan-chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px}.plan-chip{font:500 12px/1 var(--mono,monospace);padding:6px 10px;border-radius:99px;background:var(--b-soft,#e8e2d2);color:inherit}
 .plan-header{font:400 28px/34px var(--serif);letter-spacing:-.01em;margin:8px 0 4px}
 .plan-meta{font:400 13px/18px var(--sans);color:var(--muted);margin:0 0 20px}
 .plan-notice{font-size:15px;line-height:20px;background:var(--b-butter);color:var(--b-butter-ink);border-radius:var(--radius-inner);padding:12px 16px;margin:4px 0 16px}
@@ -5449,7 +5469,7 @@ function renderPlanResult(id){
     const stops = Array.isArray(plan.stops) ? plan.stops : [];
     const saved = !!plan.saved;
     view.innerHTML =
-      '<h2 class="plan-header">' + esc(plan.header || "Your plan") + "</h2>" +
+      (function(){ var hp=String(plan.header||"Your plan").split(" · "); var t=hp.length>2?hp.slice(0,2).join(" · "):hp[0]; var ch=hp.length>2?hp.slice(2):[]; return '<h2 class="plan-header">'+esc(t)+"</h2>"+(ch.length?'<div class="plan-chips">'+ch.map(function(c){return '<span class="plan-chip">'+esc(c)+"</span>";}).join("")+"</div>":""); })() +
       '<p class="plan-meta">' + esc([stops.length + " " + plural(stops.length, "stop", "stops"), planSummary(stops), saved ? "Saved" : ""].filter(Boolean).join(" · ")) + "</p>" +
       (plan.notice ? '<p class="plan-notice" role="note">' + esc(plan.notice) + "</p>" : "") +
       routeMapHTML(stops) +

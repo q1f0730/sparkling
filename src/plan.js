@@ -247,7 +247,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     const d = prev ? haversineMi(prev.coords, s.coords) : null;
     return {
       qloo_id: s.qloo_id, name: s.name, kind: s.kind, neighborhood: s.neighborhood, address: s.address,
-      distance: d != null ? (d < 0.6 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${d.toFixed(1)} mi from stop ${i}`) : null,
+      distance: d != null ? (d < 1.3 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${Math.max(2, Math.round(d * 6))} min by bike from stop ${i} (${d.toFixed(1)} mi)`) : null,
       from_notes: fit(s, i),
       from_qloo: (() => { const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
       read: reads[i] || (s.description ? s.description.replace(/\s+/g, " ").split(/(?<=[.!?])\s/)[0].slice(0, 160) : ""),

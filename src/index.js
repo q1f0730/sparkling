@@ -1,8 +1,8 @@
 // Sparkling Worker: notebook API + static app.
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
-import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd } from "./recognize.js";
-import { makePlan, dressPlan, cohorts, planNotice } from "./plan.js";
+import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason } from "./recognize.js";
+import { makePlan, dressPlan, cohorts, planNotice, cacheGet, cachePut } from "./plan.js";
 import { llmJSON } from "./llm.js";
 import { qlooTagInsights } from "./qloo.js";
 import { SAMPLE_NOTES } from "./sample.js";
@@ -67,19 +67,22 @@ async function cardsFor(env, userId, type) {
 }
 
 async function seedSample(env, userId) {
-  const now = Date.now();
+  const now = Date.now(), stmts = [];
   for (const s of SAMPLE_NOTES) {
-    const id = uid();
-    await env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,status,created_at) VALUES (?,?,?,?, 'pending', ?)")
-      .bind(id, userId, s.text, s.kind || "text", now - s.daysAgo * DAY - (s.minutes || 0) * 60000).run();
+    const id = uid(), at = now - s.daysAgo * DAY - (s.minutes || 0) * 60000;
+    const pinned = s.map || s.ask;
+    // Notes with nothing named are plain from the start; pinned ones resolve in the background without a model call.
+    const meta = pinned ? JSON.stringify({ sample: { map: s.map, ask: s.ask, fk: s.fk, sentiment: s.sentiment } }) : null;
+    stmts.push(env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,meta,status,mentions,created_at) VALUES (?,?,?,'text',?,?,'[]',?)").bind(id, userId, s.text, meta, pinned ? "pending" : "done", at));
     for (const [surface, qid] of Object.entries(s.map || {}))
-      await env.DB.prepare("INSERT OR REPLACE INTO mappings (user_id,surface,qloo_id) VALUES (?,?,?)").bind(userId, norm(surface), qid).run();
+      stmts.push(env.DB.prepare("INSERT OR REPLACE INTO mappings (user_id,surface,qloo_id) VALUES (?,?,?)").bind(userId, norm(surface), qid));
   }
+  await env.DB.batch(stmts);
 }
 
 async function recognizePending(env, userId, limit = 6) {
   const rows = (await env.DB.prepare("SELECT id FROM notes WHERE user_id=? AND status='pending' ORDER BY created_at LIMIT ?").bind(userId, limit).all()).results || [];
-  for (const r of rows) {
+  const one = async (r) => {
     try { await Promise.race([recognizeNote(env, userId, r.id), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 25000))]); }
     catch (e) {
       // Timeout path used to reset tries to 1 forever; count it so a note that always times out ends as failed (retryable from the UI).
@@ -88,7 +91,9 @@ async function recognizePending(env, userId, limit = 6) {
       t += 1;
       await env.DB.prepare("UPDATE notes SET status=?, meta=? WHERE id=? AND status='pending'").bind(t < 3 ? "pending" : "failed", JSON.stringify({ error: String(e.message), tries: t }), r.id).run();
     }
-  }
+  };
+  // Three notes at a time: each note is ~2-4 Qloo calls, so 6 notes stay well under the 50-subrequest cap.
+  for (let i = 0; i < rows.length; i += 3) await Promise.all(rows.slice(i, i + 3).map(one));
   return rows.length;
 }
 
@@ -101,7 +106,7 @@ async function api(req, env, ctx, url) {
     const sample = body.mode === "sample";
     await env.DB.prepare("INSERT INTO users (id,token,sample,area,budget,whenx,created_at) VALUES (?,?,?,?,40,'Saturday afternoon',?)")
       .bind(id, token, sample ? 1 : 0, sample ? "Greenpoint, Brooklyn" : null, Date.now()).run();
-    if (sample) { await seedSample(env, id); ctx.waitUntil(recognizePending(env, id, 8)); }
+    if (sample) { await seedSample(env, id); ctx.waitUntil(resolveSample(env, id).catch((e) => console.log("sample", e.message))); }
     const u = await env.DB.prepare("SELECT * FROM users WHERE id=?").bind(id).first();
     return J({ user: pubUser(u) }, 200, { "set-cookie": `sp=${token}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=31536000` });
   }
@@ -251,7 +256,7 @@ async function api(req, env, ctx, url) {
   // ---- inbox
   if (p === "/api/inbox" && m === "GET") {
     const rows = (await env.DB.prepare("SELECT i.*, n.text FROM inbox i JOIN notes n ON n.id=i.note_id WHERE i.user_id=? AND i.status='open' ORDER BY i.created_at").bind(U).all()).results || [];
-    return J({ items: rows.map((r) => ({ id: r.id, note_id: r.note_id, sentence: r.text, mention: r.mention, guesses: JSON.parse(r.guesses || "[]") })) });
+    return J({ items: rows.map((r) => { const guesses = JSON.parse(r.guesses || "[]"); return { id: r.id, note_id: r.note_id, sentence: r.text, mention: r.mention, guesses, reason: inboxReason(r.mention, guesses) }; }) });
   }
   if (p === "/api/inbox/accept_all" && m === "POST") {
     const rows = (await env.DB.prepare("SELECT id FROM inbox WHERE user_id=? AND status='open'").bind(U).all()).results || [];
@@ -303,7 +308,11 @@ async function api(req, env, ctx, url) {
     const co = cohorts(liked, 6);
     const KEEP = /theme|style|mood|tone|music:qloo|artist:qloo|setting|subgenre|keyword/;
     const tagRead = async (cards) => {
-      const d = await qlooTagInsights(env, cards.map((c) => c.qloo_id));
+      // Qloo tag insights for this card set, cached 6 h (same cards -> same answer; saves ~0.8 s per call).
+      const ids = cards.map((c) => c.qloo_id).sort();
+      const ck = "tags:v1:" + ids.join(",");
+      let d = await cacheGet(env, ck, 6 * 3600000);
+      if (!d) { d = await qlooTagInsights(env, cards.map((c) => c.qloo_id)); await cachePut(env, ck, d); }
       return d.filter((t) => KEEP.test(t.subtype || "") && !/genre:brand|person|subgenre|lifestyle/.test(t.subtype || "") && !/speech|politic|rights|commentary|design|religio|war|crime|violence|controvers|anxiety|scandal/i.test(t.name)).slice(0, 12);
     };
     const period = ["now", "then"].includes(url.searchParams.get("period")) ? url.searchParams.get("period") : "all";
@@ -311,14 +320,17 @@ async function api(req, env, ctx, url) {
     const heavy = period === "now" ? co.now : period === "then" ? co.then : [...liked].sort((a, b) => b.attention - a.attention).slice(0, 8);
     let main = [], nowT = [], thenT = [];
     try {
-      [nowT, thenT] = await Promise.all([co.size >= 3 ? tagRead(co.now) : [], co.size >= 3 ? tagRead(co.then) : []]);
-      main = period === "now" ? nowT : period === "then" ? thenT : await tagRead(heavy);
+      let mainAll;
+      [nowT, thenT, mainAll] = await Promise.all([co.size >= 3 ? tagRead(co.now) : [], co.size >= 3 ? tagRead(co.then) : [], period === "all" ? tagRead(heavy) : null]);
+      main = period === "now" ? nowT : period === "then" ? thenT : mainAll;
     } catch (e) { return J({ threads: [], period, reason: "Qloo isn't answering right now. Your cards are fine." }); }
     const evidence = (tag, pool) => pool.filter((c) => c.tags.some((t) => t.toLowerCase() === tag.toLowerCase()));
+    const latestQ = new Map();
+    for (const r of ((await env.DB.prepare("SELECT f.card_id, f.quote, n.text, f.created_at FROM footprints f JOIN notes n ON n.id=f.note_id WHERE f.user_id=? AND f.sentiment!='negative' ORDER BY f.created_at DESC").bind(U).all()).results || [])) if (!latestQ.has(r.card_id)) latestQ.set(r.card_id, r);
     const quotesFor = async (cards) => {
       const out = [], seen = new Set();
       for (const c of cards) {
-        const r = await env.DB.prepare("SELECT f.quote, n.text, f.created_at FROM footprints f JOIN notes n ON n.id=f.note_id WHERE f.card_id=? AND f.sentiment!='negative' ORDER BY f.created_at DESC LIMIT 1").bind(c.id).first();
+        const r = latestQ.get(c.id);
         if (r && !seen.has(r.text)) { seen.add(r.text); out.push({ text: r.text, at: r.created_at, card: c.name, card_id: c.id }); }
         if (out.length >= 3) break;
       }
@@ -411,7 +423,7 @@ async function api(req, env, ctx, url) {
       const seeds = ((plan.receipt || {}).seeds || []).map((x) => x.name);
       const area = (JSON.parse(row.request || "{}").area || user.area || "").slice(0, 120);
       const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
-      const MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
+      const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"; // same first model llm.js uses for Sparkling's own sentences
       let stopsOut = [], note = null;
       try {
         const out = await llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence.",

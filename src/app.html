@@ -5358,6 +5358,18 @@ function renderPlanResult(id){
       notesCard + qlooCard + readCard +
       '<details class="why-details"><summary>Receipt</summary>' + rc + "</details>";
   }
+  async function openPlain(){
+    openSheet({ title: "Same notes, no Qloo", cls: "why-sheet", body: '<p class="muted">Asking a plain model…</p>' });
+    let d = null;
+    try { d = await api("/api/plan/" + encodeURIComponent(planId) + "/plain", { method: "POST", body: "{}" }); } catch (e) {}
+    const pl = d && d.plain;
+    const mine = (currentPlan.stops || []).map(function(s){ return '<li><b>' + esc(s.name) + '</b><br><small>' + esc(s.read || "") + '</small></li>'; }).join("");
+    const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b>' + esc(s.name) + '</b> <small>(' + esc(s.kind || "") + ')</small><br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || "Could not load.") + '</li>';
+    const body = '<p class="muted">Same ' + esc(String(((pl && pl.seeds) || []).length)) + ' cards and area' + (pl ? ', model ' + esc(String(pl.model).split("/").pop()) : '') + '. Only change: Qloo.</p>' +
+      '<h3>Plain model</h3><ol>' + theirs + '</ol><p class="muted"><small>Names come from the model\'s memory. Nothing checks they exist, are open, or are nearby.</small></p>' +
+      '<h3>Sparkling + Qloo</h3><ol>' + mine + '</ol><p class="muted"><small>Every stop is a Qloo place with coordinates, hours flag and per-note credit.</small></p>';
+    openSheet({ title: "Same notes, no Qloo", cls: "why-sheet", body: body });
+  }
   function openWhyStop(i){
     const stop = currentPlan && currentPlan.stops && currentPlan.stops[i];
     if (!stop) return;
@@ -5433,6 +5445,7 @@ function renderPlanResult(id){
       '<div class="plan-actions">' +
         '<button class="btn" type="button" data-action="shorten"' + (stops.length <= 1 || busyAction ? " disabled" : "") + ">Shorten</button>" +
         '<button class="btn" type="button" data-action="budget"' + (busyAction ? " disabled" : "") + ">Lower budget</button>" +
+        '<button class="btn" type="button" data-plain="1">Plain LLM</button>' +
         '<button class="btn btn-primary" type="button" data-action="save"' + (saved || busyAction ? " disabled" : "") + ">" + (saved ? "Saved" : "Save") + "</button>" +
       "</div>" +
       (Array.isArray(plan.log) && plan.log.length ?
@@ -5536,6 +5549,7 @@ function renderPlanResult(id){
   }
 
   on(view, "click", function(e){
+    if (e.target.closest("[data-plain]")) { openPlain(); return; }
     const wsBtn = e.target.closest("[data-why-stop]");
     if (wsBtn) { openWhyStop(Number(wsBtn.getAttribute("data-why-stop")) || 0); return; }
     const swapBtn = e.target.closest("[data-swap]");

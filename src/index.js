@@ -1,5 +1,6 @@
 // Sparkling Worker: notebook API + static app.
 import APP from "./app.html";
+import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd } from "./recognize.js";
 import { makePlan, dressPlan, cohorts, planNotice } from "./plan.js";
 import { qlooTagInsights } from "./qloo.js";
@@ -486,6 +487,8 @@ export default {
     const url = new URL(req.url);
     try {
       if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/")) return await api(req, env, ctx, url);
+      const asset = req.method === "GET" ? pwaAsset(url) : null;
+      if (asset) return asset;
       return new Response(APP, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
     } catch (e) {
       console.log("error", e.message, e.stack);

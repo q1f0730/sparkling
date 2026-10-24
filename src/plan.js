@@ -5,6 +5,7 @@ import { uid } from "./recognize.js";
 
 const BASE = "https://hackathon.api.qloo.com";
 
+export const AUDIENCES = { photography: ["7DCA3589-E6FF-4582-BE24-5A2D09D71336", "Photography"], arts_crafts: ["604A723B-3E2C-4795-89AA-DF5BA0C3B3C5", "Arts & crafts"], musician: ["15D9D8DF-28AF-425A-AF2E-835DFB53E778", "Musicians"], hiking: ["73B662F7-7DB7-4D0C-A36B-2E8E75ACDF49", "Hikers"], meditation: ["1C3735D4-FE2D-4CDE-811A-9B2BFE767DAD", "Meditation"], travel: ["7CB916B9-1D27-4D76-8D97-2CC5950385CA", "Travellers"] };
 async function qloo(env, path, params) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && !v.length)) qs.set(k, Array.isArray(v) ? v.join(",") : String(v));
@@ -346,6 +347,7 @@ export async function makePlan(env, user, req, log) {
       "signal.interests.entities": sd.map((s) => s.qloo_id), "filter.popularity.min": MOOD_POP[req.mood],
       "feature.explainability": "true", take: 20,
     };
+    if (req.audience && AUDIENCES[req.audience]) params["signal.demographics.audiences"] = AUDIENCES[req.audience][0];
     const key = "qp2:" + (await sha(JSON.stringify(params)));
     const hit = await cacheGet(env, key, 6 * 3600000);
     if (hit) { cacheHits++; return hit; }
@@ -437,7 +439,7 @@ export async function makePlan(env, user, req, log) {
   if (stops.length >= 2) log(`Kept stops close together: ${stops.map((s) => s.name).join(" then ")}.`);
   const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
   const T3 = Date.now();
-  const plan = await dressPlan(env, user, allSeeds, stops, { area, budget, mood: req.mood, period: req.period || "all", when, lang: req.lang === "zh" ? "zh" : "en" });
+  const plan = await dressPlan(env, user, allSeeds, stops, { area, budget, mood: req.mood, audience: AUDIENCES[req.audience] ? req.audience : null, period: req.period || "all", when, lang: req.lang === "zh" ? "zh" : "en" });
   timing.dress_ms = Date.now() - T3;
   if (req.lang === "zh") await zhReads(env, plan.stops);
   log(`Checked hours for ${day[0].toUpperCase() + day.slice(1)} and wrote one line per stop.`);

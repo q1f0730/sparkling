@@ -2089,6 +2089,7 @@ Object.assign(ZH, {"Steady":"稳定","Show less":"收起"});
     [/^(.+) is how Qloo reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, lead, q){ lead = lead === "your recent cards" ? "你最近的卡片" : lead === "your cards" ? "你的卡片" : andZh(lead); return "Qloo 用 " + andZh(tags) + " 来解读 " + lead + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
   );
 })();
+ZH_PATTERNS.push([/^mentioned (\d+)×$/, function(m, n){ return "第 " + n + " 次提到"; }]);
 /* r7i18n:end */
 function trZh(s){
   if (s == null) return s;
@@ -3217,7 +3218,7 @@ function noteHTML(note, opts){
       return '<button type="button" class="grown-chip ' + typeClass(m.card.type) + '" style="--k:' + k + '" data-nav="#/cards/' + attr(m.card_id) + '">' +
         (im ? '<img src="' + attr(im) + '" alt="" loading="lazy" onerror="this.remove()">' : '<span class="grown-face">' + esc(String(m.card.name || "").slice(0, 1)) + "</span>") +
         '<span class="grown-name">' + esc(m.card.name) + "</span>" +
-        '<span class="grown-meta">' + esc(typeLabel(m.card.type)) + (m.plus_one ? " · again" : " · new card") + "</span></button>";
+        '<span class="grown-meta">' + esc(typeLabel(m.card.type)) + (m.plus_one ? (m.card.n > 1 ? " · mentioned " + m.card.n + "×" : " · again") : " · new card") + "</span></button>";
     }).join("") + "</div>";
   }
   if (image) body += '<div class="note-media"><img class="note-photo" src="' + attr(image) + '" alt="Photo attached to this note" loading="lazy"></div>';

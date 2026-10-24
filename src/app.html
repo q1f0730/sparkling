@@ -1147,6 +1147,20 @@ a{color:var(--b-sage-ink)}
 /* B labelled card + dot label */
 
 .why-stop-btn{margin:10px 0 0}
+.ws-no{display:inline-flex;align-items:center;height:30px;padding:0 12px;margin:2px 0 10px;border-radius:999px;border:1px solid var(--b-line);background:var(--b-card);color:var(--b-ink2);font:500 12.5px/1 var(--sans);cursor:pointer}
+.ws-no:hover{border-color:var(--b-line-strong);color:var(--b-ink)}
+.plan-diff{margin:4px 0 18px;padding:16px 18px 14px;border-radius:var(--radius-inner,16px);background:var(--b-card);border:1px solid var(--b-line);border-left:3px solid var(--b-clay-ink)}
+.plan-diff .r7-eyebrow{margin:0 0 6px}
+.df-h{font:400 22px/1.15 var(--serif);font-variation-settings:"SOFT" 100,"opsz" 72;margin:0 0 10px}
+.df-h em{font-style:italic}
+.df-list{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:7px}
+.df-list li{font:400 15px/1.35 var(--sans);color:var(--b-ink2)}
+.df-list s{color:var(--b-faint);text-decoration-thickness:1px}
+.df-list b{font-weight:600;color:var(--b-ink)}
+.df-n{display:inline-block;min-width:54px;font:400 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--b-faint)}
+.df-lead,.df-kept{font:400 13.5px/1.45 var(--sans);color:var(--b-ink2);margin:0 0 6px}
+.df-link{font:500 13px/1 var(--sans);color:var(--b-sage-ink);text-decoration:underline;text-underline-offset:3px}
+.redo-wait{padding:28px 0}
 .ws-row{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--b-line);padding:12px 0 4px;color:inherit;font:inherit;cursor:pointer}
 .ws-row:first-of-type{border-top:0}
 .ws-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
@@ -6575,7 +6589,7 @@ function renderPlanResult(id){
           '<span class="ws-top"><b translate="no">' + esc(r.name) + '</b><span class="ws-pct num">' + pct + "%</span></span>" +
           '<span class="ws-bar"><i style="width:' + Math.max(4, Math.round((r.score || 0) / max * 100)) + '%"></i></span>' +
           (r.quote ? '<span class="ws-quote" translate="no">&ldquo;' + esc(r.quote) + "&rdquo;" + (r.at ? " &middot; " + esc(formatDate(r.at)) : "") + "</span>" : "") +
-        "</button>";
+        "</button>" + (r.card_id ? '<button type="button" class="ws-no" data-redo="' + attr(r.card_id) + '">' + esc(LANG === "zh" ? "这张不适合我，重新计划" : "Not for me, re-plan without it") + "</button>" : "");
       }).join("") : '<p class="why-line">Per-input attribution unavailable for this stop. Qloo returned it for your cards taken together.</p>') +
     "</section>";
     const vibes = Array.isArray(w.vibes) ? w.vibes : [];
@@ -6621,7 +6635,62 @@ function renderPlanResult(id){
       m.querySelectorAll("[data-close-nav]").forEach(function(btn){
         btn.addEventListener("click", function(){ const h = btn.getAttribute("data-close-nav"); closeModal(); location.hash = h; });
       });
+      m.querySelectorAll("[data-redo]").forEach(function(btn){
+        btn.addEventListener("click", function(){ closeModal(); redoPlan(btn.getAttribute("data-redo"), false); });
+      });
     }});
+  }
+  /* correction beat: mark one card "not for me" (or put it back), re-plan the same request, land on the new plan with a diff */
+  async function redoPlan(cardId, restore){
+    if (busyAction || !cardId) return;
+    busyAction = true;
+    const cardName = (function(){ const rows = ((currentPlan && currentPlan.stops) || []).reduce(function(a, st){ return a.concat((st.why && st.why.contributions) || [], st.sources || []); }, []); const hit = rows.filter(function(r){ return r && r.card_id === cardId; })[0]; return hit ? hit.name : ""; })();
+    view.innerHTML = '<div class="redo-wait" role="status"><p class="r7-eyebrow">' + esc(restore ? (LANG === "zh" ? "放回去" : "Putting it back") : (LANG === "zh" ? "已标记" : "Marked not for me")) + '</p>' +
+      '<h2 class="r7-display"><em translate="no">' + esc(cardName || "…") + '</em></h2>' +
+      '<p class="muted">' + esc(LANG === "zh" ? "按同样的要求重新计划，一会儿告诉你变了什么。" : "Planning the same afternoon again. Then you will see exactly what changed.") + '</p><div class="skeleton sk-detail"></div></div>';
+    try {
+      const body = { redo_from: planId, lang: LANG === "zh" ? "zh" : "en" };
+      body[restore ? "restore_card" : "dislike_card"] = cardId;
+      const res = await fetch("/api/plan", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: ac.signal });
+      if (!res.ok || !res.body) throw new Error("Request failed (" + res.status + ")");
+      const reader = res.body.getReader(), dec = new TextDecoder();
+      let buf = "", fin = false, got = null, errTxt = "";
+      while (!fin) {
+        const stp = await reader.read(); fin = !!stp.done;
+        buf += dec.decode(stp.value || new Uint8Array(0), { stream: !fin });
+        const parts = buf.split(/\r?\n/); buf = parts.pop();
+        parts.forEach(function(raw){ let m = null; try { m = JSON.parse(raw); } catch (_) {} if (m && m.type === "plan" && m.plan && m.plan.id) got = m.plan; else if (m && m.type === "error") errTxt = m.text || "error"; });
+      }
+      if (!got) throw new Error(errTxt || "The plan stream ended before a plan arrived.");
+      cachePlan(got);
+      busyAction = false;
+      go("#/plan/" + encodeURIComponent(String(got.id)));
+    } catch (e) {
+      busyAction = false;
+      if (isAbort(e)) return;
+      toast((e && e.message) || (LANG === "zh" ? "没成功，再试一次。" : "That did not work. Try again."));
+      if (currentPlan) paint(currentPlan);
+    }
+  }
+  function diffHTML(plan){
+    const d = plan && plan.diff; if (!d || !d.card) return "";
+    const zh = LANG === "zh";
+    const rows = (d.changes || []).map(function(c){
+      const was = c.was ? '<s translate="no">' + esc(c.was) + '</s>' : "", now = c.now ? '<b translate="no">' + esc(c.now) + '</b>' : '<i>' + esc(zh ? "没有替代" : "nothing replaces it") + '</i>';
+      return '<li><span class="df-n num">' + esc(zh ? "第" + c.stop + "站" : "Stop " + c.stop) + '</span>' + (c.was ? was + ' <span aria-hidden="true">&rarr;</span> ' : (zh ? "新增 " : "added ")) + now + '</li>';
+    }).join("");
+    const rc = (d.recredit || []).map(function(c){
+      return '<li><span class="df-n num">' + esc(zh ? "第" + c.stop + "站" : "Stop " + c.stop) + '</span><b translate="no">' + esc(c.name) + '</b> ' + esc(zh ? "还在，理由换成了 " : "stays, now because of ") + '<span translate="no">' + esc((c.now || []).join(", ") || "—") + '</span></li>';
+    }).join("");
+    const head = d.restore ? (zh ? "放回 " : "Put back ") : (zh ? "不含 " : "Without ");
+    const lead = d.same ? (zh ? "路线没变：别的地方同样合适。" : "The route held: nothing else fit better.") : "";
+    return '<section class="plan-diff" aria-label="' + attr(zh ? "和上一版的差别" : "What changed") + '">' +
+      '<p class="r7-eyebrow">' + esc(zh ? "和上一版的差别" : "What changed") + '</p>' +
+      '<h3 class="df-h">' + esc(head) + '<em translate="no">' + esc(d.card) + '</em></h3>' +
+      ((rows || rc) ? '<ul class="df-list">' + rows + rc + '</ul>' : '') + (lead ? '<p class="df-lead">' + esc(lead) + '</p>' : '') +
+      (d.kept && d.kept.length ? '<p class="df-kept">' + esc(zh ? "没变：" : "Kept: ") + '<span translate="no">' + esc(d.kept.join(", ")) + '</span></p>' : '') +
+      '<div class="df-acts">' + (d.from ? '<a class="df-link" href="#/plan/' + attr(d.from) + '">' + esc(zh ? "看上一版" : "See the previous plan") + '</a>' : '') + '</div>' +
+    '</section>';
   }
   function stopHTML(stop, i, all){
     const mapUrl = safeHttpUrl(stop && stop.map_url);
@@ -6732,6 +6801,7 @@ function renderPlanResult(id){
             '<div><dt>walking</dt><dd class="num">' + (walk ? walk + '<small>' + (LANG === "zh" ? "分钟" : "min") + '</small>' : "\u2014") + '</dd></div>' +
           '</dl>' + '<button class="plain-cta" type="button" data-plain="1"><span>Same notes, no Qloo</span><span class="plain-cta-go">Compare &rarr;</span></button>' + '</header>'; })() +
       (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +
+      diffHTML(plan) +
       (plan.notice ? '<p class="plan-notice" role="note">' + esc(plan.notice) + "</p>" : "") +
       routeMapHTML(stops) + sideHTML(stops, plan) +
       stops.map(function(st, i){ return stopHTML(st, i, stops); }).join("") +

@@ -2064,6 +2064,31 @@ ZH_PATTERNS.unshift(
   [/^(\d+) min by bike \(([\d.]+) mi\)$/, function(m, n, d){ return "骑车 " + n + " 分钟（" + d + " 英里）"; }],
   [/^([\d.]+) mi from the route$/, function(m, d){ return "离路线 " + d + " 英里"; }]
 );
+/* plan trace zh */
+(function(){
+  var RJ = { "of the wrong kind": "类型不符", "that are not places to linger (barbers, grocers…)": "不适合逗留的地方（理发店、杂货店等）", "chains": "连锁店", "closed for good": "已永久关闭", "closed that afternoon": "当天下午不营业", "outside the city": "在城市之外", "across the river": "在河对岸", "without an address": "没有地址", "without an id": "没有 ID" };
+  function kz(s){ return trZh(s); }
+  function dz(d){ return DAY_ZH[d] || d; }
+  function clk(s){ return String(s).replace(/(\d+(?::\d+)?)\s*([ap])m/i, function(m, t, a){ return (a.toLowerCase() === "a" ? "上午 " : "下午 ") + t; }); }
+  ZH_PATTERNS.unshift(
+    [/^Planning from your (recent|earlier) notes only\.$/, function(m, w){ return "只用你" + (w === "recent" ? "最近" : "更早") + "的笔记来规划。"; }],
+    [/^Using (\d+) cards as seeds: (.+)\.$/, function(m, n, l){ return "用 " + n + " 张卡片作种子：" + l + "。"; }],
+    [/^Looking for: (.+), around (.+)\.$/, function(m, k, a){ return "寻找：" + k.split(", then ").map(kz).join("，再到 ") + "，范围在" + a + "一带。"; }],
+    [/^Asked Qloo for (.+?) near (.+?) with (.+?): (\d+) came back, (\d+) passed the checks(.*)\.$/, function(m, k, a, sd, n, ok, rest){
+      var extra = "";
+      var r1 = rest.match(/\((\d+) wrong kind, closed or not a stop\)/); if (r1) extra += "（" + r1[1] + " 个类型不符、已关闭或不是可去的地方）";
+      var r2 = rest.match(/, (\d+) you already know/); if (r2) extra += "，" + r2[1] + " 个你已经知道";
+      var r3 = rest.match(/, (\d+) over budget/); if (r3) extra += "，" + r3[1] + " 个超预算";
+      return "向 Qloo 询问" + a + "附近的" + kz(k) + "（依据 " + sd + "）：返回 " + n + " 个，" + ok + " 个通过检查" + extra + "。"; }],
+    [/^Few (.+) results right in (.+), so I widened to (.+) and found (\d+)\.$/, function(m, k, a, w, n){ return a + "本地的" + kz(k) + "太少，于是扩大到" + w + "，又找到 " + n + " 个。"; }],
+    [/^Nothing (.+) I found is open around (.+) on (\w+), so I left that stop out\.$/, function(m, k, t, d){ return "我找到的" + kz(k) + "在" + dz(d) + clk(t) + "前后都没开门，所以这一站先略过。"; }],
+    [/^Skipped (\d+) that would be closed when you got there\.$/, function(m, n){ return "略过了 " + n + " 个你到的时候已经关门的地方。"; }],
+    [/^Checks left out (.+)\.$/, function(m, l){ return "检查剔除了：" + l.split(/, (?=\d+ )/).map(function(p){ var q = p.match(/^(\d+) (.+)$/); return q ? q[1] + " 个" + (RJ[q[2]] || q[2]) : p; }).join("，") + "。"; }],
+    [/^Kept stops close together: (.+)\.$/, function(m, l){ return "让几站彼此靠近：" + l.split(" then ").join(" → ") + "。"; }],
+    [/^Checked hours for (\w+) and wrote one line per stop\.$/, function(m, d){ return "核对了" + dz(d) + "的营业时间，并为每一站写了一句话。"; }],
+    [/^(\d+) steps(?: · (\d+) Qloo calls)?(?: · (\d+) s)?$/, function(m, s, q, t){ return [s + " 步", q ? q + " 次 Qloo 调用" : "", t ? t + " 秒" : ""].filter(Boolean).join(" · "); }]
+  );
+})();
 function trZh(s){
   if (s == null) return s;
   const raw = String(s);

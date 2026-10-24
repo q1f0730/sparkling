@@ -5938,7 +5938,7 @@ function renderThreads(){
     const basedOn = String((lastData && lastData.shift && lastData.shift.based_on) || "");
     const readCard = '<section class="bcard bread"><div class="blabel"><span>Sparkling’s read</span></div>' +
       (t.read ? "<p>" + esc(t.read) + "</p>" : "") +
-      (t.shift && basedOn ? "<p>" + esc(t.shift) + ": comparing the tags Qloo returns for your " + esc(basedOn) + " most recent cards against the " + esc(basedOn) + " before them.</p>" : "") +
+      (t.shift && basedOn ? "<p>" + esc(t.shift) + ": comparing the catalogue tags on your " + esc(basedOn) + " most recent cards against the " + esc(basedOn) + " before them.</p>" : "") +
     "</section>";
     const ents = Array.isArray(rc["signal.interests.entities"]) ? rc["signal.interests.entities"] : [];
     const receipt =

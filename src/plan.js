@@ -222,6 +222,8 @@ export function seedBands(good) {
   const k = Math.ceil(g.length / 3);
   const near = g.slice(0, k), mid = g.slice(k, 2 * k), far = g.slice(2 * k);
   const seeds = [...near.slice(0, 2).map((c) => ({ ...c, band: "near" })), ...mid.slice(0, 1).map((c) => ({ ...c, band: "mid" })), ...far.slice(0, 1).map((c) => ({ ...c, band: "far" }))];
+  // Thin edges (4-5 cards leave "far" empty): fill to four from the next closest cards so evidence can stay distinct.
+  if (g.length >= 4 && seeds.length < 4) for (const c of [...mid, ...far]) { if (seeds.length >= 4) break; if (!seeds.some((x) => x === c || (x.id === c.id && x.qloo_id === c.qloo_id))) seeds.push({ ...c, band: far.includes(c) ? "far" : "mid" }); }
   return { near, mid, far, seeds: g.length < 4 ? g.map((c) => ({ ...c, band: "near" })) : seeds };
 }
 
@@ -313,8 +315,9 @@ export async function readCacheKey(lang, seedNames, venues) {
 
 // ---- timing model shared by selection and the timeline
 export const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-export const planDay = (when) => DAYS.find((d) => lc(when).includes(d)) || (/today|tonight/.test(lc(when)) ? DAYS[new Date().getUTCDay()] : "saturday");
-export const planStart = (when) => (/morning/i.test(when || "") ? 10 * 60 : /evening|night|dinner/i.test(when || "") ? 18 * 60 : /(^|[^a-z])noon|lunch/i.test(when || "") ? 12 * 60 : 14 * 60);
+const ZH_DAY = [/周日|周天|星期日|星期天|礼拜天/, /周一|星期一/, /周二|星期二/, /周三|星期三/, /周四|星期四/, /周五|星期五/, /周六|星期六/];
+export const planDay = (when) => DAYS.find((d) => lc(when).includes(d)) || DAYS[ZH_DAY.findIndex((re) => re.test(String(when || "")))] || (/today|tonight|今天|今晚|今夜/.test(lc(when)) ? DAYS[new Date().getUTCDay()] : "saturday");
+export const planStart = (when) => (/morning|上午|早上|早晨/i.test(when || "") ? 10 * 60 : /evening|night|dinner|晚上|今晚|夜/i.test(when || "") ? 18 * 60 : /(^|[^a-z])noon|lunch|中午/i.test(when || "") ? 12 * 60 : 14 * 60);
 export const stayFor = (k) => (/book|library|record/i.test(k || "") ? 40 : /cafe|coffee|tea|bakery|patisserie|pastry/i.test(k || "") ? 45 : 60);
 export const travelMin = (d) => (d == null ? 10 : d < 1.3 ? Math.max(1, Math.round(d * 20)) : Math.max(2, Math.round(d * 6)));
 
@@ -651,4 +654,156 @@ export function planDiff(before, after, cardName, restore = false, fromId = null
     if (was.join("|") !== now.join("|")) recredit.push({ stop: i + 1, name: b.name, was, now });
   });
   return { card: String(cardName || ""), restore: !!restore, from: fromId, changes, recredit, kept, same: changes.length === 0 && recredit.length === 0 && oldS.length === newS.length };
+}
+
+
+// ---- Stay-in plans: "a film tonight, from my notes" needs no neighbourhood, no budget, no hours.
+// Intent comes from the free-text ask (EN + zh). The same function is mirrored in app.html (stayIntent) so the
+// Go out / Stay in toggle can follow the ask live; tests/stayin.test.mjs checks the two agree.
+export const STAY_KINDS = ["film", "tv", "music", "book", "podcast"];
+export function stayIntent(text) {
+  const s = String(text == null ? "" : text).toLowerCase();
+  if (!s.trim()) return { mode: null, kinds: [] };
+  const home = /\b(stay(ing)? in|at home|night in|home tonight|on the couch|on the sofa|cosy night|cozy night)\b|在家|宅家|宅着|不出门|不想出门|窝在|躺平/.test(s);
+  const out = /cinema|movie theat|theatre|theater|bookstore|book store|bookshop|record (shop|store)|vinyl shop|caf[eé]|coffee|\bbar\b|pub|museum|galler|park|restaurant|bakery|jazz club|live music|concert|gig\b|go out|going out|walk around|stroll|neighbo(u)?rhood|电影院|影院|影城|书店|唱片店|咖啡|酒吧|博物馆|美术馆|画廊|公园|餐厅|饭店|livehouse|演唱会|音乐节|出门|外出|逛|散步|街区|去外面/.test(s);
+  const k = [];
+  const hit = (kind, re) => { const m = s.search(re); if (m >= 0) k.push([kind, m]); };
+  hit("film", /\b(movies?|films?)\b|watch something|something to watch|电影|影片|片子|看部片|看个片/);
+  hit("tv", /\b(series|tv show|tv|show to binge|binge|episodes?)\b|电视剧|美剧|日剧|韩剧|英剧|追剧|剧集|看剧|番剧|动画/);
+  hit("music", /\b(listen|album|albums|playlist|songs?|music|record to put on)\b|听歌|听音乐|听专辑|听点|音乐|专辑|歌单|唱片/);
+  hit("book", /\b(read|reading|books?|novel|novels)\b|看书|读书|读点|读本|小说|一本书|书单/);
+  hit("podcast", /\bpodcasts?\b|播客|电台/);
+  const kinds = [...new Set(k.sort((a, b) => a[1] - b[1]).map(([x]) => x))];
+  const cook = /\b(cook|cooking|bake|baking)\b|做饭|下厨|煮饭|烤蛋糕/.test(s);
+  if (home) return { mode: "in", kinds };
+  if (out) return { mode: "out", kinds: [] };
+  if (kinds.length || cook) return { mode: "in", kinds };
+  return { mode: null, kinds: [] };
+}
+
+const MEDIA_URN = { film: "urn:entity:movie", tv: "urn:entity:tv_show", music: "urn:entity:artist", book: "urn:entity:book", podcast: "urn:entity:podcast" };
+const CARD_DOMAIN = { film: ["film", "tv"], tv: ["tv", "film"], music: ["music"], book: ["book"], podcast: ["other", "music"] };
+const TAG_OK = /genre:media|theme|plot|style|character|mood|subgenre/;
+export function slimMedia(e, kind) {
+  if (!e || typeof e !== "object" || !e.entity_id || !e.name) return null;
+  const p = e.properties || {};
+  const sd = Array.isArray(p.short_descriptions) ? (p.short_descriptions.find((x) => x && Array.isArray(x.languages) && x.languages.includes("en")) || {}).value : null;
+  const tags = [...new Set((Array.isArray(e.tags) ? e.tags : []).filter((t) => t && typeof t.name === "string" && TAG_OK.test(t.type || t.subtype || "")).map((t) => t.name))].slice(0, 4);
+  const by = kind === "music" ? null : (Array.isArray(p.collaborators) && kind === "film" ? p.collaborators[0] : null) || (Array.isArray(p.authors) ? p.authors[0] : p.author) || null;
+  const img = p.image?.url || e.image?.url || null;
+  return {
+    qloo_id: e.entity_id, name: String(e.name).slice(0, 160), kind, year: p.release_year || p.publication_year || p.year || null,
+    by: by ? String(by).slice(0, 80) : null, image: typeof img === "string" && /^https:\/\//.test(img) ? img : null,
+    description: String(sd || p.short_description || p.description || "").slice(0, 240), tags, popularity: typeof e.popularity === "number" ? +e.popularity.toFixed(3) : null,
+    affinity: typeof e.query?.affinity === "number" ? +e.query.affinity.toFixed(3) : null,
+    expl: Array.isArray(e.query?.explainability?.["signal.interests.entities"]) ? e.query.explainability["signal.interests.entities"].filter((x) => x && x.entity_id && typeof x.score === "number").map((x) => ({ id: x.entity_id, score: +x.score.toFixed(3) })) : null,
+  };
+}
+
+/** Which kinds to recommend: what the ask names, else a mixed evening (film, music, book). Always 3 picks. */
+export function stayKinds(kinds) {
+  const k = (Array.isArray(kinds) ? kinds : []).filter((x) => STAY_KINDS.includes(x));
+  const use = k.length ? k : ["film", "music", "book"];
+  const out = [];
+  for (let i = 0; out.length < 3; i++) out.push(use[i % use.length]);
+  return out;
+}
+
+/** A stay-in plan: 3 picks of the asked kind from the taste catalogue, each tied to the cards behind it. */
+export async function makeStayIn(env, user, req, log) {
+  const T0 = Date.now();
+  const lang = req.lang === "zh" ? "zh" : "en";
+  const intent = stayIntent(req.text);
+  const slots = stayKinds(intent.kinds);
+  const { seeds, all, good } = await pickSeeds(env, user.id, req.mood, req.period);
+  if (req.period === "now" || req.period === "then") log(`Planning from ${req.period === "now" ? "your recent notes" : "your earlier notes"} only.`);
+  if (seeds.length < 2) throw { state: "too_few", text: "I need a few more things you love to plan from. Mark a couple of cards with a heart, or start from one card." };
+  const kinds = [...new Set(slots)];
+  log(`Staying in: looking for ${kinds.map((k) => ({ film: "a film", tv: "a series", music: "music", book: "a book", podcast: "a podcast" })[k]).join(", ")}. No neighbourhood needed.`);
+  const known = new Set(all.map((c) => String(c.qloo_id)));
+  const seedsFor = (k) => {
+    const dom = CARD_DOMAIN[k] || [];
+    const rel = good.filter((c) => dom.includes(c.type)).slice(0, 3);
+    const out = [...rel.map((c) => ({ ...c, band: (seeds.find((s) => s.qloo_id === c.qloo_id) || {}).band || "near" })), ...seeds].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i).slice(0, 5);
+    return out.length >= 2 ? out : seeds;
+  };
+  let live = 0, cached = 0;
+  const pools = await Promise.all(kinds.map(async (k) => {
+    const sd = seedsFor(k);
+    const params = { "filter.type": MEDIA_URN[k], "signal.interests.entities": sd.map((s) => s.qloo_id), "filter.popularity.min": MOOD_POP[req.mood], "feature.explainability": "true", take: 20 };
+    if (req.audience && AUDIENCES[req.audience]) params["signal.demographics.audiences"] = AUDIENCES[req.audience][0];
+    const key = "qm1:" + (await sha(JSON.stringify(params)));
+    let items = await cacheGet(env, key, 6 * 3600000);
+    if (items) cached++;
+    else {
+      try { live++; const d = await qloo(env, "/v2/insights", params); items = (d.results?.entities || []).map((e) => slimMedia(e, k)).filter(Boolean); await cachePut(env, key, items); }
+      catch (e) { throw { state: "qloo_down", text: "Plans need the taste catalogue right now and it isn't answering. Your notes and cards are fine." }; }
+    }
+    const fresh = items.filter((x) => !known.has(String(x.qloo_id)) && !sd.some((s) => s.qloo_id === x.qloo_id));
+    log(`Asked the catalogue for ${k} with ${sd.slice(0, 3).map((s) => s.name).join(", ")}${sd.length > 3 ? "…" : ""}: ${items.length} came back, ${items.length - fresh.length} you already have cards for.`);
+    return { kind: k, seeds: sd, items: fresh, returned: items.length };
+  }));
+  // familiar = Qloo's top matches; a little different = skip the very top; surprise = shuffle the first dozen.
+  const order = (arr) => req.mood === "different" ? [...arr.slice(2), ...arr.slice(0, 2)] : req.mood === "surprise" ? arr.slice(0, 12).map((x) => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map((x) => x[1]).concat(arr.slice(12)) : arr;
+  const byKind = Object.fromEntries(pools.map((p) => [p.kind, order(p.items)]));
+  const picks = [], taken = new Set();
+  for (const k of slots) {
+    const next = (byKind[k] || []).find((x) => !taken.has(x.qloo_id) && !taken.has(lc(x.name)));
+    if (!next) continue;
+    taken.add(next.qloo_id); taken.add(lc(next.name));
+    picks.push({ ...next, seeds_used: (pools.find((p) => p.kind === k) || {}).seeds || [] });
+  }
+  if (!picks.length) throw { state: "weak", text: "Nothing new came back for that this time. Try a different mood, or ask for another kind of thing." };
+  const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
+  const dressed = await dressPicks(env, user, allSeeds, picks, lang);
+  if (lang === "zh") await zhReads(env, dressed);
+  log(`Picked ${dressed.length}: ${dressed.map((p) => p.name).join(", ")}.`);
+  const when = req.when || user.whenx || "Saturday afternoon";
+  const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[req.mood] || "familiar";
+  const left_out = ((await env.DB.prepare("SELECT name FROM cards WHERE user_id=? AND heart=-1 ORDER BY name LIMIT 5").bind(user.id).all().catch(() => null))?.results || []).map((r) => r.name);
+  return {
+    id: uid(), mode: "in", kinds, left_out, period: req.period || "all",
+    header: `${when} · Stay in · ${moodWord}`, stops: [], picks: dressed,
+    seeds: allSeeds.map((s) => ({ qloo_id: s.qloo_id, name: s.name })),
+    meta: { when, mode: "in", mood: req.mood || "familiar", period: req.period || "all", lang, audience: AUDIENCES[req.audience] ? req.audience : null },
+    pool: pools.map((p) => ({ kind: p.kind, items: p.items.slice(0, 8) })),
+    receipt: {
+      seeds: allSeeds.map((s) => ({ name: s.name, qloo_id: s.qloo_id })),
+      queries: pools.map((p) => ({ endpoint: "/v2/insights", "filter.type": MEDIA_URN[p.kind], "signal.interests.entities": p.seeds.map((s) => s.name), "feature.explainability": true, returned: p.returned })),
+      checks: { exclude: "anything you already have a card for", where_to_watch: "not shown: not in the catalogue" },
+      sent_to_qloo: "Card IDs only. No note text, no location.",
+      provenance: { live, cached, label: cached && !live ? "cached" : cached ? "live + cached" : "live", note: "Titles, years, posters and reasons come from Qloo; the why-line is assembled from your cards." },
+    },
+    timing: { total_ms: Date.now() - T0, qloo_calls: live, cache_hits: cached },
+  };
+}
+
+/** Evidence for each pick: Qloo's per-card contribution joined to the user's cards and quotes; no repeats when avoidable. */
+export async function dressPicks(env, user, seeds, picks, lang) {
+  const ids = seeds.map((s) => s.qloo_id);
+  const fps = ids.length ? (await env.DB.prepare(`SELECT c.id card_id, c.qloo_id, c.image, c.name, c.type, COUNT(f.id) n, (SELECT f2.quote FROM footprints f2 WHERE f2.card_id=c.id AND f2.quote IS NOT NULL AND LENGTH(f2.quote)>8 ORDER BY f2.created_at DESC LIMIT 1) quote, (SELECT f2.created_at FROM footprints f2 WHERE f2.card_id=c.id AND f2.quote IS NOT NULL AND LENGTH(f2.quote)>8 ORDER BY f2.created_at DESC LIMIT 1) quote_at FROM cards c LEFT JOIN footprints f ON f.card_id=c.id WHERE c.user_id=? AND c.qloo_id IN (${ids.map(() => "?").join(",")}) GROUP BY c.id ORDER BY n DESC`).bind(user.id, ...ids).all()).results || [] : [];
+  const byQ = new Map(fps.map((r) => [String(r.qloo_id).toLowerCase(), r]));
+  const seedByQ = new Map(seeds.map((x) => [String(x.qloo_id).toLowerCase(), x]));
+  const row = (r, sd, score) => ({ card_id: r?.card_id || null, qloo_id: r?.qloo_id || sd?.qloo_id, name: r?.name || sd?.name, type: r?.type || sd?.type || null, image: r?.image || null, n: r?.n || 0, quote: r?.quote ? String(r.quote).slice(0, 140) : null, at: r?.quote_at || null, score: score ?? null, band: sd?.band || "near" });
+  const used = new Set();
+  return picks.map((p) => {
+    let cf = Array.isArray(p.expl) ? p.expl.map((x) => { const k = String(x.id).toLowerCase(); const r = byQ.get(k), sd = seedByQ.get(k); return r || sd ? row(r, sd, x.score) : null; }).filter(Boolean).sort((a, b) => b.score - a.score) : [];
+    const attribution = cf.length > 0;
+    if (!cf.length) {
+      const dom = CARD_DOMAIN[p.kind] || [];
+      const sd = (p.seeds_used || []).map((s) => row(byQ.get(String(s.qloo_id).toLowerCase()), s, null));
+      cf = [...sd.filter((r) => dom.includes(r.type)), ...sd.filter((r) => !dom.includes(r.type))];
+    }
+    const ord = [...cf.filter((r) => !used.has(r.card_id || r.qloo_id)), ...cf.filter((r) => used.has(r.card_id || r.qloo_id))].slice(0, 2);
+    ord.forEach((r) => used.add(r.card_id || r.qloo_id));
+    const names = ord.map((r) => r.name).filter(Boolean);
+    const why = names.length
+      ? (lang === "zh" ? `因为你记过 ${names.map((n) => "《" + n + "》").join("和")}` : `Because you kept ${names.join(" and ")}`) + (p.tags.length ? (lang === "zh" ? `；Qloo 给它的标签：${p.tags.slice(0, 2).join("、")}。` : `; Qloo files it with ${p.tags.slice(0, 2).join(" and ").toLowerCase()}.`) : (lang === "zh" ? "。" : "."))
+      : (lang === "zh" ? "口味目录根据你的卡片整体给出。" : "The catalogue returned it for your cards taken together.");
+    return {
+      qloo_id: p.qloo_id, name: p.name, kind: p.kind, year: p.year, by: p.by, image: p.image, description: p.description, tags: p.tags,
+      read: p.description || "", why_line: why, sources: ord,
+      why: { attribution, contributions: cf.length ? cf : null, affinity: p.affinity, popularity: p.popularity, vibes: p.tags, qloo_id: p.qloo_id, type: MEDIA_URN[p.kind], seeds_sent: (p.seeds_used || []).length },
+    };
+  });
 }

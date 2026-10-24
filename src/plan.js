@@ -162,13 +162,21 @@ export function openAt(hours, day, arrive, stay) {
 }
 
 const TIME_TAG = /^(morning|afternoon|evening|night|late night|early morning|brunch|lunch|dinner|breakfast|weekday|weekend|daytime|happy hour)$/i;
+// Generic service/use tags Qloo puts on many places: they describe what you can do anywhere, not this place.
+const GENERIC_VIBE = /^(education learning|event catering|catering|food service|casual|shopping|convenient|restroom|clean|wi ?fi|takeout|delivery|dine in|quick bite|credit cards|debit cards|reservations?|walkable|good for (?:groups?|kids?|families)|groups?|family friendly|kid friendly|kids friendly|socializing|socialising|dining(?:\s*(?:and|&|,|\+|\/)\s*|\s+)drinking|dining out|dogs? allowed(?: inside| outside| indoors| outdoors)?|dogs? (?:friendly|welcome)|pets? (?:allowed|friendly|welcome)|wheelchair accessible|wheelchair access)$/i;
+// Facility taxonomies: amenities, accessibility, offerings. Never character, whatever the tag name says.
+const FACILITY_TAG = /amenit|accessib|offerings/;
+function isVibeTag(t) {
+  const name = (t?.name || "").trim(), ty = t?.type || t?.subtype || "";
+  return !!name && !TIME_TAG.test(name) && !/time_of_day/.test(ty) && !GENERIC_VIBE.test(name) && !FACILITY_TAG.test(ty);
+}
 function slimPlace(e) {
   const p = e.properties || {};
   const loc = e.location || p.geocode || {};
   const lat = loc.lat ?? p.latitude, lon = loc.lon ?? loc.lng ?? p.longitude;
   const cats = placeCats(e);
   const kinds = cats.slice(0, 4);
-  const vibes = (e.tags || []).filter((t) => !TIME_TAG.test((t.name || "").trim()) && !/time_of_day/.test(t.type || "")).filter((t) => !/^(education learning|event catering|catering|food service|casual|shopping|convenient|restroom|clean|wi ?fi|takeout|delivery|dine in|quick bite|credit cards|debit cards|reservations?|walkable|good for groups)$/i.test((t.name || "").trim())).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|offerings|amenit|menu|dining|cuisine|accessib|planning|parking|service|specialty|highlights|nearby|children|kids|price|age_range|customer|dietary|noise|crowd|restroom/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
+  const vibes = (e.tags || []).filter(isVibeTag).filter((t) => !/genre:place|category|payment|credit_card|cost|rating|inclusivity|menu|dining|cuisine|planning|parking|service|specialty|highlights|nearby|children|kids|price|age_range|customer|dietary|crowd|restroom/.test(t.type || t.subtype || "")).map((t) => t.name).slice(0, 6);
   const hood = resolveNeighborhood(p, p.address);
   return {
     qloo_id: e.entity_id, name: e.name, address: p.address, ...hood,

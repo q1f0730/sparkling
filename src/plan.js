@@ -286,6 +286,13 @@ export async function zhReads(env, stops) {
   if (out.length === src.length) stops.forEach((s, i) => { if (out[i] && /[\u4e00-\u9fff]/.test(out[i])) s.read_zh = String(out[i]).slice(0, 200); });
 }
 const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", items: { type: "string" } } }, required: ["reads"] };
+const READ_BASE = "For each venue write ONE plain sentence addressed to the reader as \"you\" (12-20 words) on why it suits this person's afternoon, connecting a concrete fact about the venue (its kind, vibes or description) to the feel of what they keep returning to (given as seeds). Do not name the seeds as if the venue is about them; no hype, no exclamation marks, use ONLY facts present in the given kind, vibes or description (never invent atmosphere, decor, lighting or style words not listed), no claims about hours, prices or being open. Return {\"reads\":[...]} in order.";
+/** English unless the request is zh; then ask for the same grounded sentence in Simplified Chinese. */
+export const readPrompt = (lang) => READ_BASE + (lang === "zh" ? " Write each sentence in Simplified Chinese (15-30 characters), keep venue names unchanged." : "");
+/** D1 cache key for those sentences: zh and en must never share one. */
+export async function readCacheKey(lang, seedNames, venues) {
+  return "reads:v2:" + (lang === "zh" ? "zh" : "en") + ":" + (await sha(JSON.stringify({ seedNames, venues })));
+}
 
 // ---- timing model shared by selection and the timeline
 export const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -425,7 +432,7 @@ export async function makePlan(env, user, req, log) {
   if (stops.length >= 2) log(`Kept stops close together: ${stops.map((s) => s.name).join(" then ")}.`);
   const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
   const T3 = Date.now();
-  const plan = await dressPlan(env, user, allSeeds, stops, { area, budget, mood: req.mood, period: req.period || "all", when });
+  const plan = await dressPlan(env, user, allSeeds, stops, { area, budget, mood: req.mood, period: req.period || "all", when, lang: req.lang === "zh" ? "zh" : "en" });
   timing.dress_ms = Date.now() - T3;
   if (req.lang === "zh") await zhReads(env, plan.stops);
   log(`Checked hours for ${day[0].toUpperCase() + day.slice(1)} and wrote one line per stop.`);
@@ -479,14 +486,15 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     : `You kept ${seedNames.slice(0, 2).join(" and ")}.`;
   let reads = [];
   const venues = stops.map((s) => ({ name: s.name, kind: s.kind, vibes: s.vibes, description: s.description }));
-  const rkey = "reads:v2:" + (await sha(JSON.stringify({ seedNames, venues })));
+  const lang = meta.lang === "zh" ? "zh" : "en";
+  const rkey = await readCacheKey(lang, seedNames, venues);
   const cached = await cacheGet(env, rkey, 7 * 86400000);
   if (cached) reads = cached;
   else {
     try {
       // The plan never waits more than 3.5 s for prose; a grounded template stands in.
       const o = await withTimeout(llmJSON(env,
-        "For each venue write ONE plain sentence addressed to the reader as \"you\" (12-20 words) on why it suits this person's afternoon, connecting a concrete fact about the venue (its kind, vibes or description) to the feel of what they keep returning to (given as seeds). Do not name the seeds as if the venue is about them; no hype, no exclamation marks, use ONLY facts present in the given kind, vibes or description (never invent atmosphere, decor, lighting or style words not listed), no claims about hours, prices or being open. Return {\"reads\":[...]} in order.",
+        readPrompt(lang),
         JSON.stringify({ seeds: seedNames, venues }), READ_SCHEMA, 400), +env.READ_TIMEOUT_MS || 3500);
       reads = o?.reads || [];
       if (reads.length === stops.length) await cachePut(env, rkey, reads);

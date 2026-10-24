@@ -684,6 +684,7 @@ async function inboxAct(env, U, id, b) {
   if (b.action === "undo") {
     if (it.resolved_fp) await env.DB.prepare("DELETE FROM footprints WHERE id=?").bind(it.resolved_fp).run();
     await env.DB.prepare("DELETE FROM mappings WHERE user_id=? AND surface=?").bind(U, norm(it.mention)).run();
+    if (it.resolved_card) await env.DB.prepare("DELETE FROM cards WHERE id=? AND user_id=? AND qloo_id LIKE 'custom:%' AND NOT EXISTS (SELECT 1 FROM footprints WHERE card_id=?)").bind(it.resolved_card, U, it.resolved_card).run();
     await env.DB.prepare("UPDATE inbox SET status='open', resolved_card=NULL, resolved_fp=NULL WHERE id=?").bind(id).run();
     await setMention("inbox");
     return { ok: true };
@@ -693,6 +694,17 @@ async function inboxAct(env, U, id, b) {
     await env.DB.prepare("UPDATE inbox SET status='rejected' WHERE id=?").bind(id).run();
     await setMention("plain");
     return { ok: true };
+  }
+  if (b.action === "keep") {
+    // "Keep as my own thing": a personal card made from the note's words, no catalogue match needed
+    const name = String(it.mention || "").trim().slice(0, 80);
+    if (!name) return { error: "nothing to keep" };
+    const cid = await upsertCard(env, U, { qloo_id: "custom:" + norm(name).replace(/[^a-z0-9\u4e00-\u9fff]+/gi, "-").slice(0, 48), name, type: "other", tags: [], image: null }, Date.now());
+    const fp = await addFootprint(env, U, cid, it.note_id, { kind: it.kind, sentiment: it.sentiment }, it.note_at);
+    await env.DB.prepare("INSERT OR REPLACE INTO mappings (user_id,surface,qloo_id) VALUES (?,?,?)").bind(U, norm(it.mention), "none").run();
+    await env.DB.prepare("UPDATE inbox SET status='accepted', resolved_card=?, resolved_fp=? WHERE id=?").bind(cid, fp, id).run();
+    await setMention("matched", cid);
+    return { ok: true, card_id: cid, custom: true };
   }
   let g = guesses.find((x) => x.qloo_id === b.qloo_id);
   if (!g && b.pick && typeof b.qloo_id === "string" && /^[A-Za-z0-9-]{6,64}$/.test(b.qloo_id)) {

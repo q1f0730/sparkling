@@ -450,6 +450,7 @@ export async function makePlan(env, user, req, log) {
     queries: pools.map((p) => ({ endpoint: "/v2/insights", "filter.type": "urn:entity:place", "filter.tags": p.tag?.id || null, "filter.location.query": area, "signal.interests.entities": p.seeds.map((s) => s.name), "feature.explainability": true, returned: p.items.length })),
     checks: { category: "Qloo primary genre must match the stop kind", hours: `open on arrival (${day})`, never: "barbers, salons, grocers, chains, fast food", neighborhood: "from street ZIP + Qloo locality", rejected },
     sent_to_qloo: "Card IDs and your area. No note text.",
+    provenance: { live: qlooCalls, cached: cacheHits, label: cacheHits && !qlooCalls ? "cached" : cacheHits ? "live + cached" : "live", note: "Places, hours and reasons come from Qloo; the one-line reads are ours." },
   };
   timing.total_ms = Date.now() - T0; timing.qloo_calls = qlooCalls; timing.cache_hits = cacheHits;
   plan.timing = timing;

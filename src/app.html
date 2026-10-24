@@ -6717,7 +6717,31 @@ boot();
       { transform: "perspective(900px) rotateY(-8deg) scale(1.03)", offset: .35 },
       { left: x0 + "px", top: top + "px", width: W + "px", height: Math.round(W * .8) + "px", transform: "perspective(900px) rotateY(0) scale(1)", borderRadius: "20px", opacity: 1 }
     ], { duration: 460, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
-    pendingEnter = true;
+    pendingEnter = innerWidth < 1024;
+    if (innerWidth >= 1024) {
+      /* desktop shell: the detail opens in the pane, not a centred phone column. Fly to the real hero rect (FLIP), never to a guessed spot. */
+      anim.cancel();
+      const t0 = performance.now(); let hero = null;
+      (function seek(){
+        const cid = decodeURIComponent((tile.getAttribute("data-nav") || "").split("/").pop() || "");
+        const dk = document.getElementById("dkInsp"), art = dk && !dk.hidden && cid ? dk.querySelector('[data-dk-card="' + (window.CSS && CSS.escape ? CSS.escape(cid) : cid) + '"] .dk-cover') : null;
+        hero = art || (dk && !dk.hidden ? null : document.querySelector(".view .detail-hero-img"));
+        if (hero) {
+          const h = hero.getBoundingClientRect();
+          if (h.width < 40 || h.bottom < 0 || h.top > innerHeight) { ghost.remove(); return; }
+          hero.style.visibility = "hidden";
+          const a2 = ghost.animate([
+            { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px", transform: "scale(1)", borderRadius: "18px" },
+            { left: (r.left + h.left) / 2 + "px", top: (r.top + h.top) / 2 - 16 + "px", width: (r.width + h.width) / 2 + "px", height: (r.height + h.height) / 2 + "px", transform: "scale(1.02)", offset: .5 },
+            { left: h.left + "px", top: h.top + "px", width: h.width + "px", height: h.height + "px", transform: "scale(1)", borderRadius: "20px" }
+          ], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
+          a2.onfinish = function(){ hero.style.visibility = ""; ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, fill: "forwards" }).onfinish = function(){ ghost.remove(); }; };
+          setTimeout(function(){ hero.style.visibility = ""; if (ghost.isConnected) ghost.remove(); }, 900);
+        } else if (performance.now() - t0 < 700) requestAnimationFrame(seek);
+        else ghost.remove();
+      })();
+      return;
+    }
     anim.onfinish = function(){ ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, fill: "forwards" }).onfinish = function(){ ghost.remove(); }; };
     setTimeout(function(){ if (ghost.isConnected) ghost.remove(); }, 1600);
   }, true);

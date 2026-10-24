@@ -563,7 +563,7 @@ async function api(req, env, ctx, url) {
     const cards = (await env.DB.prepare("SELECT name,type,year,heart FROM cards WHERE user_id=? ORDER BY name").bind(U).all()).results || [];
     let md = "# Sparkling notes\n\nExported " + new Date().toISOString() + "\n\n## Notes\n\n";
     for (const n of notes) md += "### " + new Date(n.created_at).toISOString().slice(0, 16).replace("T", " ") + "\n\n" + (n.text || "") + (n.link ? "\n\n<" + n.link + ">" : "") + "\n\n";
-    md += "## Cards\n\n" + cards.map((c) => "- " + (c.heart ? "♥ " : "") + c.name + (c.year ? " (" + c.year + ")" : "") + " · " + c.type).join("\n") + "\n";
+    md += "## Cards\n\n" + cards.map((c) => "- " + (c.heart === 1 ? "♥ " : "") + c.name + (c.year ? " (" + c.year + ")" : "") + " · " + c.type).join("\n") + "\n";
     return new Response(md, { headers: { "content-type": "text/markdown; charset=utf-8", "content-disposition": "attachment; filename=sparkling-notes.md" } });
   }
   if (p === "/api/export" && m === "GET") {

@@ -1883,7 +1883,7 @@ const ZH = {
   "No footprints yet. Write about this again and it will gather here.": "还没有足迹。再写到它时，会汇集到这里。",
   "Remove footprint": "移除足迹", "Footprint removed.": "足迹已移除。", "Not about this?": "说的不是这个？", "Not about this": "说的不是这个",
   "Not about this footprint": "这条足迹说的不是这个", "This footprint will be removed from the card. Your note stays in your notebook.": "这条足迹会从卡片上移除，笔记仍留在笔记本里。",
-  "From Qloo": "来自 Qloo", "Qloo catalogue data": "Qloo 目录数据", "From your notes": "来自你的笔记", "From the sample notebook": "来自示例笔记本",
+  "From Qloo": "来自 Qloo", "From the catalogue": "来自口味目录", "Catalogue data": "目录数据", "From your notes": "来自你的笔记", "From the sample notebook": "来自示例笔记本",
   "From your Letterboxd export": "来自你的 Letterboxd 导出", "First met": "初次相遇", "mentioned once": "提到过一次", "First watch": "初看", "Rewatch": "重看",
   "open on arrival":"到达时营业","genre":"类型","hood via":"街区来源","fit":"匹配度","Schematic route":"示意路线","Route":"路线","Why":"为什么","not to scale":"非比例尺","familiar":"熟悉","Listen": "听", "Read": "读", "Visit": "去过", "Your view changed": "你的看法变了", "A little different": "有点不一样", "Familiar": "熟悉",
   "This card did not load. Check your connection, then try again.": "卡片没加载出来。检查网络后再试一次。",
@@ -1892,7 +1892,7 @@ const ZH = {
   "The card did not come back.": "卡片没能恢复。", "The card did not refresh.": "卡片没刷新成功。", "Open card": "打开卡片", "last seen": "最近一次", "Many": "很多",
   "Mark a couple of cards with a heart, then try again.": "先给几张卡片点个喜欢，再试一次。", "I need a few more things you love to plan from.": "还需要多几样你喜欢的东西，才能做计划。",
   // threads
-  "Patterns across your cards, named with Qloo catalogue tags.": "你卡片之间的规律，用 Qloo 目录标签命名。",
+  "Patterns across your cards.": "你卡片之间的规律。",
   "All of you": "全部的你", "Recent you": "最近的你", "Earlier you": "以前的你", "Which you": "哪个你",
   "New in recent notes": "最近新出现", "Fading from recent notes": "最近渐少", "Why this thread?": "为什么是这条线索？", "Why this stop?": "为什么是这一站？", "Your notes": "你的笔记", "Qloo evidence": "Qloo 的依据", "Per-input attribution unavailable for this stop. Qloo returned it for your cards taken together.": "这一站没有逐项归因。Qloo 是根据你的卡片整体返回的。", "Three layers, kept apart: what you wrote, what Qloo says, and what Sparkling adds.": "三层分开呈现：你写的、Qloo 说的、Sparkling 补充的。",
   "What this thread rests on. Qloo\u2019s data and your notes are shown as they are; Sparkling\u2019s own read is marked.": "这条线索的依据。Qloo 的数据和你的笔记按原样展示；Sparkling 自己的解读会单独标出。",
@@ -1975,10 +1975,10 @@ const ZH = {
   "Catalogue entities with their tags, Insights for Threads (tags shared across your cards) and venues near your area for Plan. Sparkling shows Qloo data as it is and marks its own read.": "带标签的目录条目；线索用的 Insights（你卡片之间共有的标签）；以及计划所需的你附近的场所。Sparkling 按原样展示 Qloo 数据，并单独标出自己的解读。",
   "Every thread and plan has a receipt with the exact Qloo calls behind it.": "每条线索和每个计划都附有调用凭据，列出背后具体的 Qloo 请求。",
   "vibe": "氛围", "trait": "特质", "theme": "主题", "genre": "类型", "keyword": "关键词", "category": "类别", "audience": "受众", "style": "风格", "award": "奖项", "platform": "平台",
-  "Qloo noticed": "Qloo 注意到", "for your cards together": "针对你的整组卡片", "on your cards": "在你的卡片上", "Close behind": "紧随其后", "In your words": "你的原话",
+  "Catalogue noticed": "口味目录注意到", "for your cards together": "针对你的整组卡片", "on your cards": "在你的卡片上", "Close behind": "紧随其后", "In your words": "你的原话",
   "Cards it grew from": "它从这些卡片长出来", "Also": "还有", "No tags came back.": "没有返回标签。",
   "What it rests on: Qloo\u2019s data and your own notes, shown as they are. Sparkling\u2019s own read sits apart.": "它的依据：Qloo 的数据和你自己的笔记，原样呈现。Sparkling 自己的解读单独放在一边。",
-  "Qloo tags": "Qloo 标签", "Qloo lists it on": "Qloo 标注在",
+  "Qloo tags": "Qloo 标签", "Listed on": "标注在",
   "Saved on this device only.": "仅保存在本设备。",
 };
 
@@ -4808,7 +4808,7 @@ function renderCardDetail(id){
   function qlooHTML(){
     if (!qlooTags.length) return "";
     return '<section class="qloo-tags">' +
-      '<div class="qloo-head r7-section"><h3>From Qloo</h3><span class="catalogue">Qloo catalogue data</span></div>' +
+      '<div class="qloo-head r7-section"><h3>From the catalogue</h3><span class="catalogue">Catalogue data</span></div>' +
       tagsHTML(qlooTags) +
     "</section>";
   }
@@ -5093,7 +5093,7 @@ function renderThreads(){
         '<button class="seg-btn" type="button" aria-pressed="true">Threads</button>' +
         '<button class="seg-btn" type="button" aria-pressed="false" data-nav="#/letter">Letter</button>' +
       "</div>" +
-      '<p class="sub">Patterns across your cards, named with Qloo catalogue tags.</p>' +
+      '<p class="sub">Patterns across your cards.</p>' +
       '<div class="mood-row period-row" role="group" aria-label="Which you">' +
         [["all","All of you"],["now","Recent you"],["then","Earlier you"]].map(function(x){return '<button class="mood" type="button" data-tperiod="'+x[0]+'" aria-pressed="'+(x[0]===period?"true":"false")+'">'+x[1]+'</button>';}).join("") +
       "</div>" +
@@ -5138,7 +5138,7 @@ function renderThreads(){
       "</button>";
     }).join("");
     return '<article class="thread">' +
-      '<div class="thread-top"><span class="from-qloo">From Qloo</span>' + shiftPill(thread.shift) + "</div>" +
+      '<div class="thread-top"><span class="from-qloo">From the catalogue</span>' + shiftPill(thread.shift) + "</div>" +
       '<h2 class="thread-title" translate="no">' + threadTitleHTML(thread) + "</h2>" +
       '<span class="thread-evidence-label">From your notes</span>' +
       '<div class="thread-chips">' + chips + "</div>" +
@@ -5156,10 +5156,10 @@ function renderThreads(){
     const listedAll = [];
     tags.forEach(function(q){ (Array.isArray(q.listed_on) ? q.listed_on : []).forEach(function(n){ if (listedAll.indexOf(n) < 0) listedAll.push(n); }); });
     const top = tags.slice(0, 3), rest = tags.slice(3);
-    const qlooCard = '<section class="bcard"><div class="blabel"><i></i><span>Qloo noticed</span><small>' + (listedAll.length ? "on your cards" : "for your cards together") + "</small></div>" +
+    const qlooCard = '<section class="bcard"><div class="blabel"><i></i><span>Catalogue noticed</span><small>' + (listedAll.length ? "on your cards" : "for your cards together") + "</small></div>" +
       (top.length ? '<div class="seeds">' + top.map(function(q, i){ var sat = function(x){ return x && (Number(x.affinity) >= 0.995 || (x.affinity == null && Number(x.score) >= 0.995)); }; return seedHTML(sat(q) ? Object.assign({}, q, { affinity: null, score: null }) : q, "s" + (i + 1)); }).join("") + "</div>" : '<p class="why-line">No tags came back.</p>') +
       (rest.length ? '<div class="seeds-h">Close behind</div><div class="seeds">' + rest.map(function(q){ return seedHTML(q, "sm"); }).join("") + "</div>" : "") +
-      (listedAll.length ? '<p class="why-line">Qloo lists it on <span translate="no">' + esc(listedAll.join(", ")) + "</span></p>" : '<p class="why-line">None of these sit on a single card of yours. Qloo returned them for these cards taken together.</p>') +
+      (listedAll.length ? '<p class="why-line">Listed on <span translate="no">' + esc(listedAll.join(", ")) + "</span></p>" : '<p class="why-line">None of these sit on a single card of yours. Qloo returned them for these cards taken together.</p>') +
     "</section>";
     const wordRows = words.length ? words.map(function(w){
       return '<div class="why-q"><p translate="no">“' + esc(w.text) + '”</p><div class="m">' +
@@ -5882,7 +5882,7 @@ function renderPlanResult(id){
       "</div>" +
       '<div class="evidence">' +
         sourcesHTML(stop) +
-        stopEvidenceHTML("qloo", "From Qloo", stop && stop.from_qloo, false, stop && stop.vibes) +
+        stopEvidenceHTML("qloo", "From the catalogue", stop && stop.from_qloo, false, stop && stop.vibes) +
         stopEvidenceHTML("read", "Sparkling's read", stop && stopRead(stop), true) +
       "</div>" +
       '<div class="stop-ops">' +

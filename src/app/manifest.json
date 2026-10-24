@@ -1,0 +1,128 @@
+{
+ "_doc": "Page order of src/app.html. Built by tools/build_app.py (plain concatenation). anchor = exact first line(s) of the module, used by --absorb.",
+ "modules": [
+  {
+   "file": "html/head.html"
+  },
+  {
+   "file": "css/base.css",
+   "anchor": ":root{\n  /* legacy names, all derived from type direction B tokens (defined below) so themes only set --b-* */\n"
+  },
+  {
+   "file": "css/screens.css",
+   "anchor": "/* ---- notes ---- */"
+  },
+  {
+   "file": "css/type-b.css",
+   "anchor": "/* ---- type direction B tokens (settings first; app-wide pass to follow) ---- */"
+  },
+  {
+   "file": "css/fx.css",
+   "anchor": "/* ==== r6 motion layer: original code, look inspired by RewampUI (rewampui.com) ==== */"
+  },
+  {
+   "file": "css/r7.css",
+   "anchor": "/* r7:begin */"
+  },
+  {
+   "file": "css/capture.css",
+   "anchor": "/* capture:css:begin */"
+  },
+  {
+   "file": "css/picker.css",
+   "anchor": "/* picker:css:begin */"
+  },
+  {
+   "file": "css/plan-stayin.css",
+   "anchor": "\n/* stayin: Go out / Stay in toggle + picks */\n"
+  },
+  {
+   "file": "html/body.html",
+   "anchor": "</style>"
+  },
+  {
+   "file": "js/i18n.zh.js",
+   "anchor": "\"use strict\";"
+  },
+  {
+   "file": "js/i18n.extra.js",
+   "anchor": "/* r7i18n:begin */"
+  },
+  {
+   "file": "js/i18n.js",
+   "anchor": "function trZh(s){"
+  },
+  {
+   "file": "js/core.js",
+   "anchor": "/* ---- escaping and small utilities ---- */"
+  },
+  {
+   "file": "js/onboarding.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Letterboxd import (shared by onboarding and settings)\n"
+  },
+  {
+   "file": "js/notes.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Notes\n"
+  },
+  {
+   "file": "js/capture.js",
+   "anchor": "/* capture:js:begin */"
+  },
+  {
+   "file": "js/picker.js",
+   "anchor": "/* picker:js:begin */"
+  },
+  {
+   "file": "js/notes.feed.js",
+   "anchor": "function renderNotes(){"
+  },
+  {
+   "file": "js/boot.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Boot\n"
+  },
+  {
+   "file": "js/camera.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Camera\n"
+  },
+  {
+   "file": "js/cards.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Cards\n"
+  },
+  {
+   "file": "js/detail.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Card detail\n"
+  },
+  {
+   "file": "js/threads.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Threads\n"
+  },
+  {
+   "file": "js/inbox.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Inbox\n"
+  },
+  {
+   "file": "js/plan.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Plan request (screen 8)\n"
+  },
+  {
+   "file": "js/plan.result.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Plan result (screen 9)\n"
+  },
+  {
+   "file": "js/settings.js",
+   "anchor": "/* ---------------------------------------------------------------------------\n   Settings (iOS Settings model: grouped inset lists, push sub-pages, swipe back)\n"
+  },
+  {
+   "file": "html/fx-open.html",
+   "anchor": "</script>\n<script id=\"fx\">\n"
+  },
+  {
+   "file": "js/fx.js",
+   "anchor": "/* ==== r6 motion layer (original implementation; look inspired by RewampUI, rewampui.com) ===="
+  },
+  {
+   "file": "html/end.html",
+   "anchor": "</script>\n</body>\n"
+  }
+ ]
+}

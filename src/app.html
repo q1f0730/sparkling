@@ -1977,6 +1977,10 @@ const MON_IDX = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9,
 function zhNum(w){ const k = String(w).toLowerCase(); return NUM_ZH[k] || w; }
 const ZH_PATTERNS = [
   [/^(.+?) with a (.+?) feel, per Qloo\.$/, function(m, k, v){ return "Qloo 说这是一家" + v + "气质的" + k + "。"; }],
+  [/^(.+?), tagged (.+?), a fit for your note on (.+)\.$/, function(m, k, v, n){ return k + "，Qloo 标签：" + v.replace(" and ", "、") + "；和你写" + n + "的那条笔记相合。"; }],
+  [/^(.+?), a fit for your note on (.+)\.$/, function(m, k, n){ return k + "，和你写" + n + "的那条笔记相合。"; }],
+  [/^(.+?), tagged (.+?) by Qloo\.$/, function(m, k, v){ return k + "，Qloo 标签：" + v.replace(" and ", "、") + "。"; }],
+  [/^(.+?) that Qloo ranked close to your taste\.$/, function(m, k){ return "Qloo 认为和你品味相近的" + k + "。"; }],
   [/^(.+?) picked by Qloo for your taste\.$/, function(m, k){ return "Qloo 按你的品味挑的" + k + "。"; }],
   [/^(.+?) with a (.+?) feel$/, function(m, k, v){ return v + "气质的" + k; }],
   [/^(\w+day)\. (\w+) things came back to you this week\.$/, function(m, d, n){ return (DAY_ZH[d] || d) + "。这周有" + zhNum(n) + "样东西又回到了你身边。"; }],
@@ -2068,6 +2072,7 @@ if (!ZH["Letter"]) ZH["Letter"] = "来信";
 
 Object.assign(ZH, {"Not checked": "未核对", "In Qloo": "Qloo 里有", "In Qloo, but far": "Qloo 里有，但离得远", "Closed for good, per Qloo": "Qloo 显示已永久关闭", "Not found in Qloo": "Qloo 里查无此地", "on the route": "就在路线上", "Could not load.": "加载失败。", "Same cards, same area, same model. The only change: no Qloo.": "同样的卡片、同样的区域、同一个模型。唯一的区别：不用 Qloo。", "Plain model": "纯模型", "Sparkling + Qloo": "Sparkling + Qloo", "The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.": "这些地点是模型凭记忆说的。之后 Sparkling 逐个去 Qloo 核对：是否存在、是否还开着、离你的路线近不近。", "Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.": "每一站本来就来自 Qloo：有 ID、坐标、营业时间，并标明来自你的哪条笔记。", "Same notes, no Qloo": "同样的笔记，不用 Qloo", "Asking a plain model, no Qloo… usually 5–15 seconds.": "正在问一个不用 Qloo 的纯模型……通常 5–15 秒。"});
 ZH_PATTERNS.push([/^([\d.]+) mi from the route$/, function(m, n){ return "离路线 " + n + " 英里"; }], [/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 个里有 " + a + " 个通过。"; }]);
+Object.assign(ZH, {"A sentence written by a model from the venue’s description. It is not Qloo data.": "这句由模型根据地点简介写成，不是 Qloo 数据。", "A plain template filled from Qloo’s tags. No model wrote this.": "这是用 Qloo 标签填出来的固定句式，不是模型写的。"});
 /* r7i18n:end */
 function trZh(s){
   if (s == null) return s;

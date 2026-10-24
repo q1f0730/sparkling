@@ -2055,6 +2055,7 @@ if (!ZH["Letter"]) ZH["Letter"] = "来信";
 Object.assign(ZH, { "book store": "书店", "bookstore": "书店", "bakery": "面包店", "cafe": "咖啡馆", "coffee shop": "咖啡馆", "record store": "唱片店", "park": "公园", "museum": "博物馆", "art gallery": "美术馆", "gallery": "画廊", "movie theater": "电影院", "theater": "剧院", "cinema": "电影院", "bar": "酒吧", "restaurant": "餐厅", "pie shop": "派店", "tea house": "茶馆", "library": "图书馆", "music venue": "音乐现场", "vintage store": "古着店", "thrift store": "二手店" });
 
 /* r7i18n:end */
+Object.assign(ZH, { "Card IDs and your area. No note text.": "只发送卡片 ID 和你的区域，不含笔记文字。" });
 /* compare-sheet zh */
 Object.assign(ZH, { "Same notes, no Qloo": "同样的笔记，不用 Qloo", "Same cards, same area, same model. The only change: no Qloo.": "同样的卡片、同样的区域、同一个模型，唯一的区别：不用 Qloo。", "The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.": "这些地方是模型凭记忆报的。随后 Sparkling 逐个到 Qloo 里查：是否存在、是否还在营业、离你的路线近不近。", "Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.": "每一站一开始就来自 Qloo：有 ID、坐标、营业时间，并标明出自你的哪条笔记。", "Asking a plain model, no Qloo… usually 5–15 seconds.": "正在问一个不带 Qloo 的纯模型……通常需要 5–15 秒。" });
 ZH_PATTERNS.unshift([/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 个里有 " + a + " 个通过。"; }]);
@@ -5865,7 +5866,7 @@ function renderPlanResult(id){
     const qs = Array.isArray(r.queries) ? r.queries : [];
     return '<div class="receipt"><p class="receipt-title">Receipt</p>' +
       '<p class="receipt-line"><span>Seeds sent to Qloo</span> ' + seeds.map(function(x){ return esc(x.name) + ' <code>' + esc(String(x.qloo_id || "").slice(0, 8)) + '</code>'; }).join(", ") + "</p>" +
-      qs.map(function(q){ return '<p class="receipt-line"><code>GET ' + esc(q.endpoint) + "</code> type place · tag " + esc(q["filter.tags"] || "none") + " · near " + esc(q["filter.location.query"] || "") + " · " + esc(String(q.returned)) + " back</p>"; }).join("") +
+      qs.map(function(q){ return '<p class="receipt-line"><code>GET ' + esc(q.endpoint) + "</code>" + (LANG === "zh" ? " 类型 place · 标签 " : " type place · tag ") + esc(q["filter.tags"] || (LANG === "zh" ? "无" : "none")) + (LANG === "zh" ? " · 位置 " : " · near ") + esc(q["filter.location.query"] || "") + " · " + esc(String(q.returned)) + (LANG === "zh" ? " 个返回" : " back") + "</p>"; }).join("") +
       '<p class="receipt-line muted">' + esc(r.sent_to_qloo || "") + "</p></div>";
   }
   function setActionBusy(b){

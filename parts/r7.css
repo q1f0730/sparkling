@@ -1,0 +1,155 @@
+/* ==== r7 designer pass (10-23): editorial on type direction B. Shared bits first, then per screen. ==== */
+.r7-eyebrow{display:flex;align-items:center;gap:8px;margin:0 0 10px;font:500 11px/14px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--b-faint)}
+.r7-sep{width:14px;height:1px;background:var(--b-line-strong)}
+.r7-display{font:400 38px/40px var(--serif);letter-spacing:-.02em;color:var(--b-ink);font-variation-settings:"SOFT" 100,"opsz" 144;margin:0}
+.r7-display span,.r7-display em{display:block}
+.r7-display em{font-style:italic;color:var(--b-clay-ink)}
+.r7-kicker{font:500 11px/14px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--b-clay-ink)}
+.r7-mast{padding:6px 0 18px;margin:0 0 16px;border-bottom:1px solid var(--b-ink)}
+.r7-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:18px 0 0;border-top:1px solid var(--b-line)}
+.r7-stats>div{padding:10px 0 0;display:flex;flex-direction:column-reverse;gap:2px;border-left:1px solid var(--b-line);padding-left:12px}
+.r7-stats>div:first-child{border-left:0;padding-left:0}
+.r7-stats dt{font:500 11px/14px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--b-faint)}
+.r7-stats dd{margin:0;font:400 28px/32px var(--serif);color:var(--b-ink)}
+:root[lang|=zh] .r7-display{font-weight:500;letter-spacing:0;font-size:36px;line-height:44px}
+:root[lang|=zh] .r7-eyebrow,:root[lang|=zh] .r7-kicker,:root[lang|=zh] .r7-stats dt{letter-spacing:.02em}
+
+/* -- Cards wall: editorial masthead + feature tile + quiet masonry -- */
+.chip .chip-n{margin-left:6px;font:500 11px/1 var(--mono);opacity:.6}
+.chip .chip-n:empty{display:none}
+.r7-feature{display:grid;grid-template-columns:42% 1fr;width:100%;text-align:left;margin:0 0 12px;overflow:hidden;min-height:196px}
+.r7-feature-face{position:relative;display:block;background:var(--b-soft);overflow:hidden}
+.r7-feature-face img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.r7-feature-face .cover-fallback{position:absolute;inset:0}
+.r7-feature-type{position:absolute;inset:0;display:flex;align-items:flex-end;padding:14px;background:var(--b-sage)}
+.r7-feature-type .face-title{font:400 24px/28px var(--serif);color:var(--b-sage-ink)}
+.r7-feature-body{display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;min-width:0}
+.r7-feature-name{font:400 26px/30px var(--serif);letter-spacing:-.01em;color:var(--b-ink);overflow-wrap:anywhere}
+.r7-feature .card-context{font:500 11px/14px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--b-faint)}
+.r7-feature-foot{margin-top:auto;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;padding-top:12px;border-top:1px solid var(--b-line)}
+.r7-big{font:400 30px/30px var(--serif);color:var(--b-clay-ink)}
+.r7-big small{font-size:18px;margin-left:1px}
+.r7-big-label{font:500 13px/16px var(--sans);color:var(--b-ink2)}
+.r7-seen{flex-basis:100%;font:400 12px/16px var(--mono);color:var(--b-faint)}
+.wall .card-body{display:flex;flex-direction:column;gap:2px;padding:12px 12px 12px}
+.wall .card-context{order:-1;font:500 10.5px/14px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--b-faint);margin:0 0 2px}
+.wall .card-name{font:400 18px/22px var(--serif);letter-spacing:-.005em;margin:0}
+.wall .card-meta{margin-top:8px;padding-top:8px;border-top:1px dashed var(--b-line)}
+.wall .type-bar{height:3px}
+.wall .typographic-face{background:var(--b-soft)}
+.wall .type-film .typographic-face,.wall .type-tv .typographic-face{background:var(--b-film)}
+.wall .type-music .typographic-face{background:var(--b-music)}
+.wall .type-book .typographic-face{background:var(--b-sage)}
+.wall .type-place .typographic-face{background:var(--b-clay)}
+.wall .type-film .face-title,.wall .type-tv .face-title{color:var(--b-film-ink)}
+.wall .type-music .face-title{color:var(--b-music-ink)}
+.wall .type-book .face-title{color:var(--b-sage-ink)}
+.wall .type-place .face-title{color:var(--b-clay-ink)}
+.r7-feature.type-film .r7-feature-type,.r7-feature.type-tv .r7-feature-type{background:var(--b-film)}
+.r7-feature.type-place .r7-feature-type{background:var(--b-clay)}
+.r7-feature.type-music .r7-feature-type{background:var(--b-music)}
+
+/* -- Card detail: editorial head, framed cover, stat trio, § sections, sticky plan bar -- */
+.r7-detail-head{padding:4px 0 16px}
+.r7-detail-title.detail-title{font:400 40px/42px var(--serif);letter-spacing:-.02em;margin:0 0 8px;font-variation-settings:"SOFT" 100,"opsz" 144}
+.r7-detail-head .detail-context{font:500 12px/16px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--b-faint)}
+.r7-hero.detail-hero{margin:0 0 4px}
+.r7-hero .detail-hero-img{background:var(--b-soft);padding:18px 0;border-radius:20px}
+.r7-hero .detail-hero-img img{height:300px;max-height:300px;background:transparent;filter:drop-shadow(0 10px 18px rgba(42,38,32,.18))}
+.r7-detail-stats{margin:16px 0 0;border-top:1px solid var(--b-ink)}
+.r7-detail-stats dd{font-size:22px;line-height:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail [data-reaction-block] .detail-controls{margin-top:16px}
+.detail [data-reaction-block] .heart-btn{flex:1 1 0}
+.r7-section{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:28px 0 0!important;padding:10px 0 0;border-top:1px solid var(--b-ink)}
+h3.r7-section,.r7-section h3{font:400 22px/28px var(--serif)!important;letter-spacing:-.01em;color:var(--b-ink)}
+.r7-count{font:500 12px/16px var(--mono);color:var(--b-faint)}
+.detail .qloo-tags{border-top:0;padding-top:0}
+.detail .qloo-head.r7-section{margin-bottom:12px!important}
+.detail .detail-actions{position:sticky;bottom:0;z-index:5;margin:28px calc(-1 * var(--pad)) 0;padding:12px var(--pad) calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--b-line);background:color-mix(in srgb,var(--b-paper) 92%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.detail .detail-actions [data-use-plan]{flex:2 1 0}
+:root[lang|=zh] .r7-detail-title.detail-title{font-weight:500;letter-spacing:0;font-size:34px;line-height:42px}
+
+/* -- Notes feed: dated masthead, two-tone greeting, ledger day groups -- */
+.r7-notes-eyebrow{margin:6px 0 8px}
+.r7-greeting.greeting{font:400 34px/38px var(--serif);letter-spacing:-.02em;font-variation-settings:"SOFT" 100,"opsz" 144;margin:0 0 20px;padding-bottom:18px;border-bottom:1px solid var(--b-ink)}
+.r7-greeting em{font-style:italic;color:var(--b-clay-ink)}
+:root[lang|=zh] .r7-greeting.greeting{font-size:30px;line-height:40px}
+.day-group{margin:0 0 24px}
+.day-group .day-label{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 10px;padding:0 2px;font:400 20px/26px var(--serif);color:var(--b-ink)}
+.day-group .day-label .r7-count{font:500 11px/14px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.day-group .note{border-radius:0;margin:0;border-bottom-width:0}
+.day-group .day-label + .note{border-radius:20px 20px 0 0}
+.day-group .note:last-child{border-radius:0 0 20px 20px;border-bottom-width:1px}
+.day-group .day-label + .note:last-child{border-radius:20px}
+.day-group .note + .note{border-top-color:var(--b-line)}
+.day-group .note .note-text{font-size:17px;line-height:25px}
+
+/* -- Inbox: editorial question masthead + progress, tactile card, up-next ledger -- */
+.r7-inbox-mast{border-bottom:0;padding-bottom:4px;margin-bottom:16px}
+.r7-inbox-mast .inbox-count{margin:0;font:inherit;color:var(--b-danger)}
+.r7-deck{margin:12px 0 0;font:400 15px/21px var(--sans);color:var(--b-ink2);max-width:34ch}
+.r7-progress{height:3px;margin:16px 0 0;background:var(--b-line);border-radius:3px;overflow:hidden}
+.r7-progress i{display:block;height:100%;width:0;background:var(--b-sage-ink);border-radius:3px;transition:width .25s ease-out}
+.inbox-card .didyoumean{font:500 11px/14px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--b-faint);margin:0 0 8px}
+.inbox-card .guess-best{background:var(--b-sage);border-color:transparent}
+.inbox-card .guess-best .guess-name{color:var(--b-sage-ink);font-size:22px;line-height:28px}
+.inbox-card .sentence{font-size:20px;line-height:28px}
+.inbox-card .sentence::before{content:"\201C";display:block;font:400 44px/30px var(--serif);color:var(--b-clay-ink);margin:2px 0 0 -2px;height:22px}
+.r7-upnext{margin:36px 0 0}
+.r7-upnext .r7-section{margin-top:0!important}
+.r7-upnext-list{list-style:none;padding:0;margin:4px 0 0}
+.r7-upnext-list li{display:grid;grid-template-columns:30px 1fr;gap:8px;padding:12px 0;border-bottom:1px solid var(--b-line)}
+.r7-upnext-n{font:500 12px/22px var(--mono);color:var(--b-faint)}
+.r7-upnext-body{display:flex;flex-direction:column;gap:4px;min-width:0}
+.r7-upnext-q{font:italic 400 16px/22px var(--serif);color:var(--b-ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.r7-upnext-q mark{background:transparent;color:inherit;border-bottom:1.5px dotted var(--b-danger)}
+.r7-upnext-g{font:400 13px/18px var(--sans);color:var(--b-faint)}
+.r7-upnext-g b{font-weight:600;color:var(--b-ink2)}
+.r7-upnext-more{grid-template-columns:1fr!important;font:500 12px/16px var(--mono);color:var(--b-faint)}
+
+/* -- Plan result: "Go live it" masthead + stat trio, numbered stop sheets, quiet ops row -- */
+.r7-plan-mast{padding:6px 0 0;margin:0 0 16px}
+.r7-plan-mast .r7-eyebrow{flex-wrap:wrap;row-gap:4px}
+.r7-plan-mast .plan-header.r7-display{font:400 44px/46px var(--serif);letter-spacing:-.02em;margin:0 0 12px}
+.r7-plan-mast .plan-header.r7-display span{display:inline}
+.r7-plan-mast .plan-header.r7-display em{display:inline}
+.r7-saved{margin-left:auto;padding:3px 8px;border-radius:99px;background:var(--b-sage);color:var(--b-sage-ink);letter-spacing:.06em}
+.r7-plan-mast .r7-stats{border-top:1px solid var(--b-ink);margin-top:14px}
+.r7-stats dd small{font:500 12px/1 var(--mono);margin-left:3px;color:var(--b-faint)}
+.r7-stats dd.r7-small{font-size:19px;line-height:32px;white-space:nowrap}
+.r7-stop-eyebrow{margin:0 0 2px;font:500 11px/14px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--b-clay-ink)}
+.stop .stop-index{display:none}
+.stop .stop-time{font:500 12px/16px var(--mono);color:var(--b-faint);margin:0 0 6px}
+.stop .stop-name{font:400 26px/30px var(--serif);letter-spacing:-.01em;margin:0 0 4px}
+.stop .stop-where{font:500 11px/14px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--b-faint)}
+.stop .stop-head{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--b-line)}
+.stop .ev-label{font:500 11px/14px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--b-ink2)}
+.stop .ev-label.read{color:var(--b-faint)}
+.stop-connector{margin:-4px 0 8px 22px;padding:6px 0 6px 16px;font:500 12px/16px var(--mono);color:var(--b-ink2)}
+.plan-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.plan-actions [data-action="save"]{grid-column:1 / -1;order:-1;height:48px;font-size:16px}
+.plan-actions .btn{min-width:0}
+:root[lang|=zh] .r7-plan-mast .plan-header.r7-display{font-size:40px;line-height:48px}
+:root[lang|=zh] .r7-display em,:root[lang|=zh] .r7-greeting em{font-style:normal}
+:root[lang|=zh] .r7-plan-mast .plan-header.r7-display{word-spacing:-.3em}
+
+/* -- Settings: editorial profile masthead, defaults strip, B-palette icons, mono group heads -- */
+.r7-st-mast{padding:4px 0 0;margin:0 0 24px;border-bottom:0}
+.r7-st-profile.st-profile{background:none;border:0;border-radius:0;padding:4px 0 16px;margin:0;gap:16px;border-bottom:1px solid var(--b-ink)}
+.r7-st-profile .st-avatar{width:64px;height:64px;font:400 30px/1 var(--serif)}
+.r7-st-profile .st-profile-name{font:400 34px/38px var(--serif);letter-spacing:-.02em}
+.r7-st-profile .st-sub{font:500 11px/14px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--b-faint)}
+.r7-st-defaults{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;padding:14px 16px;margin:16px 0 0;background:var(--b-butter);border-radius:16px;color:var(--b-butter-ink)}
+.r7-st-defaults .r7-kicker{color:var(--b-butter-ink);opacity:.8}
+.r7-st-def{display:flex;flex-wrap:wrap;gap:2px 8px;font:400 18px/24px var(--serif);color:var(--b-ink)}
+.r7-st-def span{white-space:nowrap}.r7-st-def span:not(:last-child)::after{content:"\00b7";margin-left:8px;color:var(--b-butter-ink)}
+.st-group-h{font:500 11px/14px var(--mono)!important;letter-spacing:.08em;text-transform:uppercase;color:var(--b-faint)!important;margin:0 4px 8px!important}
+.st-view .st-ico{background:var(--b-sage)!important;color:var(--b-sage-ink);border-radius:50%}
+.st-view .st-group:nth-of-type(2) .st-ico{background:var(--b-clay)!important;color:var(--b-clay-ink)}
+.st-view .st-group:nth-of-type(3) .st-ico{background:var(--b-butter)!important;color:var(--b-butter-ink)}
+.st-view .st-ico svg{stroke:currentColor!important}
+.st-view .st-label{font:500 16px/22px var(--sans)}
+.plan-chip{background:var(--b-soft)!important;color:var(--b-ink2)!important;border:1px solid var(--b-line)}
+.trace-more{color:var(--b-ink2,#6b6556)!important;text-decoration:underline;text-decoration-color:var(--b-line,#d8d0bc);text-underline-offset:3px}
+/* r23#4: stronger right-edge fade so a clipped chip reads as scrollable */
+.filters .chips-scroll,.notes-tools .chips-scroll,[data-type-chips]{-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent 98%);mask-image:linear-gradient(90deg,#000 80%,transparent 98%);padding-right:28px}

@@ -268,6 +268,23 @@ export function groundedRead(txt, s, note) {
   const bad = words.filter((w) => !READ_OK.has(w) && !facts.includes(w.replace(/s$/, "")));
   return bad.length > 1 ? noteTpl : txt;
 }
+/** Simplified-Chinese version of each stop's one-line read (read_zh). Cached; if the model is unavailable the client keeps the English line. */
+export async function zhReads(env, stops) {
+  const src = stops.map((s) => String(s.read || ""));
+  if (!src.some(Boolean)) return;
+  const key = "reads:zh:" + (await sha(JSON.stringify(src)));
+  let out = await cacheGet(env, key, 7 * 86400000);
+  if (!out) {
+    try {
+      const o = await withTimeout(llmJSON(env,
+        "Translate each English sentence into natural Simplified Chinese (一句话，口语化，不加感叹号). Keep place, shop, film, book and artist names in their original English spelling. Do not add facts. Return {\"reads\":[...]} with exactly the same number of items in the same order.",
+        JSON.stringify({ sentences: src }), READ_SCHEMA, 500), +env.READ_TIMEOUT_MS || 3500);
+      out = o?.reads || [];
+      if (out.length === src.length) await cachePut(env, key, out);
+    } catch (_) { out = []; }
+  }
+  if (out.length === src.length) stops.forEach((s, i) => { if (out[i] && /[\u4e00-\u9fff]/.test(out[i])) s.read_zh = String(out[i]).slice(0, 200); });
+}
 const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", items: { type: "string" } } }, required: ["reads"] };
 
 // ---- timing model shared by selection and the timeline
@@ -410,6 +427,7 @@ export async function makePlan(env, user, req, log) {
   const T3 = Date.now();
   const plan = await dressPlan(env, user, allSeeds, stops, { area, budget, mood: req.mood, period: req.period || "all", when });
   timing.dress_ms = Date.now() - T3;
+  if (req.lang === "zh") await zhReads(env, plan.stops);
   log(`Checked hours for ${day[0].toUpperCase() + day.slice(1)} and wrote one line per stop.`);
   plan.widened = !!widened;
   plan.notice = planNotice(plan.stops, area, !!widened);

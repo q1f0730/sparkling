@@ -288,7 +288,7 @@ export function groundedRead(txt, s, note) {
   return bad.length > 1 ? noteTpl : txt;
 }
 /** Simplified-Chinese version of each stop's one-line read (read_zh). Cached; if the model is unavailable the client keeps the English line. */
-export async function zhReads(env, stops) {
+export async function zhReads(env, stops, ms) {
   const src = stops.map((s) => String(s.read || ""));
   if (!src.some(Boolean)) return;
   const key = "reads:zh:" + (await sha(JSON.stringify(src)));
@@ -297,7 +297,7 @@ export async function zhReads(env, stops) {
     try {
       const o = await withTimeout(llmJSON(env,
         "Translate each English sentence into natural Simplified Chinese (一句话，口语化，不加感叹号). Keep place, shop, film, book and artist names in their original English spelling. Do not add facts. Return {\"reads\":[...]} with exactly the same number of items in the same order.",
-        JSON.stringify({ sentences: src }), READ_SCHEMA, 500), +env.READ_TIMEOUT_MS || 3500);
+        JSON.stringify({ sentences: src }), READ_SCHEMA, 700), ms || +env.READ_TIMEOUT_MS || 3500);
       out = o?.reads || [];
       if (out.length === src.length) await cachePut(env, key, out);
     } catch (_) { out = []; }
@@ -756,7 +756,7 @@ export async function makeStayIn(env, user, req, log) {
   if (!picks.length) throw { state: "weak", text: "Nothing new came back for that this time. Try a different mood, or ask for another kind of thing." };
   const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
   const dressed = await dressPicks(env, user, allSeeds, picks, lang);
-  if (lang === "zh") await zhReads(env, dressed);
+  if (lang === "zh") await zhReads(env, dressed, 9000); // nothing else to wait on in a night in, so the summary gets longer to translate
   log(`Picked ${dressed.length}: ${dressed.map((p) => p.name).join(", ")}.`);
   const when = req.when || user.whenx || "Saturday afternoon";
   const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[req.mood] || "familiar";

@@ -5602,6 +5602,7 @@ function renderPlanRequest(){
     const budgetN = numberValue(budgetRaw);
     if (budgetRaw && budgetN !== null) body.budget = budgetN;
     if (text) body.text = text;
+    body.lang = LANG === "zh" ? "zh" : "en";
     try {
       const res = await fetch("/api/plan", {
         method: "POST",

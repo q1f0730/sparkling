@@ -490,10 +490,20 @@ export async function dressPlan(env, user, seeds, stops, meta) {
   const sourcesFor = (s, i = 0) => {
     const cf = contribFor(s);
     if (cf) {
-      const fr = cf.filter((r) => !usedSrc.has(r.card_id)), rest = cf.filter((r) => usedSrc.has(r.card_id));
-      const ord = [...fr, ...rest].slice(0, 2);
+      const fr = cf.filter((r) => !usedSrc.has(r.card_id)), used = cf.filter((r) => usedSrc.has(r.card_id));
+      let ord = [...fr, ...used];
+      if (fr.length < 2) {
+        // A card no earlier stop used (this stop's kind domain first) beats repeating evidence; reuse only when nothing else is left.
+        const inCf = new Set(cf.map((r) => r.card_id));
+        const kk = (s.kind || "").toLowerCase();
+        const want = /book|library/.test(kk) ? ["book"] : /record|music|venue|bar|cafe|coffee|tea/.test(kk) ? ["music"] : /cinema|theater|theatre|movie|film/.test(kk) ? ["film", "tv"] : null;
+        const back = fps.filter((r) => r.card_id && !usedSrc.has(r.card_id) && !inCf.has(r.card_id));
+        const dom = back.filter((r) => want && want.includes(r.type));
+        ord = [...fr, ...dom, ...back.filter((r) => !dom.includes(r)), ...used];
+      }
+      ord = ord.slice(0, 2);
       ord.forEach((r) => r.card_id && usedSrc.add(r.card_id));
-      return ord.map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image, n: r.n, quote: r.quote, at: r.at, score: r.score }));
+      return ord.map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image ?? null, n: r.n || 0, quote: r.quote ? String(r.quote).slice(0, 140) : null, at: r.at || r.quote_at || null, score: r.score ?? null }));
     }
     if (false) return cf.slice(0, 2).map((r) => ({ card_id: r.card_id, qloo_id: r.qloo_id, name: r.name, type: r.type, image: r.image, n: r.n, quote: r.quote, at: r.at, score: r.score }));
     const k = (s.kind || "").toLowerCase();

@@ -536,7 +536,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     const rows = s.expl.map((x) => {
       const k = String(x.id).toLowerCase(), r = byQ.get(k), sd = seedByQ.get(k);
       if (!r && !sd) return null;
-      return { card_id: r?.card_id || sd?.id || null, qloo_id: r?.qloo_id || sd?.qloo_id, name: r?.name || sd?.name, type: r?.type || sd?.type, image: r?.image || null, n: r?.n || 0, quote: r?.quote ? String(r.quote).slice(0, 140) : null, at: r?.quote_at || null, score: x.score };
+      return { card_id: r?.card_id || sd?.id || null, qloo_id: r?.qloo_id || sd?.qloo_id, name: r?.name || sd?.name, type: r?.type || sd?.type, image: r?.image || null, n: r?.n || 0, quote: r?.quote ? String(r.quote).slice(0, 140) : null, at: r?.quote_at || null, score: x.score, band: sd?.band || null };
     }).filter(Boolean).sort((a, b) => b.score - a.score);
     return rows.length ? rows : null;
   };

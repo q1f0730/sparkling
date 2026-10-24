@@ -169,13 +169,15 @@ export function properish(surface) {
 const LEAD_VERB = /^(?:(?:finally|just|re-?)?\s*(?:watched|rewatched|watching|saw|seen|read|reading|re-?read|finished|started|listened to|listening to|heard|hearing|playing|played|finished reading|started reading)\s+)+/i;
 /** "watched Solaris" -> "Solaris"; a whole sentence -> just the title when the title is inside it. */
 export function cleanSurface(m, text) {
+  if (!m || typeof m !== "object") return null;
+  const note = typeof text === "string" ? text : "";
   let sf = String(m.surface || "");
   const stripped = sf.replace(LEAD_VERB, "");
-  if (stripped && stripped !== sf && text.includes(stripped)) sf = stripped;
+  if (stripped && stripped !== sf && note.includes(stripped)) sf = stripped;
   const tt = String(m.title || "");
   if (tt && sf.length > tt.length + 12 && sf.toLowerCase().includes(tt.toLowerCase())) {
-    const i = text.toLowerCase().indexOf(tt.toLowerCase());
-    if (i >= 0) sf = text.slice(i, i + tt.length);
+    const i = note.toLowerCase().indexOf(tt.toLowerCase());
+    if (i >= 0) sf = note.slice(i, i + tt.length);
   }
   if (sf.split(/\s+/).length > 8) return null; // a sentence, not a name
   return sf;
@@ -443,6 +445,8 @@ export async function readImage(env, bytes, mime) {
 /** One honest line on why Sparkling asks, using Qloo's taste ranking when it ran. */
 export function inboxReason(mention, guesses) {
   if (!Array.isArray(guesses) || !guesses.length) return null;
+  guesses = guesses.filter((g) => g && String(g.name || "").trim());
+  if (!guesses.length) return null;
   const top = guesses[0], word = { film: "films", tv: "shows", music: "artists", book: "books", place: "places" };
   const same = guesses.filter((g) => String(g.name || "").toLowerCase() === String(top.name || "").toLowerCase());
   const types = [...new Set(guesses.map((g) => g.type))];

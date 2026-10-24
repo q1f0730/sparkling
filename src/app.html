@@ -7260,7 +7260,7 @@ function renderPlanResult(id){
     return '<div class="receipt"><p class="receipt-title">' + (LANG === "zh" ? "回执" : "Receipt") + '</p>' +
       '<p class="receipt-line"><span>' + (LANG === "zh" ? "发给 Qloo 的种子" : "Seeds sent to Qloo") + '</span> ' + seeds.map(function(x){ return esc(x.name) + ' <code>' + esc(String(x.qloo_id || "").slice(0, 8)) + '</code>'; }).join(", ") + "</p>" +
       qs.map(function(q){ return '<p class="receipt-line"><code>GET ' + esc(q.endpoint) + "</code>" + (LANG === "zh" ? " 类型 place · 标签 " : " type place · tag ") + esc(q["filter.tags"] || (LANG === "zh" ? "无" : "none")) + (LANG === "zh" ? " · 位置 " : " · near ") + esc(q["filter.location.query"] || "") + " · " + esc(String(q.returned)) + (LANG === "zh" ? " 个返回" : " back") + "</p>"; }).join("") +
-      '<p class="receipt-line muted">' + esc(r.sent_to_qloo || "") + "</p></div>";
+      '<p class="receipt-line muted">' + esc(r.sent_to_qloo || "") + (r.provenance ? " · " + esc(r.provenance.label) + " (" + (r.provenance.live|0) + " live, " + (r.provenance.cached|0) + " cached)" : "") + "</p></div>";
   }
   function setActionBusy(b){
     Array.prototype.forEach.call(view.querySelectorAll("[data-action], [data-swap]"), function(el){

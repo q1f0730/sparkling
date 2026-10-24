@@ -1877,7 +1877,7 @@ const ZH = {
   "Not about this footprint": "这条足迹说的不是这个", "This footprint will be removed from the card. Your note stays in your notebook.": "这条足迹会从卡片上移除，笔记仍留在笔记本里。",
   "From Qloo": "来自 Qloo", "Qloo catalogue data": "Qloo 目录数据", "From your notes": "来自你的笔记", "From the sample notebook": "来自示例笔记本",
   "From your Letterboxd export": "来自你的 Letterboxd 导出", "First met": "初次相遇", "mentioned once": "提到过一次", "First watch": "初看", "Rewatch": "重看",
-  "open on arrival":"到达时营业","genre":"类型","hood via":"街区来源","fit":"匹配度","Schematic route":"示意路线","not to scale":"非比例尺","familiar":"熟悉","Listen": "听", "Read": "读", "Visit": "去过", "Your view changed": "你的看法变了", "A little different": "有点不一样", "Familiar": "熟悉",
+  "open on arrival":"到达时营业","genre":"类型","hood via":"街区来源","fit":"匹配度","Schematic route":"示意路线","Route":"路线","Why":"为什么","not to scale":"非比例尺","familiar":"熟悉","Listen": "听", "Read": "读", "Visit": "去过", "Your view changed": "你的看法变了", "A little different": "有点不一样", "Familiar": "熟悉",
   "This card did not load. Check your connection, then try again.": "卡片没加载出来。检查网络后再试一次。",
   "This card is gone.": "这张卡片不在了。", "This card is no longer here.": "这张卡片已经不在了。",
   "It may have been removed. Your notes are still here.": "它可能已被移除，你的笔记都还在。", "It may have been deleted, or the link is old.": "它可能已被删除，或者链接已过期。",
@@ -5759,25 +5759,37 @@ function renderPlanResult(id){
       '<button class="why-btn why-stop-btn" type="button" data-why-stop="' + i + '">Why this stop?</button>' +
     "</section>";
   }
-  function routeMapHTML(stops){
+  function routeMapHTML(stops, W0, H0){
     const pts = stops.map(function(s){ return s && s.coords && isFinite(s.coords.lat) && isFinite(s.coords.lon) ? s.coords : null; });
     if (pts.some(function(x){ return !x; }) || pts.length < 2) return "";
     const lat0 = pts.reduce(function(a, p){ return a + p.lat; }, 0) / pts.length;
     const kx = Math.cos(lat0 * Math.PI / 180);
     const xs = pts.map(function(p){ return p.lon * kx; }), ys = pts.map(function(p){ return -p.lat; });
     const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs), minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
-    const W = 350, H = 150, pad = 28;
+    const W = W0 || 350, H = H0 || 150, pad = 28;
     const sc = Math.min((W - 2 * pad) / Math.max(maxX - minX, 1e-6), (H - 2 * pad) / Math.max(maxY - minY, 1e-6));
     const ox = (W - sc * (maxX - minX)) / 2, oy = (H - sc * (maxY - minY)) / 2;
     const P = pts.map(function(_, i){ return [ox + sc * (xs[i] - minX), oy + sc * (ys[i] - minY)]; });
     let grid = "";
     for (let g = 1; g < 7; g++) grid += '<line x1="' + (g * W / 7) + '" y1="0" x2="' + (g * W / 7) + '" y2="' + H + '"/>';
     for (let g = 1; g < 4; g++) grid += '<line x1="0" y1="' + (g * H / 4) + '" x2="' + W + '" y2="' + (g * H / 4) + '"/>';
-    return '<figure class="route-map" role="img" aria-label="Route between the stops, schematic">' +
+    return '<figure class="route-map' + (W0 ? ' route-map-side' : '') + '" role="img" aria-label="Route between the stops, schematic">' +
       '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="xMidYMid meet"><g class="rm-grid">' + grid + "</g>" +
       '<polyline class="rm-path" points="' + P.map(function(q){ return q[0].toFixed(1) + "," + q[1].toFixed(1); }).join(" ") + '"/>' +
       P.map(function(q, i){ return '<g class="rm-pin"><circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="12"/><text x="' + q[0].toFixed(1) + '" y="' + (q[1] + 4.5).toFixed(1) + '" text-anchor="middle">' + (i + 1) + "</text></g>"; }).join("") +
       "</svg><figcaption>"+t("Schematic route")+" &middot; "+t("not to scale")+"</figcaption></figure>";
+  }
+  function sideHTML(stops, plan){
+    if (!stops.length) return "";
+    return '<aside class="plan-side" aria-label="' + attr(t("Route")) + '"><p class="ps-eyebrow">' + esc(t("Route")) + '</p>' +
+      routeMapHTML(stops, 300, 230) +
+      '<ol class="ps-list">' + stops.map(function(st, i){
+        const leg = i > 0 && st && st.distance ? String(st.distance).replace(/ from stop \d+/, "") : "";
+        return '<li>' + (leg ? '<span class="ps-leg">' + esc(LANG === "zh" ? trZh(leg) : leg) + '</span>' : "") +
+          '<button type="button" data-why-stop="' + i + '"><span class="ps-n num">' + (i + 1) + '</span>' +
+          '<span class="ps-t"><b translate="no">' + esc((st && st.name) || "") + '</b><small>' + esc([st && st.arrive, st && (st.neighborhood || st.address)].filter(Boolean).join(" \u00b7 ")) + '</small></span>' +
+          '<span class="ps-go">' + esc(t("Why")) + ' &rarr;</span></button></li>';
+      }).join("") + '</ol></aside>';
   }
   function planSummary(stops){
     if (!stops.length) return "";
@@ -5803,7 +5815,7 @@ function renderPlanResult(id){
             '<div><dt>walking</dt><dd class="num">' + (walk ? walk + '<small>min</small>' : "\u2014") + '</dd></div>' +
           '</dl>' + '<button class="plain-cta" type="button" data-plain="1"><span>Same notes, no Qloo</span><span class="plain-cta-go">Compare &rarr;</span></button>' + '</header>'; })() +
       (plan.notice ? '<p class="plan-notice" role="note">' + esc(plan.notice) + "</p>" : "") +
-      routeMapHTML(stops) +
+      routeMapHTML(stops) + sideHTML(stops, plan) +
       stops.map(function(st, i){ return stopHTML(st, i, stops); }).join("") +
       '<div class="plan-actions">' +
         '<button class="btn" type="button" data-action="shorten"' + (stops.length <= 1 || busyAction ? " disabled" : "") + ">Shorten</button>" +

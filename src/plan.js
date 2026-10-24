@@ -260,11 +260,13 @@ async function placeTag(env, word) {
 // Keep the model's sentence only if every descriptive word traces to Qloo's facts; else a plain template.
 const READ_OK = new Set("you your youll the a an and of to in for on at it its is be this that with as by from or place spot shop store find enjoy will can good fit fits suits suit feel feels mood kind like same near close nearby afternoon day visit stop here there small space time worth take keep keeps returning back vibe vibes".split(" "));
 export function groundedRead(txt, s, note) {
-  const facts = [s.kind, s.name, s.description, ...(s.vibes || [])].join(" ").toLowerCase();
+  const st = s && typeof s === "object" ? s : {};
+  const noteStr = typeof note === "string" && note ? note : "";
+  const facts = [st.kind, st.name, st.description, ...(st.vibes || [])].join(" ").toLowerCase();
   const GEN = /dining|drinking|socializ|dogs?|allowed|inside|outdoor seating|wheelchair|parking|wifi|credit|reservations?|delivery|takeout|good for|accepts/i;
-  const vibes = (s.vibes || []).map((v) => String(v).toLowerCase()).filter((v) => !GEN.test(v)).slice(0, 2);
-  const tpl = `${vibes.length ? "A " + String(s.kind || "place").toLowerCase() + " with a " + vibes.join(", ") + " feel" : "A " + String(s.kind || "place").toLowerCase() + " Qloo ranks close to your taste"}.`;
-  const noteTpl = note ? `${String(s.kind || "Place")}${vibes.length ? ", tagged " + vibes.join(" and ") : ""}, a fit for your note on ${note}.` : tpl;
+  const vibes = (st.vibes || []).map((v) => String(v).toLowerCase()).filter((v) => !GEN.test(v)).slice(0, 2);
+  const tpl = `${vibes.length ? "A " + String(st.kind || "place").toLowerCase() + " with a " + vibes.join(", ") + " feel" : "A " + String(st.kind || "place").toLowerCase() + " Qloo ranks close to your taste"}.`;
+  const noteTpl = noteStr ? `${String(st.kind || "Place")}${vibes.length ? ", tagged " + vibes.join(" and ") : ""}, a fit for your note on ${noteStr}.` : tpl;
   if (!txt) return noteTpl;
   const words = String(txt).toLowerCase().replace(/[^a-z\s']/g, " ").split(/\s+/).filter((w) => w.length > 3);
   const bad = words.filter((w) => !READ_OK.has(w) && !facts.includes(w.replace(/s$/, "")));

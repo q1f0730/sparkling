@@ -540,6 +540,10 @@ async function api(req, env, ctx, url) {
     if (act === "save") { await env.DB.prepare("UPDATE plans SET saved=1 WHERE id=?").bind(row.id).run(); return J({ plan: { ...plan, saved: true } }); }
     if (act === "went") {
       await env.DB.prepare("UPDATE plans SET went=? WHERE id=?").bind(b.went ? 1 : 0, row.id).run();
+      if (!b.went && ["far", "taste", "closed", "time"].includes(b.reason)) {
+        plan.skip_reason = b.reason;
+        await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run();
+      }
       const stop = (plan.stops || [])[0];
       if (b.went && typeof b.text === "string" && b.text.trim() && stop) {
         b.text = b.text.slice(0, 5000);

@@ -6240,6 +6240,7 @@ function renderLetter(){
         L.paragraphs.map(function(t){ return '<p class="letter-p">' + esc(t) + "</p>"; }).join("") +
         (L.returns.length ? '<h3 class="letter-h">You kept going back to</h3><div class="letter-row">' + thumbs(L.returns) + "</div>" : "") +
         ((L.places||[]).length ? '<h3 class="letter-h">' + (LANG === "zh" ? "你地图上的地点" : "Places on your map") + '</h3><div class="letter-row">' + thumbs(L.places) + "</div>" : "") +
+        (L.drift ? '<h3 class="letter-h">' + (LANG === "zh" ? "口味漂移" : "Taste drift") + '</h3><p class="letter-p">' + (LANG === "zh" ? "本月新卡片偏向：" : "This month's new cards lean toward: ") + esc((L.drift.now||[]).join(", ") || "—") + (LANG === "zh" ? "。之前的卡片偏向：" : ". Your earlier cards leaned toward: ") + esc((L.drift.before||[]).join(", ") || "—") + '.</p><p class="letter-receipt">' + (LANG === "zh" ? "以本月初为界（Sparkling 自己的划分），由目录对两组卡片的比较得出。" : "Split at the start of the month (Sparkling's own cut), compared by the taste catalogue.") + '</p>' : "") +
         (L.new.length ? '<h3 class="letter-h">New this month</h3><div class="letter-row">' + thumbs(L.new) + "</div>" : "") +
         (L.your_words.length ? '<h3 class="letter-h">In your own words</h3>' + L.your_words.map(function(w){ return '<blockquote class="letter-q">' + esc(w.text) + '<cite translate="no">' + (LANG === "zh" ? "关于 " : "about ") + esc(w.card) + "</cite></blockquote>"; }).join("") : "") +
         '<p class="letter-receipt">' + esc(L.receipt) + "</p>" +

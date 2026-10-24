@@ -611,3 +611,29 @@ export async function checkPlainPlaces(env, names, centre, area) {
     } catch (_) { return { status: "unchecked" }; }
   }));
 }
+
+// What changed between two plans after one card was marked "not for me" (or put back). Pure; names compared case-blind.
+export function planDiff(before, after, cardName, restore = false, fromId = null) {
+  const lcn = (x) => String(x || "").trim().toLowerCase();
+  const oldS = Array.isArray(before?.stops) ? before.stops : [], newS = Array.isArray(after?.stops) ? after.stops : [];
+  const oldN = new Set(oldS.map((s) => lcn(s.name))), newN = new Set(newS.map((s) => lcn(s.name)));
+  const credited = (s) => (Array.isArray(s.sources) ? s.sources : []).some((x) => lcn(x.name) === lcn(cardName));
+  const changes = [];
+  for (let i = 0; i < Math.max(oldS.length, newS.length); i++) {
+    const a = oldS[i], b = newS[i];
+    if (a && b && lcn(a.name) === lcn(b.name)) continue;
+    if (a && !newN.has(lcn(a.name))) changes.push({ stop: i + 1, was: a.name, now: b && !oldN.has(lcn(b.name)) ? b.name : null, credited: credited(a) });
+    else if (b && !oldN.has(lcn(b.name))) changes.push({ stop: i + 1, was: null, now: b.name, credited: false });
+  }
+  const kept = newS.filter((s) => oldN.has(lcn(s.name))).map((s) => s.name);
+  // stops that stayed but were credited to this card before: show who they are credited to now
+  const srcNames = (s) => (Array.isArray(s.sources) ? s.sources : []).map((x) => x.name).filter(Boolean);
+  const recredit = [];
+  newS.forEach((b, i) => {
+    const a = oldS.find((x) => lcn(x.name) === lcn(b.name));
+    if (!a || !credited(a) && !restore) return;
+    const was = srcNames(a), now = srcNames(b);
+    if (was.join("|") !== now.join("|")) recredit.push({ stop: i + 1, name: b.name, was, now });
+  });
+  return { card: String(cardName || ""), restore: !!restore, from: fromId, changes, recredit, kept, same: changes.length === 0 && recredit.length === 0 && oldS.length === newS.length };
+}

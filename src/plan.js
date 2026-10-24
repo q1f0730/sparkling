@@ -582,7 +582,8 @@ export async function dressPlan(env, user, seeds, stops, meta) {
   });
   const moodWords = { familiar: "familiar", different: "a little different", surprise: "surprise me" };
   const moodWord = typeof meta.mood === "string" && meta.mood ? moodWords[meta.mood] || meta.mood : "familiar";
-  return { id: uid(), period: meta.period, header: `${meta.when} · ${meta.area} · under $${meta.budget} · ${moodWord}`, stops: out, seeds: seeds.map((s) => ({ qloo_id: s.qloo_id, name: s.name })), meta };
+  const left_out = ((await env.DB.prepare("SELECT name FROM cards WHERE user_id=? AND heart=-1 ORDER BY name LIMIT 5").bind(user.id).all().catch(() => null))?.results || []).map((r) => r.name);
+  return { id: uid(), left_out, period: meta.period, header: `${meta.when} · ${meta.area} · under $${meta.budget} · ${moodWord}`, stops: out, seeds: seeds.map((s) => ({ qloo_id: s.qloo_id, name: s.name })), meta };
 }
 
 // Plain-LLM comparison: look each model-named place up in Qloo /search and report what Qloo knows.

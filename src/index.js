@@ -2,7 +2,7 @@
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImageFull, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason, qsearch, CARD_URNS, TYPE_URNS, pickerMerge, cleanTags } from "./recognize.js";
-import { makePlan, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces } from "./plan.js";
+import { makePlan, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces } from "./plan.js";
 import { llmJSON } from "./llm.js";
 import { qlooTagInsights, getEntities, compareTastes } from "./qloo.js";
 import { SAMPLE_NOTES } from "./sample.js";
@@ -464,6 +464,7 @@ async function api(req, env, ctx, url) {
     if (b.area != null && typeof b.area !== "string") return ERR("area must be text");
     if (typeof b.area === "string") b.area = b.area.trim().slice(0, 120);
     if (b.text != null) b.text = String(b.text).slice(0, 1000);
+    if (b.audience != null && !AUDIENCES[b.audience]) delete b.audience;
     // correction beat: "not for me" on one of the cards behind a plan -> same request, re-planned, with a visible diff
     let redo = null;
     if (typeof b.redo_from === "string" && /^\w+$/.test(b.redo_from)) {

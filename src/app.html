@@ -5112,8 +5112,8 @@ function renderThreads(){
   /* "Sensitive, vulnerability and intimacy" (B): middle word italic clay; zh keeps names joined by · */
   function threadTitleHTML(thread){
     const n = threadNames(thread);
-    if (n.length < 2) return esc(n[0] || thread.tag || "");
-    if (LANG === "zh") return n.map(function(x, i){ return i === 1 ? "<em>" + esc(x) + "</em>" : esc(x); }).join(" · ");
+    if (n.length < 2) return esc(tagZh(n[0] || thread.tag || ""));
+    if (LANG === "zh") return n.map(function(x, i){ x = tagZh(x); return i === 1 ? "<em>" + esc(x) + "</em>" : esc(x); }).join(" · ");
     const low = function(x){ return /^[A-Z][a-z]/.test(x) ? x.charAt(0).toLowerCase() + x.slice(1) : x; };
     if (n.length === 2) return esc(n[0]) + " and <em>" + esc(low(n[1])) + "</em>";
     return esc(n[0]) + ", <em>" + esc(low(n[1])) + "</em> and " + esc(low(n[2]));

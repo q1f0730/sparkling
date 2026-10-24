@@ -2,7 +2,7 @@
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason } from "./recognize.js";
-import { makePlan, dressPlan, cohorts, planNotice, cacheGet, cachePut } from "./plan.js";
+import { makePlan, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces } from "./plan.js";
 import { llmJSON } from "./llm.js";
 import { qlooTagInsights } from "./qloo.js";
 import { SAMPLE_NOTES } from "./sample.js";
@@ -428,7 +428,14 @@ async function api(req, env, ctx, url) {
     const b = m === "POST" ? (await readJSON(req)) || {} : {};
     if (!act && m === "GET") return J({ plan: { ...plan, saved: !!row.saved } });
     if (act === "plain") {
-      if (plan.plain) return J({ plain: plan.plain });
+      const centreOf = (st) => { const c = (st || []).map((x) => x.coords).filter((c) => c && isFinite(c.lat) && isFinite(c.lon)); return c.length ? { lat: c.reduce((a, x) => a + x.lat, 0) / c.length, lon: c.reduce((a, x) => a + x.lon, 0) / c.length } : null; };
+      if (plan.plain && plan.plain.checked === 3) return J({ plain: plan.plain });
+      if (plan.plain && plan.plain.stops && plan.plain.stops.length) {
+        const ck = await checkPlainPlaces(env, plan.plain.stops.map((x) => x.name), centreOf(plan.stops), plan.plain.area);
+        plan.plain = { ...plan.plain, stops: plan.plain.stops.map((x, i) => ({ ...x, check: ck[i] })), checked: 3 };
+        await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run();
+        return J({ plain: plan.plain });
+      }
       const seeds = ((plan.receipt || {}).seeds || []).map((x) => x.name);
       const area = (JSON.parse(row.request || "{}").area || user.area || "").slice(0, 120);
       const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
@@ -440,7 +447,8 @@ async function api(req, env, ctx, url) {
           { name: "plain", schema: { type: "object", properties: { stops: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["stops"] } }, 600);
         stopsOut = (out.stops || []).slice(0, 4).map((x) => ({ name: String(x.name || "").slice(0, 80), kind: String(x.kind || "").slice(0, 30), why: String(x.why || "").slice(0, 240) })).filter((x) => x.name);
       } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
-      const plain = { model: MODEL, seeds, area, stops: stopsOut, note, verified: false };
+      if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }
+      const plain = { model: MODEL, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };
       if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
       return J({ plain });
     }

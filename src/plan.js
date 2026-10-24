@@ -547,3 +547,25 @@ export async function dressPlan(env, user, seeds, stops, meta) {
   const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[meta.mood] || "a little different";
   return { id: uid(), period: meta.period, header: `${meta.when} · ${meta.area} · under $${meta.budget} · ${moodWord}`, stops: out, seeds: seeds.map((s) => ({ qloo_id: s.qloo_id, name: s.name })), meta };
 }
+
+// Plain-LLM comparison: look each model-named place up in Qloo /search and report what Qloo knows.
+const nm = (x) => String(x || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim();
+export async function checkPlainPlaces(env, names, centre, area) {
+  const CITY = /\b(nyc|new york|brooklyn|manhattan|queens|greenpoint|williamsburg|ny)\b/g;
+  const look = async (q) => ((await qloo(env, "/search", { query: q, types: "urn:entity:place", take: 8 })).results || []).map((r) => ({ r, d: haversineMi(centre, r.location || r.properties?.geocode) }));
+  return Promise.all(names.map(async (name) => {
+    try {
+      const want = nm(name), core = want.replace(CITY, " ").replace(/\s+/g, " ").trim() || want;
+      const match = (r) => { const n = nm(r.name).replace(CITY, " ").replace(/\s+/g, " ").trim(); const multi = core.includes(" "); return n === core || n === want || (multi && (n.startsWith(core + " ") || core.startsWith(n + " "))); };
+      let res = (await look(name)).filter(({ r }) => match(r));
+      if (!res.some((x) => x.d != null && x.d <= 5) && core !== want) res = res.concat((await look(core)).filter(({ r }) => match(r)));
+      const near = (x) => (x.d != null && x.d <= 5 ? 0 : 1), exact = (x) => (nm(x.r.name) === want ? 0 : 1);
+      const hit = res.sort((a, b) => near(a) - near(b) || exact(a) - exact(b) || (a.d ?? 1e9) - (b.d ?? 1e9))[0];
+      if (!hit) return { status: "not_found" };
+      const p = hit.r.properties || {};
+      const mi = hit.d != null ? Math.round(hit.d * 10) / 10 : null;
+      if (mi != null && mi > 50) return { status: "elsewhere", qloo_name: hit.r.name, address: p.address || null };
+      return { status: p.is_closed ? "closed" : mi != null && mi > 1.5 ? "far" : "found", qloo_id: hit.r.entity_id, qloo_name: hit.r.name, address: p.address || null, mi, hood: p.neighborhood || null };
+    } catch (_) { return { status: "unchecked" }; }
+  }));
+}

@@ -2058,6 +2058,7 @@ if (!ZH["Letter"]) ZH["Letter"] = "来信";
 Object.assign(ZH, { "book store": "书店", "bookstore": "书店", "bakery": "面包店", "cafe": "咖啡馆", "coffee shop": "咖啡馆", "record store": "唱片店", "park": "公园", "museum": "博物馆", "art gallery": "美术馆", "gallery": "画廊", "movie theater": "电影院", "theater": "剧院", "cinema": "电影院", "bar": "酒吧", "restaurant": "餐厅", "pie shop": "派店", "tea house": "茶馆", "library": "图书馆", "music venue": "音乐现场", "vintage store": "古着店", "thrift store": "二手店" });
 
 /* r7i18n:end */
+Object.assign(ZH, { "No letter yet": "还没有来信", "Your first letter arrives once a few notes have turned into cards.": "等你有几条笔记变成了卡片，第一封来信就会到这里。", "You kept going back to": "你一直回看的", "New this month": "本月新增", "In your own words": "你自己的原话", "Nothing to look at.": "这里暂时没有要看的。" });
 Object.assign(ZH, { "Card IDs and your area. No note text.": "只发送卡片 ID 和你的区域，不含笔记文字。" });
 /* compare-sheet zh */
 Object.assign(ZH, { "Same notes, no Qloo": "同样的笔记，不用 Qloo", "Same cards, same area, same model. The only change: no Qloo.": "同样的卡片、同样的区域、同一个模型，唯一的区别：不用 Qloo。", "The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.": "这些地方是模型凭记忆报的。随后 Sparkling 逐个到 Qloo 里查：是否存在、是否还在营业、离你的路线近不近。", "Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.": "每一站一开始就来自 Qloo：有 ID、坐标、营业时间，并标明出自你的哪条笔记。", "Asking a plain model, no Qloo… usually 5–15 seconds.": "正在问一个不带 Qloo 的纯模型……通常需要 5–15 秒。" });
@@ -5024,7 +5025,7 @@ function renderLetter(){
         L.paragraphs.map(function(t){ return '<p class="letter-p">' + esc(t) + "</p>"; }).join("") +
         (L.returns.length ? '<h3 class="letter-h">You kept going back to</h3><div class="letter-row">' + thumbs(L.returns) + "</div>" : "") +
         (L.new.length ? '<h3 class="letter-h">New this month</h3><div class="letter-row">' + thumbs(L.new) + "</div>" : "") +
-        (L.your_words.length ? '<h3 class="letter-h">In your own words</h3>' + L.your_words.map(function(w){ return '<blockquote class="letter-q">' + esc(w.text) + '<cite translate="no">about ' + esc(w.card) + "</cite></blockquote>"; }).join("") : "") +
+        (L.your_words.length ? '<h3 class="letter-h">In your own words</h3>' + L.your_words.map(function(w){ return '<blockquote class="letter-q">' + esc(w.text) + '<cite translate="no">' + (LANG === "zh" ? "关于 " : "about ") + esc(w.card) + "</cite></blockquote>"; }).join("") : "") +
         '<p class="letter-receipt">' + esc(L.receipt) + "</p>" +
       "</article>";
     var sb = el.querySelector("[data-tshare]");

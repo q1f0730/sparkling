@@ -2055,6 +2055,15 @@ if (!ZH["Letter"]) ZH["Letter"] = "来信";
 Object.assign(ZH, { "book store": "书店", "bookstore": "书店", "bakery": "面包店", "cafe": "咖啡馆", "coffee shop": "咖啡馆", "record store": "唱片店", "park": "公园", "museum": "博物馆", "art gallery": "美术馆", "gallery": "画廊", "movie theater": "电影院", "theater": "剧院", "cinema": "电影院", "bar": "酒吧", "restaurant": "餐厅", "pie shop": "派店", "tea house": "茶馆", "library": "图书馆", "music venue": "音乐现场", "vintage store": "古着店", "thrift store": "二手店" });
 
 /* r7i18n:end */
+/* compare-sheet zh */
+Object.assign(ZH, { "Same notes, no Qloo": "同样的笔记，不用 Qloo", "Same cards, same area, same model. The only change: no Qloo.": "同样的卡片、同样的区域、同一个模型，唯一的区别：不用 Qloo。", "The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.": "这些地方是模型凭记忆报的。随后 Sparkling 逐个到 Qloo 里查：是否存在、是否还在营业、离你的路线近不近。", "Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.": "每一站一开始就来自 Qloo：有 ID、坐标、营业时间，并标明出自你的哪条笔记。", "Asking a plain model, no Qloo… usually 5–15 seconds.": "正在问一个不带 Qloo 的纯模型……通常需要 5–15 秒。" });
+ZH_PATTERNS.unshift([/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 个里有 " + a + " 个通过。"; }]);
+Object.assign(ZH, { "In Qloo": "Qloo 里有", "In Qloo, but far": "Qloo 里有，但很远", "Closed for good, per Qloo": "Qloo 标注已永久关闭", "Not in Qloo, so unchecked": "Qloo 里没有，无法核对", "Only found in another city": "只在别的城市找到", "Not checked": "未核对", "Open on arrival": "到达时营业", "May be closed when you arrive": "到达时可能已关门", "on the route": "就在路线上", "Plain model": "纯模型", "Sparkling + Qloo": "Sparkling + Qloo" });
+ZH_PATTERNS.unshift(
+  [/^(\d+) min walk$/, function(m, n){ return "步行 " + n + " 分钟"; }],
+  [/^(\d+) min by bike \(([\d.]+) mi\)$/, function(m, n, d){ return "骑车 " + n + " 分钟（" + d + " 英里）"; }],
+  [/^([\d.]+) mi from the route$/, function(m, d){ return "离路线 " + d + " 英里"; }]
+);
 function trZh(s){
   if (s == null) return s;
   const raw = String(s);
@@ -5698,11 +5707,11 @@ function renderPlanResult(id){
       '<details class="why-details"><summary>Receipt</summary>' + rc + "</details>";
   }
   async function openPlain(){
-    openSheet({ title: "Same notes, no Qloo", cls: "why-sheet", body: '<div class="plain-skel" aria-busy="true"><p class="muted">Asking a plain model, no Qloo… usually 5–15 seconds.</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
+    openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" aria-busy="true"><p class="muted">' + esc(t("Asking a plain model, no Qloo… usually 5–15 seconds.")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
     let d = null;
     try { d = await api("/api/plan/" + encodeURIComponent(planId) + "/plain", { method: "POST", body: "{}" }); } catch (e) {}
     const pl = d && d.plain;
-    const mine = (currentPlan.stops || []).map(function(s){ return '<li><b>' + esc(s.name) + '</b><br><small>' + esc(s.read || "") + '</small></li>'; }).join("");
+    const mine = (currentPlan.stops || []).map(function(s, i){ const hood = s.neighborhood || s.address || ""; const dst = i > 0 && s.distance ? String(s.distance).replace(/ from stop \d+/, "") : ""; const op = s.open_on_arrival === true ? t("Open on arrival") : s.open_on_arrival === false ? t("May be closed when you arrive") : ""; const bits = [dst ? esc(t(dst)) : "", hood ? esc(hood) : "", op ? esc(op) : ""].filter(Boolean).join(" · "); return '<li><b translate="no">' + esc(s.name) + '</b><br><span class="pc pc-ok">' + esc(t("In Qloo")) + '</span>' + (bits ? '<small class="muted"> · ' + bits + '</small>' : "") + '<br><small>' + esc(s.read || "") + '</small></li>'; }).join("");
     const CK = { found: ["ok", "In Qloo"], far: ["warn", "In Qloo, but far"], closed: ["bad", "Closed for good, per Qloo"], not_found: ["warn", "Not in Qloo, so unchecked"], elsewhere: ["bad", "Only found in another city"], unchecked: ["muted", "Not checked"] };
     const ckLine = function(c){ if (!c) return '<span class="pc pc-muted">' + esc(t("Not checked")) + "</span>"; const k = CK[c.status] || CK.unchecked; const dist = c.mi != null ? " · " + esc(t(c.mi < 0.1 ? "on the route" : c.mi + " mi from the route")) : ""; return '<span class="pc pc-' + k[0] + '">' + esc(t(k[1])) + "</span>" + (c.status !== "not_found" && c.status !== "unchecked" && c.status !== "elsewhere" ? '<small class="muted">' + dist + (c.hood ? " · " + esc(c.hood) : "") + "</small>" : ""); };
     const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
@@ -5710,7 +5719,7 @@ function renderPlanResult(id){
     const body = '<p class="muted">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + '</small>' : '') + '</p>' +
       '<h3>' + esc(t("Plain model")) + '</h3><ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p>' +
       '<h3>' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list">' + mine + '</ol><p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p>';
-    openSheet({ title: "Same notes, no Qloo", cls: "why-sheet", body: body });
+    openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: body });
   }
   function openWhyStop(i){
     const stop = currentPlan && currentPlan.stops && currentPlan.stops[i];

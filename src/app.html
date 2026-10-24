@@ -1678,6 +1678,11 @@ h3.r7-section,.r7-section h3{font:400 22px/28px var(--serif)!important;letter-sp
 .stop{scroll-margin-top:16px;scroll-margin-bottom:110px}
 .stop:last-of-type{margin-bottom:120px}
 
+.duo-box{margin-top:14px}.duo-note{font-size:13px;color:#6b6256;margin:8px 0}
+.duo-list{list-style:none;padding:0;margin:0}.duo-list li{padding:10px 0;border-top:1px solid rgba(0,0,0,.08);display:grid;gap:4px}
+.duo-list span{font:12px 'DM Mono',monospace;display:flex;gap:8px;align-items:center}
+.duo-bar{flex:1;height:6px;border-radius:3px;background:rgba(0,0,0,.08);overflow:hidden}.duo-bar i{display:block;height:100%;background:#8a9a7b}
+
 /* r7:end */
 .pc{display:inline-block;font:500 11px/1.4 "DM Mono",monospace;letter-spacing:.02em;text-transform:uppercase;padding:2px 7px;border-radius:999px;margin:4px 6px 2px 0}.pc-ok{background:#dfe8d6;color:#3f5b34}.pc-warn{background:#f3e3b8;color:#7a5a12}.pc-bad{background:#f1d6cc;color:#8a3b22}.pc-muted{background:rgba(120,110,90,.14);color:#6b6457}.plain-list li{margin:0 0 12px}
 .plain-cta{display:flex;justify-content:space-between;align-items:center;width:100%;margin:14px 0 2px;padding:12px 16px;border-radius:14px;border:1px solid var(--b-line,#ddd5c4);background:var(--b-card,#fbf8f1);font:500 15px/1.2 Figtree,sans-serif;color:inherit;cursor:pointer}.plain-cta-go{font:500 12px/1 "DM Mono",monospace;letter-spacing:.04em;text-transform:uppercase;color:#8a3b22;font-weight:600}.stop-open{font:500 12px/1.4 Figtree,sans-serif;color:#3f5b34;margin:4px 0 0}.stop-open::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin:0 6px 1px 0}.stop-open-warn{color:#8a3b22}
@@ -6786,6 +6791,7 @@ function renderPlanRequest(){
         '<input class="free-input" data-free aria-label="Anything else?" placeholder="A quiet bookstore, then somewhere to sit" value="' + attr(prefill) + '">' +
       "</div>" +
       '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>Make a plan</button></div>' +
+      '<div class="duo-box"><button class="btn btn-sm" type="button" data-duo-go>Plan for two &middot; try with a sample friend</button><div data-duo-out></div></div>' +
       '<div data-plan-progress></div>' +
       '<div data-plan-error></div>' +
     "</form>" +
@@ -6804,6 +6810,18 @@ function renderPlanRequest(){
   const progressSlot = view.querySelector("[data-plan-progress]");
   const errSlot = view.querySelector("[data-plan-error]");
   const savedSlot = view.querySelector("[data-saved-plans]");
+  const duoBtn = view.querySelector("[data-duo-go]");
+  if (duoBtn) duoBtn.addEventListener("click", async function(){
+    const out = view.querySelector("[data-duo-out]");
+    duoBtn.disabled = true; out.innerHTML = '<p class="duo-note">Weighing both notebooks&hellip;</p>';
+    try {
+      const r = await api("/api/duo", { method: "POST", body: { area: (areaInput.value || "").trim(), partner_ids: ["0F920838-D245-440D-B52E-2C045BEEFEE9","19DF9974-2931-42F7-AF6F-DC29B9E17974","28D688C4-0760-4042-BEC1-F6EE75E71CC7"] } });
+      const bar = function(v){ return '<span class="duo-bar"><i style="width:' + Math.round(Math.min(1, v || 0) * 100) + '%"></i></span>'; };
+      out.innerHTML = '<p class="duo-note">Chosen by our fairness rule: best for whoever likes it least.</p><ol class="duo-list">' +
+        (r.picks || []).map(function(p){ return '<li><b>' + esc(p.name) + '</b><span>You ' + bar(p.scoreA) + '</span><span>Them ' + bar(p.scoreB) + '</span></li>'; }).join("") + '</ol>';
+    } catch (e) { out.innerHTML = '<p class="duo-note">Could not plan for two just now.</p>'; }
+    duoBtn.disabled = false;
+  });
 
   function appendLog(linesEl, text){
     if (!linesEl || !isCurrent(token)) return;

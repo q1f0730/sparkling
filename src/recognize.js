@@ -18,8 +18,8 @@ const URN_TYPE = {
   "urn:entity:book": "book", "urn:entity:place": "place", "urn:entity:podcast": "other",
   "urn:entity:brand": "other", "urn:entity:destination": "other", "urn:entity:video_game": "other", "urn:entity:person": "person",
 };
-// Cards only know the six UI types; a director or author saved as a person shows as "other".
-const cardType = (t) => (t === "person" ? "other" : t);
+// Cards keep "person" (directors, authors) as its own type; the UI shows it as Person.
+const cardType = (t) => t;
 export const uid = () => crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 export const norm = (s) => (s || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, " ").trim();
 

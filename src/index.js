@@ -304,7 +304,19 @@ async function api(req, env, ctx, url) {
     if (pl.length) para.push(`Out in the world, you kept ${pl.map((c) => c.name).join(", ")} on your map. Those are the places your plan can start from.`);
     const gaps = ["film", "music", "book", "place"].filter((t) => !mix[t]).map((t) => word[t]);
     if (gaps.length) para.push(`Nothing from ${gaps.join(" or ")} this month. That is not a verdict, just an empty shelf.`);
-    return J({ letter: { month, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, your_words: words, paragraphs: para, receipt: "Computed from your cards, footprints and Qloo tags. No model wrote this." } });
+    let monthOut = month, paraOut = para, receiptOut = "Computed from your cards, footprints and Qloo tags. No model wrote this.";
+    if (url.searchParams.get("lang") === "zh") {
+      const wz = { film: "电影", tv: "剧集", music: "音乐人", book: "书", place: "地点", person: "人物", other: "其他" };
+      const nm = (l) => l.join("、");
+      monthOut = `${y}年${mo + 1}月`;
+      paraOut = [`${monthOut}有 ${fresh.length} 张新卡片加入你的墙` + (lead ? `，主要是${wz[lead[0]] || "其他"}（你碰过的 ${inMonth.length} 张里占 ${lead[1]} 张）。` : "。")];
+      if (returns.length) paraOut.push(`你回头最多的是${nm(returns.map((c) => c.name))}。`);
+      if (themes.length) paraOut.push(`在你的卡片里反复出现的标签：${nm(themes.map((t) => t.name))}。`);
+      if (pl.length) paraOut.push(`在现实世界里，你把${nm(pl.map((c) => c.name))}留在了地图上。这些就是你的计划可以出发的地方。`);
+      if (gaps.length) paraOut.push(`这个月没有${gaps.map((g) => ({ films: "电影", music: "音乐", artists: "音乐", books: "书", places: "地点" }[g] || g)).join("或")}。这不是评判，只是一个空着的书架。`);
+      receiptOut = "由你的卡片、足迹和 Qloo 标签计算得出，没有模型参与撰写。";
+    }
+    return J({ letter: { month: monthOut, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, your_words: words, paragraphs: paraOut, receipt: receiptOut } });
   }
 
   // ---- threads

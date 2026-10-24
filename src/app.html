@@ -546,6 +546,7 @@ svg{flex:0 0 auto}
 .when-input,.area-input{min-width:0}
 .budget-input{text-align:left}
 .mood-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px}
+.lens-l{flex-basis:100%;font:500 12px/1 var(--mono,monospace);color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
 .mood{
   height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--border);
   background:transparent;color:var(--muted);font-size:12px;font-weight:500;white-space:nowrap;
@@ -6715,7 +6716,7 @@ function renderPlanRequest(){
 
   const user = state.user || {};
   const prefill = takePlanPrefill();
-  let mood = "familiar";
+  let mood = "familiar", lens = "";
   let period = "all";
   let busy = false;
 
@@ -6778,6 +6779,9 @@ function renderPlanRequest(){
         '</div><div class="mood-row" role="group" aria-label="Which you">' +
         [["all","All of you"],["now","Recent you"],["then","Earlier you"]].map(function(x){return '<button class="mood" type="button" data-period="'+x[0]+'" aria-pressed="'+(x[0]===period?"true":"false")+'">'+x[1]+'</button>';}).join("") +
       "</div>" +
+      '<div class="mood-row" role="group" aria-label="Lens (optional)"><span class="lens-l">Lens, optional</span>' +
+        [["","None"],["photography","Photographers"],["arts_crafts","Arts & crafts"],["musician","Musicians"],["hiking","Hikers"],["meditation","Meditators"]].map(function(x){return '<button class="mood" type="button" data-lens="'+x[0]+'" aria-pressed="'+(x[0]===lens?"true":"false")+'">'+x[1]+'</button>';}).join("") +
+      "</div>" +
       '<div class="free-line">' +
         '<input class="free-input" data-free aria-label="Anything else?" placeholder="A quiet bookstore, then somewhere to sit" value="' + attr(prefill) + '">' +
       "</div>" +
@@ -6837,6 +6841,7 @@ function renderPlanRequest(){
     planBtn.disabled = true;
     planBtn.textContent = "Making a plan";
     const body = { mood: mood, period: period };
+    if (lens) body.audience = lens;
     if (LANG === "zh") body.lang = "zh";
     if (when) body.when = when;
     if (area) body.area = area;
@@ -6933,6 +6938,12 @@ function renderPlanRequest(){
     if (perBtn) {
       period = perBtn.getAttribute("data-period");
       Array.prototype.forEach.call(view.querySelectorAll("[data-period]"), function(b){ b.setAttribute("aria-pressed", b === perBtn ? "true" : "false"); });
+      return;
+    }
+    const lensBtn = e.target.closest("[data-lens]");
+    if (lensBtn) {
+      lens = lensBtn.getAttribute("data-lens");
+      Array.prototype.forEach.call(view.querySelectorAll("[data-lens]"), function(b){ b.setAttribute("aria-pressed", b === lensBtn ? "true" : "false"); });
       return;
     }
     const moodBtn = e.target.closest("[data-mood]");

@@ -2196,6 +2196,7 @@ function reasonZh(r){
     .replace(/Not sure "([^"]+)" means ([^.]+?)\./g, "不确定“$1”是不是指 $2。")
     .replace(/\s*Qloo puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\./g, function(_, n, a, v){ return " Qloo 认为 " + n + " 最贴近你的口味（" + a + "）" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。"; });
 }
+function reasonHtml(r){ var h = esc(reasonZh(r)); if (LANG !== "zh") return h; return h.replace(/[A-Za-z][A-Za-z0-9'’&:.\-]*(?: [A-Z][A-Za-z0-9'’&:.\-]*)*/g, function(m){ return '<span translate="no" style="margin:0 .18em">' + m + '</span>'; }); }
 function t(s){ return LANG === "zh" ? trZh(s) : s; }
 function stopRead(s){
   if (LANG !== "zh" || !s) return (s && s.read) || "";
@@ -5309,7 +5310,7 @@ function renderInbox(){
       ? '<div class="guess-best">' +
           '<span class="guess-name">' + esc(best.name || "Unnamed") + "</span>" +
           '<span class="guess-meta">' + esc(guessMeta(best)) + "</span>" +
-          (item.reason ? '<span class="guess-meta guess-reason" style="display:block;margin-top:4px">' + esc(reasonZh(item.reason)) + "</span>" : "") +
+          (item.reason ? '<span class="guess-meta guess-reason" style="display:block;margin-top:4px">' + reasonHtml(item.reason) + "</span>" : "") +
         "</div>"
       : '<p class="compact-empty">No close match this time.</p>';
     const altHTML = alternatives.length

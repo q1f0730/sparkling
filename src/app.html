@@ -1788,6 +1788,7 @@ const prefs = loadLocalPrefs();
 let LANG = prefs.lang;
 
 const ZH = {
+  "kinds": "类型",
   "Recognizing": "识别中", "Slide to delete everything": "滑动以删除全部", "Keep": "保留", "Swipe right to keep · left if it is not a thing": "右滑保留 · 不是就左滑",
   // shell, tabs, common
   "Notes": "笔记", "Cards": "卡片", "Plan": "计划", "Inbox": "待确认", "Settings": "设置", "Threads": "线索",
@@ -2090,6 +2091,67 @@ ZH_PATTERNS.unshift(
     [/^(\d+) steps(?: · (\d+) Qloo calls)?(?: · (\d+) s)?$/, function(m, s, q, t){ return [s + " 步", q ? q + " 次 Qloo 调用" : "", t ? t + " 秒" : ""].filter(Boolean).join(" · "); }]
   );
 })();
+/* desk-i18n:begin */
+/* desktop shell (sidebar + inspector) strings; leftover English on Notes / Cards / Plan in zh */
+Object.assign(ZH, {
+  "Needs you": "等你确认", "One guess to check": "有 1 个猜测待确认", "Nothing waiting": "没有待确认的",
+  "Every mention in your notes has a card or was set aside.": "笔记里提到的每样东西，都已经有了卡片或被搁置。",
+  "Review the inbox": "去确认", "Came back lately": "最近又想起的", "Select a note to see the cards it grew.": "选中一条笔记，看看它长出了哪些卡片。",
+  "Selected note": "选中的笔记", "No cards from this note": "这条笔记没有长出卡片",
+  "Plain notes stay plain. Mention a film, book, album or place and it grows a card.": "普通笔记就让它普通。提到一部电影、一本书、一张专辑或一个地方，它就会长出卡片。",
+  "Back to what needs you": "回到待确认", "1 card from this note": "这条笔记长出 1 张卡片", "This card did not load.": "这张卡片没加载出来。",
+  "Open full card": "打开完整卡片", "mention": "提及", "Route between the stops, schematic": "各站之间的示意路线",
+  "Back": "返回", "Settings": "设置", "Notes": "笔记", "Cards": "卡片", "Threads": "线索", "Letter": "来信", "Plan": "计划"
+});
+Object.assign(ZH, {
+  "Mentioned once": "提到一次", "again": "又提到了", "Show less": "收起", "Compare →": "对比 →", "Compare": "对比",
+  "Open when you arrive, per Qloo's listed hours": "按 Qloo 标注的营业时间，到达时正在营业", "May be closed when you arrive": "到达时可能已关门",
+  "Hours not listed": "未标注营业时间"
+});
+(function(){
+  var DAYS = { Monday: "周一", Tuesday: "周二", Wednesday: "周三", Thursday: "周四", Friday: "周五", Saturday: "周六", Sunday: "周日" };
+  var who = function(list){ return String(list).replace(/ \((\d+)% of the match\)( and )?/g, function(m, n, a){ return "（占匹配 " + n + "%）" + (a ? "、" : ""); }); };
+  var hood = function(s){ return String(s).split(" and ").join("和"); };
+  ZH_PATTERNS.unshift(
+    [/^[Mm]entioned (\d+)\u00d7$/, function(m, n){ return "提到 " + n + " 次"; }],
+    [/^\+ (\d+) more from your notes$/, function(m, n){ return "还有 " + n + " 条来自你的笔记"; }],
+    [/^Qloo matched this (.+?) mostly through (.+?)(?:; affinity ([\d.]+))?\.$/, function(m, kind, list, aff){
+      return "Qloo 主要通过 " + who(list) + " 匹配到这家" + trZh(kind) + (aff ? "；契合度 " + aff : "") + "。"; }],
+    [/^Qloo ranked this (.+?) near (.+?) in taste(?: \(popularity ([\d.]+)\))?\.$/, function(m, kind, list, pop){
+      return "按口味，Qloo 把这家" + trZh(kind) + "排在 " + String(list).split(" and ").join("、") + " 附近" + (pop ? "（热度 " + pop + "）" : "") + "。"; }],
+    [/^Qloo lists it closed on (\w+)s \u00b7 not live-checked$/, function(m, d){ return "Qloo 标注" + (DAYS[d] || d) + "不营业 · 未实时核实"; }],
+    [/^Qloo lists (\w+day) (.+) \u00b7 not live-checked$/, function(m, d, x){ return "Qloo 标注营业时间 " + (DAYS[d] || d) + " " + x + " · 未实时核实"; }],
+    [/^(Not much matched right in (.+?), so I looked a little further\.|Qloo's best matches near (.+?) spill over the border\.) (.+)$/, function(m, lead, a1, a2, rest){
+      var l = a1 ? a1 + "附近匹配的不多，所以我往外多找了一点。" : "Qloo 在" + a2 + "附近最匹配的地方，有的在边界外。";
+      var r = rest, x;
+      if ((x = rest.match(/^The stop is in (.+)\.$/))) r = "这一站在" + hood(x[1]) + "。";
+      else if ((x = rest.match(/^Both stops are in (.+)\.$/))) r = "两站都在" + hood(x[1]) + "。";
+      else if ((x = rest.match(/^All stops are in (.+)\.$/))) r = "所有站都在" + hood(x[1]) + "。";
+      else if ((x = rest.match(/^The stops are in (.+)\.$/))) r = "这几站在" + hood(x[1]) + "。";
+      else if ((x = rest.match(/^One stop is in (.+)\.$/))) r = "有一站在" + hood(x[1]) + "。";
+      else if ((x = rest.match(/^(\d+) stops are in (.+)\.$/))) r = "有 " + x[1] + " 站在" + hood(x[2]) + "。";
+      return l + r; }]
+  );
+})();
+Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味卡片", "Your taste letter": "你的口味来信" });
+(function(){
+  var two = function(s){ var p = String(s).split(" and "); return p.length === 2 ? p.join(" 和 ") : s; };
+  var MW = { films: "部电影", shows: "部剧", artists: "位艺人", books: "本书", places: "个地方", things: "样东西" };
+  var lead = function(s){
+    var x;
+    if ((x = s.match(/^(\d+) (films|shows|artists|books|places|things) are called (.+)\.$/))) return "有 " + x[1] + " " + MW[x[2]] + "都叫 " + x[3] + "。";
+    return trZh(s);
+  };
+  ZH_PATTERNS.unshift(
+    [/^(.+?\.) Qloo puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\.$/, function(m, l, top, aff, via){
+      return lead(l) + "Qloo 认为 " + top + " 最贴近你的口味（" + aff + "）" + (via ? "，主要因为 " + two(via) : "") + "。"; }],
+    [/^((?:“[^”]+”(?: and )?)+) is how Qloo reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, who, q){
+      var w = who === "your recent cards" ? "你最近的卡片" : who === "your cards" ? "你的卡片" : two(who);
+      return "Qloo 用 " + tags.split(" and ").join("、") + " 来读 " + w + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
+  );
+})();
+
+/* desk-i18n:end */
 function trZh(s){
   if (s == null) return s;
   const raw = String(s);
@@ -2109,6 +2171,15 @@ function trZh(s){
   }
   if (out == null) return raw;
   return raw.replace(key, out);
+}
+function reasonZh(r){
+  if (LANG !== "zh" || !r) return r;
+  var TY = {show:"剧集", film:"电影", music:"音乐", book:"书", place:"地点", tv:"剧集", artist:"艺人"};
+  return String(r).replace(/"([^"]+)" is a ([a-z]+)(?: and a ([a-z]+))?\./g, function(_, m, a, b){ return "“" + m + "”既是" + (TY[a]||a) + (b ? "也是" + (TY[b]||b) : "") + "。"; })
+    .replace(/(\d+) (films|shows|artists|books|places|things) are called ([^.]+)\./g, function(_, n, w, nm){ return n + " 个同名条目：" + nm + "。"; })
+    .replace(/"([^"]+)" could be a few things\./g, "“$1”可能指好几样东西。")
+    .replace(/Not sure "([^"]+)" means ([^.]+?)\./g, "不确定“$1”是不是指 $2。")
+    .replace(/\s*Qloo puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\./g, function(_, n, a, v){ return " Qloo 认为 " + n + " 最贴近你的口味（" + a + "）" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。"; });
 }
 function t(s){ return LANG === "zh" ? trZh(s) : s; }
 
@@ -4497,7 +4568,7 @@ function renderCards(){
       '<dl class="r7-stats">' +
         '<div><dt>cards</dt><dd class="num">' + allCards.length + '</dd></div>' +
         '<div><dt>mentions</dt><dd class="num">' + mentions + '</dd></div>' +
-        (loved ? '<div><dt>loved</dt><dd class="num">' + loved + '</dd></div>' : '<div><dt>kinds</dt><dd class="num">' + kinds + '</dd></div>') +
+        (loved ? '<div><dt>loved</dt><dd class="num">' + loved + '</dd></div>' : '<div><dt>' + t('kinds') + '</dt><dd class="num">' + kinds + '</dd></div>') +
       '</dl>';
     Array.prototype.forEach.call(view.querySelectorAll("[data-cards-type]"), function(button){
       const f = button.getAttribute("data-cards-type");
@@ -5206,7 +5277,7 @@ function renderInbox(){
       ? '<div class="guess-best">' +
           '<span class="guess-name">' + esc(best.name || "Unnamed") + "</span>" +
           '<span class="guess-meta">' + esc(guessMeta(best)) + "</span>" +
-          (item.reason ? '<span class="guess-meta" style="display:block;margin-top:4px;font-style:italic">' + esc(item.reason) + "</span>" : "") +
+          (item.reason ? '<span class="guess-meta" style="display:block;margin-top:4px;font-style:italic">' + esc(reasonZh(item.reason)) + "</span>" : "") +
         "</div>"
       : '<p class="compact-empty">No close match this time.</p>';
     const altHTML = alternatives.length
@@ -5807,15 +5878,39 @@ function renderPlanResult(id){
   }
   function sideHTML(stops, plan){
     if (!stops.length) return "";
-    return '<aside class="plan-side" aria-label="' + attr(t("Route")) + '"><p class="ps-eyebrow">' + esc(t("Route")) + '</p>' +
-      routeMapHTML(stops, 300, 230) +
-      '<ol class="ps-list">' + stops.map(function(st, i){
-        const leg = i > 0 && st && st.distance ? String(st.distance).replace(/ from stop \d+/, "") : "";
-        return '<li>' + (leg ? '<span class="ps-leg">' + esc(LANG === "zh" ? trZh(leg) : leg) + '</span>' : "") +
-          '<button type="button" data-why-stop="' + i + '"><span class="ps-n num">' + (i + 1) + '</span>' +
-          '<span class="ps-t"><b translate="no">' + esc((st && st.name) || "") + '</b><small>' + esc([st && st.arrive, st && (st.neighborhood || st.address)].filter(Boolean).join(" \u00b7 ")) + '</small></span>' +
-          '<span class="ps-go">' + esc(t("Why")) + ' &rarr;</span></button></li>';
-      }).join("") + '</ol></aside>';
+    /* desk:side-map — tall labelled route for the desktop inspector; pins open Why this stop */
+    const pts = stops.map(function(s){ return s && s.coords && isFinite(s.coords.lat) && isFinite(s.coords.lon) ? s.coords : null; });
+    let map = "";
+    if (pts.length >= 2 && !pts.some(function(x){ return !x; })) {
+      const lat0 = pts.reduce(function(a, p){ return a + p.lat; }, 0) / pts.length, kx = Math.cos(lat0 * Math.PI / 180);
+      const xs = pts.map(function(p){ return p.lon * kx; }), ys = pts.map(function(p){ return -p.lat; });
+      const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs), minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+      const W = 380, H = 620, px = 96, py = 70;
+      const sc = Math.min((W - 2 * px) / Math.max(maxX - minX, 1e-6), (H - 2 * py) / Math.max(maxY - minY, 1e-6));
+      const ox = (W - sc * (maxX - minX)) / 2, oy = (H - sc * (maxY - minY)) / 2;
+      const P = pts.map(function(_, i){ return [ox + sc * (xs[i] - minX), oy + sc * (ys[i] - minY)]; });
+      let grid = "";
+      for (let g = 1; g < 6; g++) grid += '<line x1="' + (g * W / 6).toFixed(1) + '" y1="0" x2="' + (g * W / 6).toFixed(1) + '" y2="' + H + '"/>';
+      for (let g = 1; g < 10; g++) grid += '<line x1="0" y1="' + (g * H / 10).toFixed(1) + '" x2="' + W + '" y2="' + (g * H / 10).toFixed(1) + '"/>';
+      const short = function(s){ s = String(s || ""); return s.length > 22 ? s.slice(0, 21) + "\u2026" : s; };
+      map = '<figure class="route-map route-map-side" role="img" aria-label="' + attr(t("Route between the stops, schematic")) + '">' +
+        '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="xMidYMid meet"><g class="rm-grid">' + grid + "</g>" +
+        '<polyline class="rm-path" points="' + P.map(function(q){ return q[0].toFixed(1) + "," + q[1].toFixed(1); }).join(" ") + '"/>' +
+        P.map(function(q, i){
+          const right = q[0] < W * 0.55, lx = right ? q[0] + 20 : q[0] - 20, anchor = right ? "start" : "end", st = stops[i] || {};
+          return '<g class="rm-pin" data-why-stop="' + i + '"><circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="13"/>' +
+            '<text x="' + q[0].toFixed(1) + '" y="' + (q[1] + 4.5).toFixed(1) + '" text-anchor="middle">' + (i + 1) + "</text>" +
+            '<text class="rm-label" translate="no" x="' + lx.toFixed(1) + '" y="' + (q[1] - 1).toFixed(1) + '" text-anchor="' + anchor + '">' + esc(short(st.name)) + "</text>" +
+            '<text class="rm-sub" x="' + lx.toFixed(1) + '" y="' + (q[1] + 13).toFixed(1) + '" text-anchor="' + anchor + '">' + esc(String(st.arrive || "")) + "</text></g>";
+        }).join("") +
+        "</svg><figcaption>" + t("Schematic route") + " &middot; " + t("not to scale") + "</figcaption></figure>";
+    }
+    const legs = stops.map(function(st, i){
+      const m = i > 0 && st && st.distance ? String(st.distance).match(/(\d+)\s*min/) : null;
+      return m ? "<li>" + i + " \u2192 " + (i + 1) + " \u00b7 " + esc(LANG === "zh" ? m[1] + " 分钟步行" : m[1] + " min walk") + "</li>" : "";
+    }).join("");
+    return '<aside class="plan-side" aria-label="' + attr(t("Route")) + '"><p class="ps-eyebrow">' + esc(t("Route")) + "</p>" + map +
+      (legs ? '<ul class="ps-legs">' + legs + "</ul>" : "") + "</aside>";
   }
   function planSummary(stops){
     if (!stops.length) return "";

@@ -261,7 +261,7 @@ export function groundedRead(txt, s, note) {
   const facts = [s.kind, s.name, s.description, ...(s.vibes || [])].join(" ").toLowerCase();
   const GEN = /dining|drinking|socializ|dogs?|allowed|inside|outdoor seating|wheelchair|parking|wifi|credit|reservations?|delivery|takeout|good for|accepts/i;
   const vibes = (s.vibes || []).map((v) => String(v).toLowerCase()).filter((v) => !GEN.test(v)).slice(0, 2);
-  const tpl = `${String(s.kind || "Place")}${vibes.length ? ", tagged " + vibes.join(" and ") + " by Qloo" : " that Qloo ranked close to your taste"}.`;
+  const tpl = `${vibes.length ? "A " + String(s.kind || "place").toLowerCase() + " with a " + vibes.join(", ") + " feel" : "A " + String(s.kind || "place").toLowerCase() + " Qloo ranks close to your taste"}.`;
   const noteTpl = note ? `${String(s.kind || "Place")}${vibes.length ? ", tagged " + vibes.join(" and ") : ""}, a fit for your note on ${note}.` : tpl;
   if (!txt) return noteTpl;
   const words = String(txt).toLowerCase().replace(/[^a-z\s']/g, " ").split(/\s+/).filter((w) => w.length > 3);

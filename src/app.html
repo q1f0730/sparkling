@@ -2878,7 +2878,7 @@ function seedHTML(tag, cls){
   const o = typeof tag === "object" && tag ? tag : { name: tag };
   const type = o.type || tagType(o.id || o.subtype || o.name);
   const score = o.affinity != null ? scoreText(o.affinity) : (o.score != null ? scoreText(o.score) : "");
-  const meta = (type ? '<span class="seed-type">' + esc(type) + "</span>" : "") + (type && score ? " " : "") + (score ? '<span class="num">' + esc(score) + "</span>" : "");
+  const meta = (type && type !== "vibe" && type !== "氛围" ? '<span class="seed-type">' + esc(type) + "</span>" : "") + (type && score ? " " : "") + (score ? '<span class="num">' + esc(score) + "</span>" : "");
   return '<span class="seed ' + (cls || "") + '"><span class="seed-name" translate="no">' + esc(tagZh(tagPretty(o.name || o.id))) + "</span>" + (meta ? '<span class="seed-meta">' + meta + "</span>" : "") + "</span>";
 }
 function tagsHTML(tags, colored){

@@ -294,10 +294,10 @@ async function api(req, env, ctx, url) {
     const themes = Object.entries(tagCount).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, n]) => ({ name, cards: n }));
     const q = await env.DB.prepare("SELECT f.quote, n.text, f.created_at, c.name, c.id FROM footprints f JOIN notes n ON n.id=f.note_id JOIN cards c ON c.id=f.card_id WHERE c.user_id=? AND f.sentiment!='negative' AND f.created_at>=? AND f.created_at<? ORDER BY length(n.text) DESC LIMIT 3").bind(U, from, to).all().catch(() => null);
     const words = ((q && q.results) || []).map((r) => ({ text: r.text, card: r.name, card_id: r.id, at: r.created_at }));
-    const word = { film: "films", tv: "shows", music: "artists", book: "books", place: "places", other: "things" };
+    const word = { film: "films", tv: "shows", music: "artists", book: "books", place: "places", person: "people", other: "things" };
     const lead = Object.entries(mix).sort((a, b) => b[1] - a[1])[0];
     const para = [];
-    para.push(`${fresh.length} new ${fresh.length === 1 ? "card" : "cards"} joined your wall in ${month}` + (lead ? `, and mostly it was ${word[lead[0]] || "things"} (${lead[1]} of ${inMonth.length} you touched).` : "."));
+    para.push(`${fresh.length} new ${fresh.length === 1 ? "card" : "cards"} joined your wall in ${month}` + (lead ? `, and mostly it was ${word[lead[0]] || "other things"} (${lead[1]} of ${inMonth.length} you touched).` : "."));
     if (returns.length) para.push(`You went back to ${returns.map((c) => c.name).join(", ")} more than anything else.`);
     if (themes.length) para.push(`The tags that kept showing up across your cards: ${themes.map((t) => t.name).join(", ")}.`);
     const pl = inMonth.filter((c) => c.type === "place").slice(0, 3);

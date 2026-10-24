@@ -1657,6 +1657,7 @@ h3.r7-section,.r7-section h3{font:400 22px/28px var(--serif)!important;letter-sp
 .st-view .st-ico svg{stroke:currentColor!important}
 .st-view .st-label{font:500 16px/22px var(--sans)}
 .plan-chip{background:var(--b-soft)!important;color:var(--b-ink2)!important;border:1px solid var(--b-line)}
+.trace-more{color:var(--b-ink2,#6b6556)!important;text-decoration:underline;text-decoration-color:var(--b-line,#d8d0bc);text-underline-offset:3px}
 
 /* r7:end */
 .pc{display:inline-block;font:500 11px/1.4 "DM Mono",monospace;letter-spacing:.02em;text-transform:uppercase;padding:2px 7px;border-radius:999px;margin:4px 6px 2px 0}.pc-ok{background:#dfe8d6;color:#3f5b34}.pc-warn{background:#f3e3b8;color:#7a5a12}.pc-bad{background:#f1d6cc;color:#8a3b22}.pc-muted{background:rgba(120,110,90,.14);color:#6b6457}.plain-list li{margin:0 0 12px}
@@ -2034,7 +2035,7 @@ const ZH_PATTERNS = [
 /* r7i18n:begin */
 /* r7 designer pass strings */
 Object.assign(ZH, {
-  "The wall": "卡片墙", "Everything": "你留下的", "you kept.": "一切。", "cards": "卡片", "mentions": "提及", "loved": "喜欢",
+  "kinds": "类型", "The wall": "卡片墙", "Everything": "你留下的", "you kept.": "一切。", "cards": "卡片", "mentions": "提及", "loved": "喜欢",
   "Most on your mind": "最近最常想起", "mentioned": "提及", "mentioned once": "提到一次",
   "Card": "卡片", "mention": "提及", "first met": "初次相遇", "last seen": "最近一次",
 });
@@ -2055,7 +2056,7 @@ ZH_PATTERNS.unshift([/^\+(\d+) more$/, function(m, n){ return "还有 " + n + " 
 Object.assign(ZH, { "Go": "出发，", "live it.": "去过一遍。", "stop": "站", "stops": "站", "window": "时段", "walking": "步行" });
 ZH_PATTERNS.unshift([/^Stop (\d+)$/, function(m, n){ return "第 " + n + " 站"; }]);
 if (!ZH["Letter"]) ZH["Letter"] = "来信";
-Object.assign(ZH, { "book store": "书店", "bookstore": "书店", "bakery": "面包店", "cafe": "咖啡馆", "coffee shop": "咖啡馆", "record store": "唱片店", "park": "公园", "museum": "博物馆", "art gallery": "美术馆", "gallery": "画廊", "movie theater": "电影院", "theater": "剧院", "cinema": "电影院", "bar": "酒吧", "restaurant": "餐厅", "pie shop": "派店", "tea house": "茶馆", "library": "图书馆", "music venue": "音乐现场", "vintage store": "古着店", "thrift store": "二手店" });
+Object.assign(ZH, { "book store": "书店", "bookstore": "书店", "bakery": "面包店", "cafe": "咖啡馆", "coffee shop": "咖啡馆", "record store": "唱片店", "park": "公园", "museum": "博物馆", "art gallery": "美术馆", "gallery": "美术馆", "movie theater": "电影院", "cinema": "电影院", "bar": "酒吧", "restaurant": "餐厅", "pie shop": "派店", "library": "图书馆", "music venue": "演出场地", "vintage store": "古着店", "thrift store": "二手店" });
 
 /* r7i18n:end */
 Object.assign(ZH, { "No letter yet": "还没有来信", "Your first letter arrives once a few notes have turned into cards.": "等你有几条笔记变成了卡片，第一封来信就会到这里。", "You kept going back to": "你一直回看的", "New this month": "本月新增", "In your own words": "你自己的原话", "Nothing to look at.": "这里暂时没有要看的。" });

@@ -5007,7 +5007,7 @@ function renderLetter(){
       '<button class="seg-btn" type="button" aria-pressed="true">Letter</button></div></div>' +
     '<div data-letter><div class="skeleton sk-card tall"></div></div>';
   const el = view.querySelector("[data-letter]");
-  api("/api/letter").then(function(d){
+  api("/api/letter" + (/^zh/i.test(document.documentElement.lang||"") ? "?lang=zh" : "")).then(function(d){
     if (!isCurrent(token)) return;
     const L = d && d.letter;
     if (!L) { el.innerHTML = '<div class="empty"><h2>No letter yet</h2><p>' + esc((d && d.reason) || "Your first letter arrives once a few notes have turned into cards.") + "</p></div>"; return; }

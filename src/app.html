@@ -5047,7 +5047,7 @@ function renderThreads(){
     tags.forEach(function(q){ (Array.isArray(q.listed_on) ? q.listed_on : []).forEach(function(n){ if (listedAll.indexOf(n) < 0) listedAll.push(n); }); });
     const top = tags.slice(0, 3), rest = tags.slice(3);
     const qlooCard = '<section class="bcard"><div class="blabel"><i></i><span>Qloo noticed</span><small>' + (listedAll.length ? "on your cards" : "for your cards together") + "</small></div>" +
-      (top.length ? '<div class="seeds">' + top.map(function(q, i){ return seedHTML(q, "s" + (i + 1)); }).join("") + "</div>" : '<p class="why-line">No tags came back.</p>') +
+      (top.length ? '<div class="seeds">' + top.map(function(q, i){ var sat = function(x){ return x && (Number(x.affinity) >= 0.995 || (x.affinity == null && Number(x.score) >= 0.995)); }; return seedHTML(sat(q) ? Object.assign({}, q, { affinity: null, score: null }) : q, "s" + (i + 1)); }).join("") + "</div>" : '<p class="why-line">No tags came back.</p>') +
       (rest.length ? '<div class="seeds-h">Close behind</div><div class="seeds">' + rest.map(function(q){ return seedHTML(q, "sm"); }).join("") + "</div>" : "") +
       (listedAll.length ? '<p class="why-line">Qloo lists it on <span translate="no">' + esc(listedAll.join(", ")) + "</span></p>" : '<p class="why-line">None of these sit on a single card of yours. Qloo returned them for these cards taken together.</p>') +
     "</section>";

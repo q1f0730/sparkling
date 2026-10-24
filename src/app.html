@@ -2135,7 +2135,12 @@ Object.assign(ZH, {
 })();
 Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味卡片", "Your taste letter": "你的口味来信" });
 (function(){
-  var two = function(s){ var p = String(s).split(" and "); return p.length === 2 ? p.join(" 和 ") : s; };
+  var two = function(s){ s = String(s); var N = window.SP_NAMES || {}, out = [], rest = s, guard = 0;
+    while (rest && guard++ < 8) { var hit = null; Object.keys(N).forEach(function(k){ if ((rest === k || rest.indexOf(k + " and ") === 0) && (!hit || k.length > hit.length)) hit = k; });
+      if (hit) { out.push(hit); rest = rest.slice(hit.length + 5); continue; }
+      var i = rest.indexOf(" and "); while (i >= 0 && /^(the|a|an) /.test(rest.slice(i + 5))) i = rest.indexOf(" and ", i + 5);
+      if (i < 0) { out.push(rest); rest = ""; } else { out.push(rest.slice(0, i)); rest = rest.slice(i + 5); } }
+    return out.length === 2 ? out.join(" 和 ") : out.length > 2 ? out.slice(0, -1).join("、") + " 和 " + out[out.length - 1] : s; };
   var MW = { films: "部电影", shows: "部剧", artists: "位艺人", books: "本书", places: "个地方", things: "样东西" };
   var lead = function(s){
     var x;
@@ -4601,6 +4606,7 @@ function renderCards(){
       const data = await api("/api/cards?type=all", { signal: ac.signal });
       if (!isCurrent(token) || seq !== loadSeq) return;
       allCards = Array.isArray(data && data.cards) ? data.cards : [];
+      allCards.forEach(function(c){ if (c && c.name) (window.SP_NAMES = window.SP_NAMES || {})[c.name] = 1; });
       paintWall();
     } catch (e) {
       if (!isCurrent(token) || seq !== loadSeq || isAbort(e)) return;
@@ -5097,6 +5103,7 @@ function renderThreads(){
   }
   function threadHTML(thread, i){
     const cards = Array.isArray(thread.cards) ? thread.cards : [];
+    cards.forEach(function(c){ if (c && c.name) (window.SP_NAMES = window.SP_NAMES || {})[c.name] = 1; });
     const chips = cards.map(function(card){
       const count = Number(card.footprints) || 0;
       const label = card.name + (count ? ", " + count + " " + plural(count, "footprint", "footprints") : "");
@@ -5116,6 +5123,7 @@ function renderThreads(){
   function whyHTML(t){
     const tags = Array.isArray(t.qloo_tags) ? t.qloo_tags : [];
     const cards = Array.isArray(t.cards) ? t.cards : [];
+    cards.forEach(function(c){ if (c && c.name) (window.SP_NAMES = window.SP_NAMES || {})[c.name] = 1; });
     const words = Array.isArray(t.your_words) ? t.your_words : (t.your_words ? [t.your_words] : []);
     const rc = t.receipt || {};
     const typeOf = {}; cards.forEach(function(c){ typeOf[c.name] = c.type || "other"; });
@@ -5837,7 +5845,7 @@ function renderPlanResult(id){
         '<span class="stop-index num">' + (i + 1) + "</span>" +
         '<div class="stop-main">' +
           '<p class="r7-stop-eyebrow num">' + esc("Stop " + String(i + 1).padStart(2, "0")) + '</p>' +
-          (stop && stop.arrive ? '<p class="stop-time">' + esc(stop.arrive) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + " min" : "") + "</p>" : "") +
+          (stop && stop.arrive ? '<p class="stop-time">' + esc(stop.arrive) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + (LANG === "zh" ? " 分钟" : " min") : "") + "</p>" : "") +
           '<h3 class="stop-name">' + esc((stop && stop.name) || "Somewhere") + "</h3>" +
           '<p class="stop-where">' + esc([stop && stop.kind && t(String(stop.kind).toLowerCase()), place].filter(Boolean).join(" · ")) + "</p>" +
           (stop && stop.open_on_arrival === true ? '<p class="stop-open">' + esc(t("Open when you arrive, per Qloo's listed hours")) + "</p>" : stop && stop.open_on_arrival === false ? '<p class="stop-open stop-open-warn">' + esc(t("May be closed when you arrive")) + "</p>" : "") +
@@ -5933,7 +5941,7 @@ function renderPlanResult(id){
           '<dl class="r7-stats">' +
             '<div><dt>' + esc(plural(stops.length, "stop", "stops")) + '</dt><dd class="num">' + stops.length + '</dd></div>' +
             '<div><dt>window</dt><dd class="num r7-small">' + esc(first && last ? String(first).replace(/ ?[AP]M$/,"") + "\u2013" + last : "\u2014") + '</dd></div>' +
-            '<div><dt>walking</dt><dd class="num">' + (walk ? walk + '<small>min</small>' : "\u2014") + '</dd></div>' +
+            '<div><dt>walking</dt><dd class="num">' + (walk ? walk + '<small>' + (LANG === "zh" ? "分钟" : "min") + '</small>' : "\u2014") + '</dd></div>' +
           '</dl>' + '<button class="plain-cta" type="button" data-plain="1"><span>Same notes, no Qloo</span><span class="plain-cta-go">Compare &rarr;</span></button>' + '</header>'; })() +
       (plan.notice ? '<p class="plan-notice" role="note">' + esc(plan.notice) + "</p>" : "") +
       routeMapHTML(stops) + sideHTML(stops, plan) +

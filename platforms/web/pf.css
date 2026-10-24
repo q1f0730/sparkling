@@ -15,6 +15,8 @@ html.pf-standalone .topbar{-webkit-user-select:none;user-select:none}
     var(--b-paper);background-attachment:fixed}
   .frame{max-width:540px;border:0;box-shadow:0 0 0 1px var(--b-line),0 40px 90px -50px rgba(64,50,28,.42)}
   .tabs{max-width:400px}
+  /* the left rail is the navigation on desktop: no second, floating tab bar */
+  body:has(.pf-nav:not([hidden])) .tabs{display:none!important}
   .tabs::before{left:-70px;right:-70px}
   .pf-rail{display:flex;flex-direction:column;position:fixed;z-index:20;top:0;bottom:0;width:250px;
     right:calc(50% + 270px + 44px);padding:max(56px,8vh) 0 36px;color:var(--b-ink);font-family:var(--sans)}
@@ -41,6 +43,24 @@ html.pf-standalone .topbar{-webkit-user-select:none;user-select:none}
   .frame{max-width:560px}
   .tabs::before{left:-80px;right:-80px}
   .pf-rail{right:calc(50% + 280px + 64px);width:270px}
+}
+
+/* plan result, wide desktop: route map + stop list live in the right pane (aside.plan-side is inside the view, fixed) */
+.plan-side{display:none}
+@media (min-width:1280px){
+  .route-map:not(.route-map-side){display:none}
+  .plan-side{display:block;position:fixed;z-index:15;top:max(56px,8vh);left:calc(50% + 270px + 40px);width:300px;color:var(--b-ink);font-family:var(--sans)}
+  .plan-side .ps-eyebrow{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--b-faint);margin:0 0 10px}
+  .plan-side .route-map{margin:0 0 14px}
+  .ps-list{list-style:none;margin:0;padding:0}
+  .ps-leg{display:block;margin:0 0 0 14px;padding:3px 0 3px 18px;border-left:1.5px dashed var(--b-line);font:400 11px/1.3 var(--mono);color:var(--b-faint)}
+  .ps-list button{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:14px;text-align:left;background:transparent;transition:background .2s ease-out}
+  .ps-list button:hover{background:color-mix(in srgb,var(--b-card) 80%,transparent)}
+  .ps-n{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--b-ink);color:var(--b-paper);font:500 12px/1 var(--mono)}
+  .ps-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .ps-t b{font:500 14px/1.2 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ps-t small{font:400 11.5px/1.2 var(--mono);color:var(--b-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ps-go{flex:none;font:500 12px/1 var(--sans);color:var(--b-sage-ink)}
 }
 
 /* offline ribbon (all sizes) */

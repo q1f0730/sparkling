@@ -261,9 +261,10 @@ async function placeTag(env, word) {
 const READ_OK = new Set("you your youll the a an and of to in for on at it its is be this that with as by from or place spot shop store find enjoy will can good fit fits suits suit feel feels mood kind like same near close nearby afternoon day visit stop here there small space time worth take keep keeps returning back vibe vibes".split(" "));
 export function groundedRead(txt, s, note) {
   const facts = [s.kind, s.name, s.description, ...(s.vibes || [])].join(" ").toLowerCase();
-  const vibes = (s.vibes || []).slice(0, 2).map((v) => String(v).toLowerCase());
-  const tpl = `${String(s.kind || "Place")}${vibes.length ? " with a " + vibes.join(", ") + " feel, per Qloo" : " picked by Qloo for your taste"}.`;
-  const noteTpl = note ? `${String(s.kind || "Place")}${vibes.length ? " with a " + vibes.join(", ") + " feel" : ""}, a fit for your note on ${note}.` : tpl;
+  const GEN = /dining|drinking|socializ|dogs?|allowed|inside|outdoor seating|wheelchair|parking|wifi|credit|reservations?|delivery|takeout|good for|accepts/i;
+  const vibes = (s.vibes || []).map((v) => String(v).toLowerCase()).filter((v) => !GEN.test(v)).slice(0, 2);
+  const tpl = `${String(s.kind || "Place")}${vibes.length ? ", tagged " + vibes.join(" and ") + " by Qloo" : " that Qloo ranked close to your taste"}.`;
+  const noteTpl = note ? `${String(s.kind || "Place")}${vibes.length ? ", tagged " + vibes.join(" and ") : ""}, a fit for your note on ${note}.` : tpl;
   if (!txt) return noteTpl;
   const words = String(txt).toLowerCase().replace(/[^a-z\s']/g, " ").split(/\s+/).filter((w) => w.length > 3);
   const bad = words.filter((w) => !READ_OK.has(w) && !facts.includes(w.replace(/s$/, "")));
@@ -537,6 +538,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
       })(),
       from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Qloo matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
       read: groundedRead(reads[i], s, (fn_[0] && fn_[0].name) || null),
+      read_src: reads[i] && groundedRead(reads[i], s, (fn_[0] && fn_[0].name) || null) === reads[i] ? "model" : "template",
       ops: hoursLine(s.hours, meta.when) + (open === false ? " · may be closed when you arrive" : ""),
       open_on_arrival: open,
       checks: { category: s.primary || s.kind, fit: s.fit ?? null, neighborhood_source: s.hood_source || null, zip: s.zip || null, open_on_arrival: open, hours_listed: open !== null },

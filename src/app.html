@@ -2129,7 +2129,7 @@ const ZH_PATTERNS = [
     const kw = { "a film": "电影", "a show": "剧集", "an artist": "音乐人", "a book": "书", "a place": "地点", "something": "作品" };
     const parts = list.split(/, | and /).map(function(x){ return kw[x] || x; });
     return (dot || "") + "出现在你反复回到的" + parts.join("、") + "里。"; }],
-  [/^(\u00b7 )?Qloo reads this across the cards you return to most\.$/, function(m, dot){ return (dot || "") + "这是 Qloo 从你最常回到的那些卡片整体读出的。"; }],
+  [/^(\u00b7 )?(?:Qloo reads this across|Read across) the cards you return to most\.$/, function(m, dot){ return (dot || "") + "这是从你最常回到的那些卡片整体读出的。"; }],
   [/^(.+)\. (Film|TV|Music|Book|Place|Other)( \u00b7 \d{4})?\. (\d+) footprints?$/, function(m, name, ty, yr, n){ return name + "。" + ZH[ty] + (yr || "") + "。" + n + " 条足迹"; }],
   [/^(.+), (\d+) footprints?$/, function(m, name, n){ return name + "，" + n + " 条足迹"; }],
   [/^(\d+) of (\d+)$/, function(m, a, b){ return "第 " + a + " 项，共 " + b + " 项"; }],
@@ -2141,7 +2141,7 @@ const ZH_PATTERNS = [
   [/^today$/, function(){ return "今天"; }], [/^yesterday$/, function(){ return "昨天"; }],
   [/^An afternoon around (.+)$/, function(m, a){ return a + "的一个下午"; }],
   [/^Why \u201c(.+)\u201d\?$/, function(m, x){ return "为什么是\u201c" + x + "\u201d？"; }],
-  [/^Qloo lists (.+) \u00b7 not live-checked$/, function(m, x){ return "Qloo 标注营业时间 " + x + " · 未实时核实"; }],
+  [/^(?:Qloo lists|Listed) (.+) \u00b7 not live-checked$/, function(m, x){ return "标注营业时间 " + x + " · 未实时核实"; }],
   [/^Photo (\d+)$/, function(m, n){ return "照片 " + n; }], [/^Show photo (\d+)$/, function(m, n){ return "显示照片 " + n; }],
   [/^under \$(\d+)$/, function(m, n){ return n + " 美元以内"; }],
 ];
@@ -2170,6 +2170,7 @@ Object.assign(ZH, { "Go": "出发，", "live it.": "去过一遍。", "stop": "�
 ZH_PATTERNS.unshift([/^Stop (\d+)$/, function(m, n){ return "第 " + n + " 站"; }]);
 if (!ZH["Letter"]) ZH["Letter"] = "来信";
 Object.assign(ZH, { "tea house": "茶馆", "theater": "剧院", "book store": "书店", "bookstore": "书店", "bakery": "面包店", "cafe": "咖啡馆", "coffee shop": "咖啡馆", "record store": "唱片店", "park": "公园", "museum": "博物馆", "art gallery": "画廊", "gallery": "画廊", "movie theater": "电影院", "cinema": "电影院", "bar": "酒吧", "restaurant": "餐厅", "pie shop": "派店", "library": "图书馆", "music venue": "音乐现场", "vintage store": "古着店", "thrift store": "二手店" });
+ZH_PATTERNS.unshift([/^(?:Qloo has no hours|No listed hours) for (one stop|\d+ stops); check before you go\.$/, function(m, x){ return (x === "one stop" ? "有 1 站" : "有 " + x.replace(" stops", "") + " 站") + "没有标注营业时间，出发前请先确认。"; }]);
 
 /* r7i18n:end */
 Object.assign(ZH, { "No letter yet": "还没有来信", "Your first letter arrives once a few notes have turned into cards.": "等你有几条笔记变成了卡片，第一封来信就会到这里。", "You kept going back to": "你一直回看的", "New this month": "本月新增", "In your own words": "你自己的原话", "Nothing to look at.": "这里暂时没有要看的。" });
@@ -2193,12 +2194,12 @@ ZH_PATTERNS.unshift(
     [/^Planning from your (recent|earlier) notes only\.$/, function(m, w){ return "只用你" + (w === "recent" ? "最近" : "更早") + "的笔记来规划。"; }],
     [/^Using (\d+) cards as seeds: (.+)\.$/, function(m, n, l){ return "用 " + n + " 张卡片作种子：" + l + "。"; }],
     [/^Looking for: (.+), around (.+)\.$/, function(m, k, a){ return "寻找：" + k.split(", then ").map(kz).join("，再到 ") + "，范围在" + a + "一带。"; }],
-    [/^Asked Qloo for (.+?) near (.+?) with (.+?): (\d+) came back, (\d+) passed the checks(.*)\.$/, function(m, k, a, sd, n, ok, rest){
+    [/^Asked (?:Qloo|the catalogue) for (.+?) near (.+?) with (.+?): (\d+) came back, (\d+) passed the checks(.*)\.$/, function(m, k, a, sd, n, ok, rest){
       var extra = "";
       var r1 = rest.match(/\((\d+) wrong kind, closed or not a stop\)/); if (r1) extra += "（" + r1[1] + " 个类型不符、已关闭或不是可去的地方）";
       var r2 = rest.match(/, (\d+) you already know/); if (r2) extra += "，" + r2[1] + " 个你已经知道";
       var r3 = rest.match(/, (\d+) over budget/); if (r3) extra += "，" + r3[1] + " 个超预算";
-      return "向 Qloo 询问" + a + "附近的" + kz(k) + "（依据 " + sd + "）：返回 " + n + " 个，" + ok + " 个通过检查" + extra + "。"; }],
+      return "向口味目录询问" + a + "附近的" + kz(k) + "（依据 " + sd + "）：返回 " + n + " 个，" + ok + " 个通过检查" + extra + "。"; }],
     [/^Few (.+) results right in (.+), so I widened to (.+) and found (\d+)\.$/, function(m, k, a, w, n){ return a + "本地的" + kz(k) + "太少，于是扩大到" + w + "，又找到 " + n + " 个。"; }],
     [/^Nothing (.+) I found is open around (.+) on (\w+), so I left that stop out\.$/, function(m, k, t, d){ return "我找到的" + kz(k) + "在" + dz(d) + clk(t) + "前后都没开门，所以这一站先略过。"; }],
     [/^Skipped (\d+) that would be closed when you got there\.$/, function(m, n){ return "略过了 " + n + " 个你到的时候已经关门的地方。"; }],
@@ -2222,7 +2223,7 @@ Object.assign(ZH, {
 });
 Object.assign(ZH, {
   "Mentioned once": "提到一次", "again": "又提到了", "Show less": "收起", "Compare →": "对比 →", "Compare": "对比",
-  "Open when you arrive, per Qloo's listed hours": "按 Qloo 标注的营业时间，到达时正在营业", "May be closed when you arrive": "到达时可能已关门",
+  "Open when you arrive, per listed hours": "按标注的营业时间，到达时正在营业", "May be closed when you arrive": "到达时可能已关门",
   "Hours not listed": "未标注营业时间"
 });
 (function(){
@@ -2232,13 +2233,13 @@ Object.assign(ZH, {
   ZH_PATTERNS.unshift(
     [/^[Mm]entioned (\d+)\u00d7$/, function(m, n){ return "提到 " + n + " 次"; }],
     [/^\+ (\d+) more from your notes$/, function(m, n){ return "还有 " + n + " 条来自你的笔记"; }],
-    [/^Qloo matched this (.+?) mostly through (.+?)(?:; affinity ([\d.]+))?\.$/, function(m, kind, list, aff){
-      return "Qloo 主要通过 " + who(list) + " 匹配到这家" + trZh(kind) + (aff ? "；契合度 " + aff : "") + "。"; }],
-    [/^Qloo ranked this (.+?) near (.+?) in taste(?: \(popularity ([\d.]+)\))?\.$/, function(m, kind, list, pop){
-      return "按口味，Qloo 把这家" + trZh(kind) + "排在 " + String(list).split(" and ").join("、") + " 附近" + (pop ? "（热度 " + pop + "）" : "") + "。"; }],
-    [/^Qloo lists it closed on (\w+)s \u00b7 not live-checked$/, function(m, d){ return "Qloo 标注" + (DAYS[d] || d) + "不营业 · 未实时核实"; }],
-    [/^Qloo lists (\w+day) (.+) \u00b7 not live-checked$/, function(m, d, x){ return "Qloo 标注营业时间 " + (DAYS[d] || d) + " " + x + " · 未实时核实"; }],
-    [/^(Not much matched right in (.+?), so I looked a little further\.|Qloo's best matches near (.+?) spill over the border\.) (.+)$/, function(m, lead, a1, a2, rest){
+    [/^(?:Qloo matched|Matched) this (.+?) mostly through (.+?)(?:; affinity ([\d.]+))?\.$/, function(m, kind, list, aff){
+      return "主要通过 " + who(list) + " 匹配到这家" + trZh(kind) + (aff ? "；契合度 " + aff : "") + "。"; }],
+    [/^(?:Qloo ranked|Ranked) this (.+?) near (.+?) in taste(?: \(popularity ([\d.]+)\))?\.$/, function(m, kind, list, pop){
+      return "按口味，目录把这家" + trZh(kind) + "排在 " + String(list).split(" and ").join("、") + " 附近" + (pop ? "（热度 " + pop + "）" : "") + "。"; }],
+    [/^(?:Qloo lists it closed|Listed as closed) on (\w+)s \u00b7 not live-checked$/, function(m, d){ return "标注" + (DAYS[d] || d) + "不营业 · 未实时核实"; }],
+    [/^(?:Qloo lists|Listed) (\w+day) (.+) \u00b7 not live-checked$/, function(m, d, x){ return "标注营业时间 " + (DAYS[d] || d) + " " + x + " · 未实时核实"; }],
+    [/^(Not much matched right in (.+?), so I looked a little further\.|(?:Qloo's best|The best) matches near (.+?) spill over the border\.) (.+)$/, function(m, lead, a1, a2, rest){
       var l = a1 ? a1 + "附近匹配的不多，所以我往外多找了一点。" : "Qloo 在" + a2 + "附近最匹配的地方，有的在边界外。";
       var r = rest, x;
       if ((x = rest.match(/^The stop is in (.+)\.$/))) r = "这一站在" + hood(x[1]) + "。";
@@ -2265,8 +2266,8 @@ Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味�
     return trZh(s);
   };
   ZH_PATTERNS.unshift(
-    [/^(.+?\.) Qloo puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\.$/, function(m, l, top, aff, via){
-      return lead(l) + "Qloo 认为 " + top + " 最贴近你的口味（" + aff + "）" + (via ? "，主要因为 " + two(via) : "") + "。"; }],
+    [/^(.+?\.) (?:Qloo|The catalogue) puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\.$/, function(m, l, top, aff, via){
+      return lead(l) + "目录认为 " + top + " 最贴近你的口味（" + aff + "）" + (via ? "，主要因为 " + two(via) : "") + "。"; }],
     [/^((?:“[^”]+”(?: and )?)+) is how Qloo reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, who, q){
       var w = who === "your recent cards" ? "你最近的卡片" : who === "your cards" ? "你的卡片" : two(who);
       return "Qloo 用 " + tags.split(" and ").join("、") + " 来读 " + w + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
@@ -2325,7 +2326,7 @@ function reasonZh(r){
     .replace(/(\d+) (films|shows|artists|books|places|things) are called ([^.]+)\./g, function(_, n, w, nm){ return n + " 个同名条目：" + nm + "。"; })
     .replace(/"([^"]+)" could be a few things\./g, "“$1”可能指好几样东西。")
     .replace(/Not sure "([^"]+)" means ([^.]+?)\./g, "不确定“$1”是不是指 $2。")
-    .replace(/\s*Qloo puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\./g, function(_, n, a, v){ return " Qloo 认为 " + n + " 最贴近你的口味（" + a + "）" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。"; });
+    .replace(/\s*(?:Qloo|The catalogue) puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\./g, function(_, n, a, v){ return " 目录认为 " + n + " 最贴近你的口味（" + a + "）" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。"; });
 }
 function reasonHtml(r){ var h = esc(reasonZh(r)); if (LANG !== "zh") return h; return h.replace(/[A-Za-z][A-Za-z0-9'’&:.\-]*(?: [A-Z][A-Za-z0-9'’&:.\-]*)*/g, function(m){ return '<span translate="no" style="margin:0 .18em">' + m + '</span>'; }); }
 function t(s){ return LANG === "zh" ? trZh(s) : s; }
@@ -2334,9 +2335,9 @@ function stopRead(s){
   if (s.read_zh) return s.read_zh;
   const r = String(s.read || ""), kz = function(k){ k = String(k).toLowerCase().trim(); return ZH[k] || k; }, tz = function(v){ return tagZh(v); };
   let m = r.match(/^An? (.+?) with an? (.+?) feel\.$/);
-  if (m) return "一家" + kz(m[1]) + "，Qloo 给它的气质标签是" + m[2].split(/,\s*/).map(tz).join("、") + "。";
-  m = r.match(/^An? (.+?) Qloo ranks close to your taste\.$/);
-  if (m) return "一家" + kz(m[1]) + "，Qloo 把它排在很贴近你口味的位置。";
+  if (m) return "一家" + kz(m[1]) + "，目录给它的气质标签是" + m[2].split(/,\s*/).map(tz).join("、") + "。";
+  m = r.match(/^An? (.+?) (?:Qloo ranks )?close to your taste\.$/);
+  if (m) return "一家" + kz(m[1]) + "，目录把它排在很贴近你口味的位置。";
   m = r.match(/^(.+?)(?:, tagged (.+?))?, a fit for your note on (.+)\.$/);
   if (m) return kz(m[1]) + (m[2] ? "，标签是" + m[2].split(/ and /).map(tz).join("、") : "") + "，和你关于 " + m[3] + " 的笔记很搭。";
   return r;
@@ -6635,7 +6636,7 @@ function renderPlanResult(id){
           (stop && stop.arrive ? '<p class="stop-time">' + esc(stop.arrive) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + (LANG === "zh" ? " 分钟" : " min") : "") + "</p>" : "") +
           '<h3 class="stop-name">' + esc((stop && stop.name) || "Somewhere") + "</h3>" +
           '<p class="stop-where">' + esc([stop && stop.kind && t(String(stop.kind).toLowerCase()), place].filter(Boolean).join(" · ")) + "</p>" +
-          (stop && stop.open_on_arrival === true ? '<p class="stop-open">' + esc(t("Open when you arrive, per Qloo's listed hours")) + "</p>" : stop && stop.open_on_arrival === false ? '<p class="stop-open stop-open-warn">' + esc(t("May be closed when you arrive")) + "</p>" : "") +
+          (stop && stop.open_on_arrival === true ? '<p class="stop-open">' + esc(t("Open when you arrive, per listed hours")) + "</p>" : stop && stop.open_on_arrival === false ? '<p class="stop-open stop-open-warn">' + esc(t("May be closed when you arrive")) + "</p>" : "") +
         "</div>" +
       "</div>" +
       '<div class="evidence">' +

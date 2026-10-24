@@ -3917,6 +3917,7 @@ const Capture = (function(){
     const o = opts || {};
     if (isOpen) { if (o.text) { ta.value = o.text + ta.value; sync(); } ta.focus(); return; }
     isOpen = true; lastFocus = document.activeElement;
+    if (sheet.getAnimations) sheet.getAnimations().forEach(function(a){ a.cancel(); });
     loadDraft();
     if (o.text && ta.value.indexOf(o.text) < 0) ta.value = o.text + ta.value;
     sheet.hidden = false; veil.hidden = false;
@@ -3939,7 +3940,7 @@ const Capture = (function(){
     saveDraft();
     fab.classList.remove("is-open"); fab.setAttribute("aria-expanded", "false");
     veil.classList.remove("on");
-    const done = function(){ sheet.hidden = true; veil.hidden = true; sync(); };
+    const done = function(){ if (isOpen) return; sheet.hidden = true; veil.hidden = true; sync(); };
     if (!reduced() && sheet.animate && !silent) {
       const f = springFrom();
       const a = sheet.animate([{ transform: "none", opacity: 1 }, { transform: "translate(" + f.dx + "px," + f.dy + "px) scale(" + f.s + ")", opacity: 0 }],
@@ -3972,7 +3973,7 @@ const Capture = (function(){
       sheet.hidden = false;
       const f = springFrom();
       const a = sheet.animate([{ transform: "none", opacity: 1 }, { transform: "translate(" + f.dx + "px," + f.dy + "px) scale(" + f.s + ")", opacity: 0 }], { duration: 300, easing: "cubic-bezier(.4,0,.2,1)" });
-      a.onfinish = function(){ sheet.hidden = true; veil.hidden = true; };
+      a.onfinish = function(){ if (isOpen) return; sheet.hidden = true; veil.hidden = true; };
     } else { sheet.hidden = true; veil.hidden = true; }
     try { fab.focus({ preventScroll: true }); } catch (_) {}
     const ids = jobs.map(function(j){

@@ -68,6 +68,7 @@ async function qloo(env, path, params) {
 const short = (s, n = 220) => (s && s.length > n ? s.slice(0, n - 1) + "…" : s || "");
 
 export function slimEntity(e) {
+  if (!e || typeof e !== "object") return null;
   const p = e.properties || {};
   const types = Array.isArray(e.types) ? e.types : [];
   const domain = DOMAIN_BY_URN[e.subtype] || DOMAIN_BY_URN[types[0]] || String(e.subtype || "").split(":").pop();
@@ -149,7 +150,7 @@ export async function recommend(env, { domain, entity_ids, tag_ids, location, pl
   if (place_tag_ids?.length && domain === "place") params["filter.tags"] = place_tag_ids;
   const data = await qloo(env, "/v2/insights", params);
   const ex = new Set([...(exclude_ids || []), ...(entity_ids || [])]);
-  return (data.results?.entities || []).filter((e) => !ex.has(e.entity_id)).slice(0, take).map(slimEntity);
+  return (data.results?.entities || []).filter((e) => !ex.has(e.entity_id)).slice(0, take).map(slimEntity).filter(Boolean);
 }
 
 /** Look up valid Qloo tag ids by keyword (genres, cuisines, moods…). */
@@ -162,7 +163,7 @@ export async function searchTags(env, { query, domain }) {
 export async function getEntities(env, ids) {
   if (!ids.length) return [];
   const data = await qloo(env, "/entities", { entity_ids: ids });
-  return (data.results || []).map(slimEntity);
+  return (data.results || []).map(slimEntity).filter(Boolean);
 }
 
 /** Tags Qloo associates most strongly with a set of entities (a person's taste fingerprint). */

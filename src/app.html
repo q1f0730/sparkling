@@ -2187,6 +2187,7 @@ function reasonZh(r){
     .replace(/\s*Qloo puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\./g, function(_, n, a, v){ return " Qloo 认为 " + n + " 最贴近你的口味（" + a + "）" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。"; });
 }
 function t(s){ return LANG === "zh" ? trZh(s) : s; }
+function stopRead(s){ return (LANG === "zh" && s && s.read_zh) || (s && s.read) || ""; }
 
 /* DOM pass: translate exact UI strings in text nodes and a few attributes. */
 const I18N_ATTRS = ["placeholder", "aria-label", "title"];
@@ -5595,6 +5596,7 @@ function renderPlanRequest(){
     planBtn.disabled = true;
     planBtn.textContent = "Making a plan";
     const body = { mood: mood, period: period };
+    if (LANG === "zh") body.lang = "zh";
     if (when) body.when = when;
     if (area) body.area = area;
     const budgetN = numberValue(budgetRaw);
@@ -5796,7 +5798,7 @@ function renderPlanResult(id){
       (vibes.length ? '<div class="seeds">' + vibes.slice(0, 4).map(function(v, k){ return seedHTML({ name: v, type: "vibe" }, "sm" + (k < 2 ? " s" + (k + 1) : "")); }).join("") + "</div>" : "") +
       (w.popularity != null ? '<p class="why-line">Popularity ' + Number(w.popularity).toFixed(2) + " (0 is obscure, 1 is everywhere).</p>" : "") +
     "</section>";
-    const readCard = stop && stop.read ? '<section class="bcard bread"><div class="blabel"><span>Sparkling&rsquo;s read</span></div><p>' + esc(stop.read) + "</p><p class=\"why-line\">" + (stop.read_src === "model" ? "A sentence written by a model from the venue&rsquo;s description. It is not Qloo data." : "A plain template filled from Qloo&rsquo;s tags. No model wrote this.") + "</p></section>" : "";
+    const readCard = stop && stop.read ? '<section class="bcard bread"><div class="blabel"><span>Sparkling&rsquo;s read</span></div><p>' + esc(stopRead(stop)) + "</p><p class=\"why-line\">" + (stop.read_src === "model" ? "A sentence written by a model from the venue&rsquo;s description. It is not Qloo data." : "A plain template filled from Qloo&rsquo;s tags. No model wrote this.") + "</p></section>" : "";
     const rc = '<div class="why-receipt" translate="no">' +
       "<div>GET /v2/insights &middot; filter.type=urn:entity:place</div>" +
       "<div class=\"ind\">feature.explainability=true</div>" +
@@ -5816,7 +5818,7 @@ function renderPlanResult(id){
     let d = null;
     try { d = await api("/api/plan/" + encodeURIComponent(planId) + "/plain", { method: "POST", body: "{}" }); } catch (e) {}
     const pl = d && d.plain;
-    const mine = (currentPlan.stops || []).map(function(s, i){ const hood = s.neighborhood || s.address || ""; const dst = i > 0 && s.distance ? String(s.distance).replace(/ from stop \d+/, "") : ""; const op = s.open_on_arrival === true ? t("Open on arrival") : s.open_on_arrival === false ? t("May be closed when you arrive") : ""; const bits = [dst ? esc(t(dst)) : "", hood ? esc(hood) : "", op ? esc(op) : ""].filter(Boolean).join(" · "); return '<li><b translate="no">' + esc(s.name) + '</b><br><span class="pc pc-ok">' + esc(t("In Qloo")) + '</span>' + (bits ? '<small class="muted"> · ' + bits + '</small>' : "") + '<br><small>' + esc(s.read || "") + '</small></li>'; }).join("");
+    const mine = (currentPlan.stops || []).map(function(s, i){ const hood = s.neighborhood || s.address || ""; const dst = i > 0 && s.distance ? String(s.distance).replace(/ from stop \d+/, "") : ""; const op = s.open_on_arrival === true ? t("Open on arrival") : s.open_on_arrival === false ? t("May be closed when you arrive") : ""; const bits = [dst ? esc(t(dst)) : "", hood ? esc(hood) : "", op ? esc(op) : ""].filter(Boolean).join(" · "); return '<li><b translate="no">' + esc(s.name) + '</b><br><span class="pc pc-ok">' + esc(t("In Qloo")) + '</span>' + (bits ? '<small class="muted"> · ' + bits + '</small>' : "") + '<br><small>' + esc(stopRead(s)) + '</small></li>'; }).join("");
     const CK = { found: ["ok", "In Qloo"], far: ["warn", "In Qloo, but far"], closed: ["bad", "Closed for good, per Qloo"], not_found: ["warn", "Not in Qloo, so unchecked"], elsewhere: ["bad", "Only found in another city"], unchecked: ["muted", "Not checked"] };
     const ckLine = function(c){ if (!c) return '<span class="pc pc-muted">' + esc(t("Not checked")) + "</span>"; const k = CK[c.status] || CK.unchecked; const dist = c.mi != null ? " · " + esc(t(c.mi < 0.1 ? "on the route" : c.mi + " mi from the route")) : ""; return '<span class="pc pc-' + k[0] + '">' + esc(t(k[1])) + "</span>" + (c.status !== "not_found" && c.status !== "unchecked" && c.status !== "elsewhere" ? '<small class="muted">' + dist + (c.hood ? " · " + esc(c.hood) : "") + "</small>" : ""); };
     const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
@@ -5854,7 +5856,7 @@ function renderPlanResult(id){
       '<div class="evidence">' +
         sourcesHTML(stop) +
         stopEvidenceHTML("qloo", "From Qloo", stop && stop.from_qloo, false, stop && stop.vibes) +
-        stopEvidenceHTML("read", "Sparkling's read", stop && stop.read, true) +
+        stopEvidenceHTML("read", "Sparkling's read", stop && stopRead(stop), true) +
       "</div>" +
       '<div class="stop-ops">' +
         "<span>" + esc(opsText) + "</span>" +

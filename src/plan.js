@@ -265,7 +265,7 @@ export function groundedRead(txt, s, note) {
   const facts = [st.kind, st.name, st.description, ...(st.vibes || [])].join(" ").toLowerCase();
   const GEN = /dining|drinking|socializ|dogs?|allowed|inside|outdoor seating|wheelchair|parking|wifi|credit|reservations?|delivery|takeout|good for|accepts/i;
   const vibes = (st.vibes || []).map((v) => String(v).toLowerCase()).filter((v) => !GEN.test(v)).slice(0, 2);
-  const tpl = `${vibes.length ? "A " + String(st.kind || "place").toLowerCase() + " with a " + vibes.join(", ") + " feel" : "A " + String(st.kind || "place").toLowerCase() + " Qloo ranks close to your taste"}.`;
+  const tpl = `${vibes.length ? "A " + String(st.kind || "place").toLowerCase() + " with a " + vibes.join(", ") + " feel" : "A " + String(st.kind || "place").toLowerCase() + " close to your taste"}.`;
   const noteTpl = noteStr ? `${String(st.kind || "Place")}${vibes.length ? ", tagged " + vibes.join(" and ") : ""}, a fit for your note on ${noteStr}.` : tpl;
   if (!txt) return noteTpl;
   const words = String(txt).toLowerCase().replace(/[^a-z\s']/g, " ").split(/\s+/).filter((w) => w.length > 3);
@@ -355,7 +355,7 @@ export async function makePlan(env, user, req, log) {
       await cachePut(env, key, out);
       return out;
     } catch (e) {
-      throw { state: "qloo_down", text: "Plans need Qloo right now and it isn't answering. Your notes and cards are fine." };
+      throw { state: "qloo_down", text: "Plans need the taste catalogue right now and it isn't answering. Your notes and cards are fine." };
     }
   };
   const rejected = {};
@@ -378,7 +378,7 @@ export async function makePlan(env, user, req, log) {
   const first = await Promise.all(kinds.map((k, i) => { const sd = seedsFor(k); return ask(k, tags[i], { "filter.location.query": area }, sd).then((raw) => ({ k, tag: tags[i], sd, raw })); }));
   const pools = first.map(({ k, tag, sd, raw }) => {
     const { ok, dropped } = clean(raw, k);
-    log(`Asked Qloo for ${k} near ${area} with ${sd.map((s) => s.name).slice(0, 3).join(", ")}${sd.length > 3 ? "…" : ""}: ${raw.length} came back, ${ok.length} passed the checks` + (dropped.check ? ` (${dropped.check} wrong kind, closed or not a stop)` : "") + (dropped.known ? `, ${dropped.known} you already know` : "") + (dropped.price ? `, ${dropped.price} over budget` : "") + ".");
+    log(`Asked the catalogue for ${k} near ${area} with ${sd.map((s) => s.name).slice(0, 3).join(", ")}${sd.length > 3 ? "…" : ""}: ${raw.length} came back, ${ok.length} passed the checks` + (dropped.check ? ` (${dropped.check} wrong kind, closed or not a stop)` : "") + (dropped.known ? `, ${dropped.known} you already know` : "") + (dropped.price ? `, ${dropped.price} over budget` : "") + ".");
     return { kind: k, tag, seeds: sd, items: ok };
   });
   timing.qloo_first_ms = Date.now() - T1;
@@ -442,7 +442,7 @@ export async function makePlan(env, user, req, log) {
   log(`Checked hours for ${day[0].toUpperCase() + day.slice(1)} and wrote one line per stop.`);
   plan.widened = !!widened;
   plan.notice = planNotice(plan.stops, area, !!widened);
-  if (unknownHours) plan.notice = [plan.notice, `Qloo has no hours for ${unknownHours === 1 ? "one stop" : unknownHours + " stops"}; check before you go.`].filter(Boolean).join(" ");
+  if (unknownHours) plan.notice = [plan.notice, `No listed hours for ${unknownHours === 1 ? "one stop" : unknownHours + " stops"}; check before you go.`].filter(Boolean).join(" ");
   plan.pool = pools.map((p) => ({ kind: p.kind, items: p.items.slice(0, 8) }));
   plan.receipt = {
     seeds: allSeeds.map((s) => ({ name: s.name, qloo_id: s.qloo_id })),
@@ -465,7 +465,7 @@ export function planNotice(stops, area, widened) {
   if (!outside.length) return null;
   if (!widened && !ZIP_HOOD_NAMES.has(lc(areaWord))) return null; // free-text area we cannot compare against
   const uniq = [...new Set(outside)];
-  const lead = widened ? `Not much matched right in ${areaWord}, so I looked a little further.` : `Qloo's best matches near ${areaWord} spill over the border.`;
+  const lead = widened ? `Not much matched right in ${areaWord}, so I looked a little further.` : `The best matches near ${areaWord} spill over the border.`;
   if (outside.length === stops.length) return `${lead} ${stops.length === 1 ? `The stop is in ${uniq[0]}.` : uniq.length === 1 ? `${stops.length === 2 ? "Both stops are" : "All stops are"} in ${uniq[0]}.` : `The stops are in ${uniq.join(" and ")}.`}`;
   return `${lead} ${outside.length === 1 ? "One stop is" : outside.length + " stops are"} in ${uniq.join(" and ")}.`;
 }
@@ -476,9 +476,9 @@ export function hoursLine(hours, when) {
   const h = hours && hours[day];
   const cap = day[0].toUpperCase() + day.slice(1);
   if (!Array.isArray(h) || !h.length || !h[0]) return "Hours not listed";
-  if (h[0].closed) return `Qloo lists it closed on ${cap}s · not live-checked`;
+  if (h[0].closed) return `Listed as closed on ${cap}s · not live-checked`;
   const t = (x) => (x || "").replace(/^T/, "").slice(0, 5);
-  return `Qloo lists ${cap} ${h.filter(Boolean).map((x) => `${t(x.opens)}–${t(x.closes)}`).join(", ")} · not live-checked`;
+  return `Listed ${cap} ${h.filter(Boolean).map((x) => `${t(x.opens)}–${t(x.closes)}`).join(", ")} · not live-checked`;
 }
 
 /** Labelled reasons for each stop. */
@@ -574,7 +574,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
         const cf = contribFor(s);
         return { attribution: !!cf, contributions: cf, affinity: s.affinity ?? null, qloo_id: s.qloo_id, popularity: s.popularity ?? null, vibes: (s.vibes || []).slice(0, 6), kinds: s.kinds || [], price_level: s.price_level ?? null, area: meta.area, seeds_sent: seedNames.length };
       })(),
-      from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Qloo matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Qloo ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
+      from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
       read: groundedRead(reads[i], s, (fn_[0] && fn_[0].name) || null),
       read_src: reads[i] && groundedRead(reads[i], s, (fn_[0] && fn_[0].name) || null) === reads[i] ? "model" : "template",
       ops: hoursLine(s.hours, meta.when) + (open === false ? " · may be closed when you arrive" : ""),

@@ -211,7 +211,20 @@ export function cohorts(cards, n = 6) {
 }
 
 const DEFAULT_KINDS = ["bookstore", "cafe", "record store"];
-const KW_SCHEMA = { type: "object", properties: { stops: { type: "array", items: { type: "string" } } }, required: ["stops"] };
+const VENUES = ["bookstore", "book store", "bookshop", "record store", "cafe", "coffee", "cinema", "movie theater", "museum", "gallery", "wine bar", "bar", "park", "bakery", "pie shop", "library", "tea", "restaurant", "music venue", "jazz club"];
+/** Kinds the request text explicitly names, in the order written. Empty when it names none. */
+export function kindsFromText(text) {
+  const low = lc(text);
+  if (!low) return [];
+  const hits = VENUES.map((v) => [v, low.indexOf(v)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([v]) => (v === "coffee" || v === "tea" ? "cafe" : v === "book store" || v === "bookshop" ? "bookstore" : v));
+  if (/somewhere (nearby )?to sit/.test(low) && !hits.includes("cafe")) hits.push("cafe");
+  return [...new Set(hits)].filter((h, i, arr) => !(h === "bar" && arr.includes("wine bar"))).slice(0, 3);
+}
+/** Kinds to ask Qloo for: exactly what the text names, else the defaults. Time/budget text never picks kinds. */
+export function planKinds(text) {
+  const k = kindsFromText(text);
+  return k.length ? k : DEFAULT_KINDS;
+}
 
 // ---- small caches in D1 (llm_cache table): Qloo place pools for 6 h, model sentences for 7 days.
 async function sha(s) { return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join(""); }
@@ -223,29 +236,6 @@ export async function cachePut(env, key, value) {
   try { await env.DB.prepare("INSERT OR REPLACE INTO llm_cache (key,value,created_at) VALUES (?,?,?)").bind(key, JSON.stringify(value), Date.now()).run(); } catch (_) {}
 }
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
-
-async function stopKinds(env, text) {
-  if (!text) return DEFAULT_KINDS;
-  const VENUES = ["bookstore", "book store", "bookshop", "record store", "cafe", "coffee", "cinema", "movie theater", "museum", "gallery", "wine bar", "bar", "park", "bakery", "library", "tea", "restaurant", "music venue", "jazz club"];
-  const rule = () => {
-    const low = text.toLowerCase();
-    const hits = VENUES.map((v) => [v, low.indexOf(v)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([v]) => (v === "coffee" || v === "tea" ? "cafe" : v === "book store" || v === "bookshop" ? "bookstore" : v));
-    if (/somewhere (nearby )?to sit/.test(low) && !hits.includes("cafe")) hits.push("cafe");
-    return [...new Set(hits)].filter((h, i, arr) => !(h === "bar" && arr.includes("wine bar"))).slice(0, 3);
-  };
-  const r0 = rule();
-  if (r0.length >= 2) return r0; // the words already say it; skip the model (saves ~2 s)
-  const key = "kinds:" + (await sha(text));
-  const hit = await cacheGet(env, key, 7 * 86400000);
-  if (hit) return hit;
-  try {
-    const o = await withTimeout(llmJSON(env, "Turn a request for an afternoon outing into 1-3 short venue category words Qloo would know (e.g. bookstore, cafe, record store, cinema, museum, bar, park, bakery, gallery). Return {\"stops\":[...]} in visiting order.", text, KW_SCHEMA, 120), 3000);
-    const s = (o?.stops || []).map((x) => String(x).toLowerCase().trim()).filter(Boolean).slice(0, 3);
-    const out = s.length ? s : r0.length ? r0 : DEFAULT_KINDS;
-    await cachePut(env, key, out);
-    return out;
-  } catch (_) { return r0.length ? r0 : DEFAULT_KINDS; }
-}
 
 async function placeTag(env, word) {
   const rule = kindRule(word);
@@ -295,7 +285,7 @@ export async function makePlan(env, user, req, log) {
   if (req.period === "now" || req.period === "then") log(`Planning from ${req.period === "now" ? "your recent notes" : "your earlier notes"} only.`);
   if (seeds.length < 2) throw { state: "too_few", text: "I need a few more things you love to plan from. Mark a couple of cards with a heart, or start from one card." };
   log(`Using ${seeds.length} cards as seeds: ${seeds.map((s) => s.name).join(", ")}.`);
-  const kinds = await stopKinds(env, req.text);
+  const kinds = planKinds(req.text);
   timing.kinds_ms = Date.now() - T0;
   log(`Looking for: ${kinds.join(", then ")}, around ${area}.`);
   const known = new Set(all.map((c) => c.qloo_id));

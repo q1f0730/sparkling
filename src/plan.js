@@ -110,6 +110,7 @@ function placeCats(e) {
  * fit 2 = its primary genre is the kind, 1 = the kind is a secondary category and the primary is compatible-ish.
  */
 export function checkPlace(p, kind, ctx = {}) {
+  if (!p || typeof p !== "object") return { ok: false, fit: 0, label: kind || "", reasons: ["no_id"] };
   const reasons = [];
   const rule = kindRule(kind);
   const cats = p.cats || [];
@@ -213,6 +214,7 @@ export async function pickSeeds(env, userId, mood, period) {
 
 /** Equal-sized cohorts of liked cards by their latest footprint: the latest N vs the N before. */
 export function cohorts(cards, n = 6) {
+  if (!Array.isArray(cards)) cards = [];
   const byLast = [...cards].sort((a, b) => (b.last || b.last_at || 0) - (a.last || a.last_at || 0));
   const size = Math.min(n, Math.floor(byLast.length / 2));
   return { size, now: byLast.slice(0, size), then: byLast.slice(size, size * 2) };

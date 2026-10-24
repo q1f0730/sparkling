@@ -321,7 +321,7 @@ async function resolveMention(env, userId, note, noteId, text, m) {
     const cardId = await upsertCard(env, userId, pick, Date.now());
     const dup = await env.DB.prepare("SELECT id FROM footprints WHERE card_id=? AND note_id=?").bind(cardId, noteId).first();
     if (!dup) await addFootprint(env, userId, cardId, noteId, m, note.created_at);
-    Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: pick.name, type: cardType(pick.type), image: pick.image || null, year: pick.year || null } });
+    Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: pick.name, type: cardType(pick.type), image: pick.image || null, year: pick.year || null, n: had ? ((await env.DB.prepare("SELECT COUNT(DISTINCT COALESCE(note_id, id)) n FROM footprints WHERE card_id=?").bind(cardId).first()) || {}).n || null : 1 } });
   } else if (guesses.length && !(m.heuristic && !/\s/.test(m.surface)) && (properish(m.surface) || guesses.some((g) => norm(g.name) === norm(m.surface)))) {
     const ranked = await tasteRank(env, userId, guesses.map(({ tags, ...g }) => g));
     await askInbox(env, userId, noteId, m.surface, m.kind, m.sentiment, ranked);
@@ -374,7 +374,7 @@ async function sampleNoteBody(env, userId, note, sm, ents) {
       const had = await env.DB.prepare("SELECT id FROM cards WHERE user_id=? AND qloo_id=?").bind(userId, pick.qloo_id).first();
       const cardId = await upsertCard(env, userId, pick, note.created_at);
       await addFootprint(env, userId, cardId, note.id, fp, note.created_at);
-      Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: pick.name, type: cardType(pick.type), image: pick.image || null, year: pick.year || null } });
+      Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: pick.name, type: cardType(pick.type), image: pick.image || null, year: pick.year || null, n: had ? ((await env.DB.prepare("SELECT COUNT(DISTINCT COALESCE(note_id, id)) n FROM footprints WHERE card_id=?").bind(cardId).first()) || {}).n || null : 1 } });
     }
     mentions.push(mention);
   }

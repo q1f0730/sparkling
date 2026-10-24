@@ -252,27 +252,45 @@ export function crossType(surface, title, results, cue) {
 
 /** One catalogue row for the / picker: name, type and a short line that tells two Margarets apart. */
 export function pickerRow(r) {
+  if (!r || typeof r !== "object") return null;
   if (!r) return null;
   const desc = String(r.desc || "").replace(/\s*\(born[^)]*\)/i, "").trim();
   let sub = "";
-  if (r.type === "person") sub = desc.replace(/^(american|british|english|french|canadian|australian|irish|korean|japanese|chinese|polish|german|italian|spanish|swedish|indonesian|south korean|hong kong)\s+/i, "").slice(0, 40);
+  if (r.type === "person") sub = desc.replace(/^(american|british|english|french|canadian|australian|irish|korean|japanese|chinese|polish|german|italian|spanish|swedish|indonesian|south korean|hong kong|indian|mexican|brazilian|russian|dutch|danish|norwegian|swiss|austrian|belgian|scottish|welsh|new zealand)(-born)?\s+/i, "").split(/,|;| and | known /)[0].trim().slice(0, 40);
   else if (r.type === "film" || r.type === "tv") sub = [r.year, r.by].filter(Boolean).join(" · ");
   else if (r.type === "book") sub = [r.year, r.by].filter(Boolean).join(" · ");
   else if (r.type === "music") sub = (/\b(band|duo|group)\b/i.test(desc) ? "band" : /singer|songwriter|rapper|musician/i.test(desc) ? (desc.match(/singer-songwriter|singer|songwriter|rapper|musician/i) || [""])[0].toLowerCase() : "");
   else if (r.type === "place") sub = String(r.by || "").slice(0, 40);
   return { qloo_id: r.qloo_id, name: r.name, type: r.type, year: r.year || undefined, by: r.by || undefined, sub: sub || undefined, image: r.image || undefined, popularity: r.popularity };
 }
-/** Merge picker result lists (original + translated query), drop dupes and non-card types, exact names first. */
+/** Merge picker result lists (people / works / places searched apart), drop dupes and non-card types.
+ * Order: exact names, then names that start with what was typed, then the rest; popularity inside each band.
+ * A singer listed both as artist and as person shows once (as the artist); "All" keeps at most 3 places. */
 export function pickerMerge(query, lists, type) {
-  const seen = new Set(), out = [];
-  for (const list of Array.isArray(lists) ? lists : []) for (const r of list || []) {
+  const seen = new Set(), rows = [];
+  let i = 0;
+  for (const list of Array.isArray(lists) ? lists : []) for (const r of Array.isArray(list) ? list : []) {
+    i++;
     if (!r || !r.qloo_id || seen.has(r.qloo_id) || !r.urn || !CARD_URNS.includes(r.urn)) continue;
     if (type && type !== "all" && r.type !== type) continue;
-    seen.add(r.qloo_id); out.push(r);
+    seen.add(r.qloo_id); rows.push({ r, i });
   }
   const q = norm(query);
-  const rank = (r) => (norm(r.name) === q ? 2 : norm(r.name).startsWith(q) ? 1 : 0);
-  return out.map((r, i) => ({ r, i })).sort((a, b) => rank(b.r) - rank(a.r) || a.i - b.i).map((x) => pickerRow(x.r)).slice(0, 12);
+  const artists = new Set(rows.filter((x) => x.r.type === "music").map((x) => norm(x.r.name)));
+  const kept = rows.filter((x) => !(x.r.type === "person" && artists.has(norm(x.r.name)) && MUSICIAN.test(x.r.desc || "")));
+  const band = (r) => { const n = norm(r.name); return n === q ? 3 : q && n.startsWith(q + " ") ? 2 : q && n.startsWith(q) ? 1 : 0; };
+  const pop = (r) => (typeof r.popularity === "number" ? r.popularity : 0);
+  // in "All", places go last: cafés and arenas borrow every name
+  const late = (r) => ((!type || type === "all") && r.type === "place" ? 1 : 0);
+  kept.sort((a, b) => late(a.r) - late(b.r) || band(b.r) - band(a.r) || pop(b.r) - pop(a.r) || a.i - b.i);
+  let places = 0;
+  const out = [];
+  for (const x of kept) {
+    if (late(x.r) && ++places > 3) continue;
+    out.push(pickerRow(x.r));
+    if (out.length >= 12) break;
+  }
+  return out;
 }
 
 // Decide whether the best search result is a sure match.

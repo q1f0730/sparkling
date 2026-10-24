@@ -2031,7 +2031,7 @@ const ZH_PATTERNS = [
 /* r7i18n:begin */
 /* r7 designer pass strings */
 Object.assign(ZH, {
-  "The wall": "卡片墙", "Everything": "你留下的", "you kept.": "一切。", "cards": "卡片", "mentions": "提及", "loved": "喜欢", "kinds": "类型",
+  "The wall": "卡片墙", "Everything": "你留下的", "you kept.": "一切。", "cards": "卡片", "mentions": "提及", "loved": "喜欢",
   "Most on your mind": "最近最常想起", "mentioned": "提及", "mentioned once": "提到一次",
   "Card": "卡片", "mention": "提及", "first met": "初次相遇", "last seen": "最近一次",
 });
@@ -2050,47 +2050,10 @@ Object.assign(ZH, { "Unsure": "不确定", "Did I get": "这几个", "this right
   "Sparkling was not sure about these. Keep the guess, pick another, or set it aside.": "这几条 Sparkling 没有把握。保留猜测、换一个，或者先放一边。" });
 ZH_PATTERNS.unshift([/^\+(\d+) more$/, function(m, n){ return "还有 " + n + " 条"; }]);
 Object.assign(ZH, { "Go": "出发，", "live it.": "去过一遍。", "stop": "站", "stops": "站", "window": "时段", "walking": "步行" });
-ZH_PATTERNS.unshift(
-  [/^Hours not listed$/, function(){ return "Qloo 没有营业时间"; }],
-  [/^Qloo lists (\w+) (.+?) \u00b7 not live-checked$/, function(m, d, t){ return "Qloo 列出" + (DAY_ZH[d] || d) + " " + t + " · 未实时核对"; }],
-  [/^Qloo lists it closed on (\w+?)s \u00b7 not live-checked$/, function(m, d){ return "Qloo 列出" + (DAY_ZH[d] || d) + "休息 · 未实时核对"; }],
-  [/^ \u00b7 may be closed when you arrive$/, function(){ return " · 到达时可能已关门"; }],
-  [/^Not much matched right in (.+?), so I looked a little further\. (.+)$/, function(m, a, rest){ return "在" + a + "附近匹配不多，所以我找得稍远了一点。" + zhT(rest); }],
-  [/^Qloo's best matches near (.+?) spill over the border\. (.+)$/, function(m, a, rest){ return "Qloo 在" + a + "附近的最佳匹配越过了边界。" + zhT(rest); }],
-  [/^Qloo has no hours for (one stop|\d+ stops)\; check before you go\.$/, function(m, n){ return "Qloo 没有" + (n === "one stop" ? "一站" : n.split(" ")[0] + " 站") + "的营业时间，出发前请确认。"; }]
-);
-function zhT(r){
-  var m, k = r.indexOf(" Qloo has no hours");
-  if (k > 0) return zhT(r.slice(0, k)) + trZh(r.slice(k + 1));
-  if ((m = r.match(/^Both stops are in (.+)\.$/))) return "两站都在" + m[1] + "。";
-  if ((m = r.match(/^All stops are in (.+)\.$/))) return "所有站点都在" + m[1] + "。";
-  if ((m = r.match(/^The stop is in (.+)\.$/))) return "这一站在" + m[1] + "。";
-  if ((m = r.match(/^The stops are in (.+)\.$/))) return "各站在" + m[1].replace(" and ", "和") + "。";
-  if ((m = r.match(/^One stop is in (.+)\.$/))) return "有一站在" + m[1] + "。";
-  if ((m = r.match(/^(\d+) stops are in (.+)\.$/))) return m[1] + " 站在" + m[2] + "。";
-  return r;
-}
 ZH_PATTERNS.unshift([/^Stop (\d+)$/, function(m, n){ return "第 " + n + " 站"; }]);
 if (!ZH["Letter"]) ZH["Letter"] = "来信";
+Object.assign(ZH, { "book store": "书店", "bookstore": "书店", "bakery": "面包店", "cafe": "咖啡馆", "coffee shop": "咖啡馆", "record store": "唱片店", "park": "公园", "museum": "博物馆", "art gallery": "美术馆", "gallery": "美术馆", "movie theater": "电影院", "cinema": "电影院", "bar": "酒吧", "restaurant": "餐厅", "pie shop": "派店", "library": "图书馆", "music venue": "演出场地", "vintage store": "古着店", "thrift store": "二手店" });
 
-Object.assign(ZH, {"Not checked": "未核对", "In Qloo": "Qloo 里有", "In Qloo, but far": "Qloo 里有，但离得远", "Closed for good, per Qloo": "Qloo 显示已永久关闭", "Not found in Qloo": "Qloo 里查无此地", "on the route": "就在路线上", "Could not load.": "加载失败。", "Same cards, same area, same model. The only change: no Qloo.": "同样的卡片、同样的区域、同一个模型。唯一的区别：不用 Qloo。", "Plain model": "纯模型", "Sparkling + Qloo": "Sparkling + Qloo", "The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.": "这些地点是模型凭记忆说的。之后 Sparkling 逐个去 Qloo 核对：是否存在、是否还开着、离你的路线近不近。", "Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.": "每一站本来就来自 Qloo：有 ID、坐标、营业时间，并标明来自你的哪条笔记。", "Same notes, no Qloo": "同样的笔记，不用 Qloo", "Asking a plain model, no Qloo… usually 5–15 seconds.": "正在问一个不用 Qloo 的纯模型……通常 5–15 秒。"});
-ZH_PATTERNS.push([/^([\d.]+) mi from the route$/, function(m, n){ return "离路线 " + n + " 英里"; }], [/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 个里有 " + a + " 个通过。"; }]);
-Object.assign(ZH, {"A sentence written by a model from the venue’s description. It is not Qloo data.": "这句由模型根据地点简介写成，不是 Qloo 数据。", "A plain template filled from Qloo’s tags. No model wrote this.": "这是用 Qloo 标签填出来的固定句式，不是模型写的。"});
-Object.assign(ZH, {"Same notes, no Qloo": "同样的笔记，不用 Qloo", "Compare →": "对比 →", "Open when you arrive, per Qloo's listed hours": "按 Qloo 列出的营业时间，到达时在营业", "May be closed when you arrive": "到达时可能已关门"});
-Object.assign(ZH, {"Person": "人物", "People": "人物"});
-Object.assign(ZH, {"Steady":"稳定","Show less":"收起"});
-(function(){
-  var andZh = function(x){ return String(x).replace(/ and /g, "和"); };
-  ZH_PATTERNS.push(
-    [/^\+ (\d+) more from your notes$/, function(m, n){ return "+ 还有 " + n + " 条你的笔记"; }],
-    [/^(\d+) min walk$/, function(m, n){ return "步行 " + n + " 分钟"; }],
-    [/^(\d+) min by bike \(([\d.]+) mi\)$/, function(m, n, d){ return "骑车 " + n + " 分钟（" + d + " 英里）"; }],
-    [/^Qloo matched this (.+?) mostly through (.+?)(?:; affinity ([\d.]+))?\.$/, function(m, k, list, a){ return "Qloo 主要通过 " + andZh(list.replace(/ \((\d+)% of the match\)/g, "（占 $1%）")) + " 匹配到这家" + k + (a ? "；亲和度 " + a : "") + "。"; }],
-    [/^Qloo ranked this (.+?) near (.+?) in taste(?: \(popularity ([\d.]+)\))?\.$/, function(m, k, l, p){ return "按 Qloo 的品味排序，这家" + k + "和 " + andZh(l) + " 相近" + (p ? "（热度 " + p + "）" : "") + "。"; }],
-    [/^(.+) is how Qloo reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, lead, q){ lead = lead === "your recent cards" ? "你最近的卡片" : lead === "your cards" ? "你的卡片" : andZh(lead); return "Qloo 用 " + andZh(tags) + " 来解读 " + lead + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
-  );
-})();
-ZH_PATTERNS.push([/^mentioned (\d+)×$/, function(m, n){ return "第 " + n + " 次提到"; }]);
 /* r7i18n:end */
 function trZh(s){
   if (s == null) return s;
@@ -5736,7 +5699,7 @@ function renderPlanResult(id){
     const mine = (currentPlan.stops || []).map(function(s){ return '<li><b>' + esc(s.name) + '</b><br><small>' + esc(s.read || "") + '</small></li>'; }).join("");
     const CK = { found: ["ok", "In Qloo"], far: ["warn", "In Qloo, but far"], closed: ["bad", "Closed for good, per Qloo"], not_found: ["warn", "Not in Qloo, so unchecked"], elsewhere: ["bad", "Only found in another city"], unchecked: ["muted", "Not checked"] };
     const ckLine = function(c){ if (!c) return '<span class="pc pc-muted">' + esc(t("Not checked")) + "</span>"; const k = CK[c.status] || CK.unchecked; const dist = c.mi != null ? " · " + esc(t(c.mi < 0.1 ? "on the route" : c.mi + " mi from the route")) : ""; return '<span class="pc pc-' + k[0] + '">' + esc(t(k[1])) + "</span>" + (c.status !== "not_found" && c.status !== "unchecked" && c.status !== "elsewhere" ? '<small class="muted">' + dist + (c.hood ? " · " + esc(c.hood) : "") + "</small>" : ""); };
-    const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(s.kind) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
+    const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
     const ok = pl && pl.stops ? pl.stops.filter(function(s){ return s.check && (s.check.status === "found"); }).length : 0;
     const body = '<p class="muted">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + '</small>' : '') + '</p>' +
       '<h3>' + esc(t("Plain model")) + '</h3><ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p>' +
@@ -5764,7 +5727,7 @@ function renderPlanResult(id){
           '<p class="r7-stop-eyebrow num">' + esc("Stop " + String(i + 1).padStart(2, "0")) + '</p>' +
           (stop && stop.arrive ? '<p class="stop-time">' + esc(stop.arrive) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + " min" : "") + "</p>" : "") +
           '<h3 class="stop-name">' + esc((stop && stop.name) || "Somewhere") + "</h3>" +
-          '<p class="stop-where">' + esc([stop && stop.kind, place].filter(Boolean).join(" · ")) + "</p>" +
+          '<p class="stop-where">' + esc([stop && stop.kind && t(String(stop.kind).toLowerCase()), place].filter(Boolean).join(" · ")) + "</p>" +
           (stop && stop.open_on_arrival === true ? '<p class="stop-open">' + esc(t("Open when you arrive, per Qloo's listed hours")) + "</p>" : stop && stop.open_on_arrival === false ? '<p class="stop-open stop-open-warn">' + esc(t("May be closed when you arrive")) + "</p>" : "") +
         "</div>" +
       "</div>" +

@@ -1873,7 +1873,7 @@ const ZH = {
   "Not about this footprint": "这条足迹说的不是这个", "This footprint will be removed from the card. Your note stays in your notebook.": "这条足迹会从卡片上移除，笔记仍留在笔记本里。",
   "From Qloo": "来自 Qloo", "Qloo catalogue data": "Qloo 目录数据", "From your notes": "来自你的笔记", "From the sample notebook": "来自示例笔记本",
   "From your Letterboxd export": "来自你的 Letterboxd 导出", "First met": "初次相遇", "mentioned once": "提到过一次", "First watch": "初看", "Rewatch": "重看",
-  "Listen": "听", "Read": "读", "Visit": "去过", "Your view changed": "你的看法变了", "A little different": "有点不一样", "Familiar": "熟悉",
+  "open on arrival":"到达时营业","genre":"类型","hood via":"街区来源","fit":"匹配度","Schematic route":"示意路线","not to scale":"非比例尺","familiar":"熟悉","Listen": "听", "Read": "读", "Visit": "去过", "Your view changed": "你的看法变了", "A little different": "有点不一样", "Familiar": "熟悉",
   "This card did not load. Check your connection, then try again.": "卡片没加载出来。检查网络后再试一次。",
   "This card is gone.": "这张卡片不在了。", "This card is no longer here.": "这张卡片已经不在了。",
   "It may have been removed. Your notes are still here.": "它可能已被移除，你的笔记都还在。", "It may have been deleted, or the link is old.": "它可能已被删除，或者链接已过期。",
@@ -5734,7 +5734,7 @@ function renderPlanResult(id){
           (stop && stop.arrive ? '<p class="stop-time">' + esc(stop.arrive) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + " min" : "") + "</p>" : "") +
           '<h3 class="stop-name">' + esc((stop && stop.name) || "Somewhere") + "</h3>" +
           '<p class="stop-where">' + esc([stop && stop.kind, place].filter(Boolean).join(" · ")) + "</p>" +
-          (stop && (stop.open_on_arrival!=null || stop.checks) ? '<p class="stop-where" style="font-family:\'DM Mono\',monospace;font-size:11px;opacity:.7">' + esc([stop.open_on_arrival ? "open on arrival" : "", (stop.checks&&!Array.isArray(stop.checks)?[stop.checks.category?"genre: "+stop.checks.category:"",stop.checks.neighborhood_source?"hood via "+stop.checks.neighborhood_source:"",stop.checks.fit!=null?"fit "+stop.checks.fit:""].filter(Boolean).join(" · "):Array.isArray(stop.checks)?stop.checks.join(" · "):"")].filter(Boolean).join(" · ")) + "</p>" : "") +
+          (stop && (stop.open_on_arrival!=null || stop.checks) ? '<p class="stop-where" style="font-family:\'DM Mono\',monospace;font-size:11px;opacity:.7">' + esc([stop.open_on_arrival ? t("open on arrival") : "", (stop.checks&&!Array.isArray(stop.checks)?[stop.checks.category?t("genre")+": "+stop.checks.category:"",stop.checks.neighborhood_source?t("hood via")+" "+stop.checks.neighborhood_source:"",stop.checks.fit!=null?t("fit")+" "+stop.checks.fit:""].filter(Boolean).join(" · "):Array.isArray(stop.checks)?stop.checks.join(" · "):"")].filter(Boolean).join(" · ")) + "</p>" : "") +
         "</div>" +
       "</div>" +
       '<div class="evidence">' +
@@ -5768,7 +5768,7 @@ function renderPlanResult(id){
       '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="xMidYMid meet"><g class="rm-grid">' + grid + "</g>" +
       '<polyline class="rm-path" points="' + P.map(function(q){ return q[0].toFixed(1) + "," + q[1].toFixed(1); }).join(" ") + '"/>' +
       P.map(function(q, i){ return '<g class="rm-pin"><circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="12"/><text x="' + q[0].toFixed(1) + '" y="' + (q[1] + 4.5).toFixed(1) + '" text-anchor="middle">' + (i + 1) + "</text></g>"; }).join("") +
-      "</svg><figcaption>Schematic route &middot; not to scale</figcaption></figure>";
+      "</svg><figcaption>"+t("Schematic route")+" &middot; "+t("not to scale")+"</figcaption></figure>";
   }
   function planSummary(stops){
     if (!stops.length) return "";
@@ -5787,7 +5787,7 @@ function renderPlanResult(id){
         return '<header class="r7-plan-mast">' +
           '<p class="r7-eyebrow">' + t.map(function(x, k){ return (k ? '<span class="r7-sep" aria-hidden="true"></span>' : "") + '<span>' + esc(x) + '</span>'; }).join("") + (saved ? '<span class="r7-saved">Saved</span>' : "") + '</p>' +
           '<h2 class="plan-header r7-display"><span>Go</span> <em>live it.</em></h2>' +
-          (ch.length?'<div class="plan-chips">'+ch.map(function(c){return '<span class="plan-chip">'+esc(c)+"</span>";}).join("")+"</div>":"") +
+          (ch.length?'<div class="plan-chips">'+ch.map(function(c){return '<span class="plan-chip">'+esc(t(c))+"</span>";}).join("")+"</div>":"") +
           '<dl class="r7-stats">' +
             '<div><dt>' + esc(plural(stops.length, "stop", "stops")) + '</dt><dd class="num">' + stops.length + '</dd></div>' +
             '<div><dt>window</dt><dd class="num r7-small">' + esc(first && last ? String(first).replace(/ ?[AP]M$/,"") + "\u2013" + last : "\u2014") + '</dd></div>' +

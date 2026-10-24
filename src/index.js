@@ -4,7 +4,7 @@ import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImageFull, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason, qsearch, CARD_URNS, TYPE_URNS, pickerMerge, cleanTags } from "./recognize.js";
 import { makePlan, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces } from "./plan.js";
 import { llmJSON } from "./llm.js";
-import { qlooTagInsights, getEntities } from "./qloo.js";
+import { qlooTagInsights, getEntities, compareTastes } from "./qloo.js";
 import { SAMPLE_NOTES } from "./sample.js";
 
 const J = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", ...headers } });
@@ -344,6 +344,21 @@ async function api(req, env, ctx, url) {
     if (pl.length) para.push(`Out in the world, you kept ${pl.map((c) => c.name).join(", ")} on your map. Those are the places your plan can start from.`);
     const gaps = ["film", "music", "book", "place"].filter((t) => !mix[t]).map((t) => word[t]);
     if (gaps.length) para.push(`Nothing from ${gaps.join(" or ")} this month. That is not a verdict, just an empty shelf.`);
+    // Taste drift: Qloo /v2/insights/compare between cards first noted before this month and the ones noted in it. The date split is Sparkling's own.
+    let drift = null;
+    try {
+      const idsOf = (l) => [...new Set(l.filter((c) => c.qloo_id).map((c) => c.qloo_id))].slice(0, 20).sort();
+      const A = idsOf(all.filter((c) => (c.first_at || 0) < from)), B = idsOf(fresh);
+      if (A.length >= 2 && B.length >= 2) {
+        const ck = "drift:v1:" + A.join(",") + "|" + B.join(",");
+        let d2 = await cacheGet(env, ck, 6 * 3600000);
+        if (!d2) { d2 = await compareTastes(env, { a_ids: A, b_ids: B, take: 12 }); await cachePut(env, ck, d2); }
+        const ok = (t) => /theme|style|genre|music|setting|mood|tone/.test(t.sub || t.kind || "") && !/speech|politic|rights|commentary|religio|war|crime|violence|controvers|brand|person/i.test(t.name + " " + (t.sub || ""));
+        const pk = (l) => (l || []).filter(ok).slice(0, 4).map((t) => t.name);
+        drift = { before: pk(d2.only_a), now: pk(d2.only_b), shared: pk(d2.shared), before_cards: A.length, now_cards: B.length };
+        if (!drift.before.length && !drift.now.length) drift = null;
+      }
+    } catch (e) { drift = null; }
     let monthOut = month, paraOut = para, receiptOut = "Computed from your cards, footprints and Qloo tags. No model wrote this.";
     if (url.searchParams.get("lang") === "zh") {
       const wz = { film: "电影", tv: "剧集", music: "音乐人", book: "书", place: "地点", person: "人物", other: "其他" };
@@ -356,7 +371,7 @@ async function api(req, env, ctx, url) {
       if (gaps.length) paraOut.push(`这个月没有${gaps.map((g) => ({ films: "电影", music: "音乐", artists: "音乐", books: "书", places: "地点" }[g] || g)).join("或")}。这不是评判，只是一个空着的书架。`);
       receiptOut = "由你的卡片、足迹和 Qloo 标签计算得出，没有模型参与撰写。";
     }
-    return J({ letter: { month: monthOut, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), places: pl.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, your_words: words, paragraphs: paraOut, receipt: receiptOut } });
+    return J({ letter: { month: monthOut, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), places: pl.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, drift, your_words: words, paragraphs: paraOut, receipt: receiptOut } });
   }
 
   // ---- threads

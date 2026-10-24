@@ -210,8 +210,19 @@ export async function pickSeeds(env, userId, mood, period) {
   let seeds;
   if (mood === "familiar") seeds = good.slice(0, 4);
   else if (mood === "surprise") seeds = [...good.slice(0, 2), ...good.slice(2).sort(() => Math.random() - 0.5).slice(0, 3)];
-  else seeds = [...good.slice(0, 3), ...good.slice(3, 8).filter((_, i) => i % 2 === 0).slice(0, 2)];
+  else seeds = seedBands(good).seeds;
   return { seeds, all: rows, good };
+}
+
+/** Near / mid / far bands over liked cards sorted by closeness to the core of the taste (hearts, repeats).
+ *  near = the core, mid = the middle, far = the thinly-touched edge. Seeds = 2 near + 1 mid + 1 far, so a plan
+ *  leans familiar but reaches one step out, each seed carrying its band for the "why it fits" line. */
+export function seedBands(good) {
+  const g = Array.isArray(good) ? good : [];
+  const k = Math.ceil(g.length / 3);
+  const near = g.slice(0, k), mid = g.slice(k, 2 * k), far = g.slice(2 * k);
+  const seeds = [...near.slice(0, 2).map((c) => ({ ...c, band: "near" })), ...mid.slice(0, 1).map((c) => ({ ...c, band: "mid" })), ...far.slice(0, 1).map((c) => ({ ...c, band: "far" }))];
+  return { near, mid, far, seeds: g.length < 4 ? g.map((c) => ({ ...c, band: "near" })) : seeds };
 }
 
 /** Equal-sized cohorts of liked cards by their latest footprint: the latest N vs the N before. */

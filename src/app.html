@@ -413,6 +413,15 @@ svg{flex:0 0 auto}
 /* ---- card detail ---- */
 .detail{max-width:100%}
 .detail-hero{margin:4px 0 14px}
+.detail-hero{position:relative}
+.r8-back{margin:0}
+.r8-flipbtn{position:absolute;right:10px;bottom:10px;z-index:3;font:500 12px/1 var(--mono,monospace);padding:8px 12px;border-radius:999px;border:1px solid var(--b-line,#d8d0c0);background:rgba(255,250,240,.92);color:inherit;min-height:32px}
+.r8-back{position:absolute;inset:0 0 4px 0;z-index:2;background:var(--b-soft,#f4efe4);border-radius:20px;padding:22px;overflow:auto;animation:r8in .25s ease both}
+.r8-back[hidden]{display:none}
+.r8-meta{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin:0}
+.r8-meta dt{font:500 12px/1.6 var(--mono,monospace);opacity:.6}.r8-meta dd{margin:0;font-size:16px}
+.r8-src{font-style:italic;margin:14px 0 0;font-size:15px}
+@keyframes r8in{from{opacity:0;transform:scaleX(.9)}to{opacity:1;transform:none}}
 .detail-hero-img{
   position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--border);
   background:var(--surface);min-height:120px;
@@ -2209,7 +2218,7 @@ const ZH = {
   "A record shop and a slow coffee": "一家唱片店，一杯慢慢喝的咖啡", "An old cinema, then a late bite": "一家老电影院，再吃点夜宵",
   "Anything else?": "还有别的吗？", "Area": "区域", "Budget": "预算", "When": "时间", "Mood": "心情", "Somewhere": "某处",
   "Saturday afternoon": "周六下午", "Go out": "出门", "Stay in": "在家", "Go out or stay in": "出门还是在家",
-  "Picked from what you wrote": "按你写的自动选了", "The catalogue returned it for your cards taken together.": "口味目录根据你的卡片整体给出。", "Stay in.": "在家，", "Why this pick?": "为什么推荐这个？", "Plan something else": "换个计划",
+  "Picked from what you wrote": "按你写的自动选了", "Could not load.": "没加载出来。", "Sparkling + Qloo": "Sparkling + Qloo", "The catalogue returned it for your cards taken together.": "口味目录根据你的卡片整体给出。", "Stay in.": "在家，", "Why this pick?": "为什么推荐这个？", "Plan something else": "换个计划",
   "A film for tonight, from my notes": "今晚看部电影，按我的记录推荐", "An album to put on while I cook": "做饭时放一张专辑", "A book for a slow Sunday": "慢悠悠的周日读本书",
   "Press play.": "按下播放。", "One more episode.": "再看一集。", "Put it on.": "放起来。", "Turn the page.": "翻开第一页。", "Take your time.": "慢慢来。",
   "kind": "类型", "film": "电影", "tv": "剧集", "music": "音乐", "book": "书", "podcast": "播客", "mixed": "混搭",
@@ -2498,6 +2507,7 @@ Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味�
   "The catalogue did not answer. Keep typing to try again.": "目录没有回应，继续输入会再试一次。",
   "\u2191\u2193 move \u00b7 \u21b5 pick \u00b7 esc close": "\u2191\u2193 移动 \u00b7 \u21b5 选择 \u00b7 esc 关闭",
   "Remove tag": "移除标记",
+  "Flip": "翻面", "Front": "正面", "First met": "初次相遇", "Type": "类型",
   "Not this?": "不是这个？",
   "Which one did you mean?": "你指的是哪一个？",
   "Something else": "都不是，搜一下",
@@ -6089,9 +6099,21 @@ function renderCardDetail(id){
             '<div class="cover-fallback" aria-hidden="true"></div>' +
             '<img src="' + attr(image) + '" alt="" onerror="this.remove()">' +
           "</div>" +
+        '<button class="r8-flipbtn" type="button" data-flip aria-label="Flip card">' + esc(t("Flip")) + '</button>' +
+        '<div class="r8-back" data-back hidden aria-live="polite"></div>' +
         "</div>";
     }
     return head;
+  }
+  function backHTML(){
+    const fps = footprints.slice().sort(function(a,b){ return a.created_at - b.created_at; });
+    const first = fps[0];
+    const notes = fps.filter(function(f){ return String(f.quote||"").trim(); });
+    let h = '<dl class="r8-meta"><dt>' + esc(t("Type")) + '</dt><dd>' + esc(String(card.type || "").replace(/^./, function(c){return c.toUpperCase();})) + '</dd>' +
+      '<dt>' + esc(t("First met")) + '</dt><dd>' + esc(first ? formatDate(first.created_at) : "—") + '</dd>' +
+      '<dt>' + esc(t("Footprints")) + '</dt><dd>' + fps.length + '</dd></dl>';
+    h += notes.slice(0,2).map(function(f){ return '<p class="r8-src">“' + esc(String(f.quote).slice(0,120)) + '”</p>'; }).join("");
+    return h;
   }
   function reactionHTML(){
     const heart = card ? Number(card.heart) || 0 : 0;
@@ -6401,6 +6423,12 @@ function renderCardDetail(id){
     const detach = e.target.closest("[data-detach]");
     if (detach) { detachFootprint(detach.getAttribute("data-detach")); return; }
     if (e.target.closest("[data-use-plan]")) { useInPlan(); return; }
+    const fb = e.target.closest("[data-flip]");
+    if (fb) {
+      const box = fb.parentNode.querySelector("[data-back]");
+      if (box) { if (box.hidden) { box.innerHTML = backHTML(); box.hidden = false; fb.textContent = t("Front"); } else { box.hidden = true; fb.textContent = t("Flip"); } }
+      return;
+    }
     if (e.target.closest("[data-not-this]")) { notThis(); return; }
     if (e.target.closest("[data-card-more]")) { openMore(); }
   });
@@ -8469,7 +8497,9 @@ boot();
       document.body.appendChild(el);
       var x0 = r.left + r.width / 2 - W / 2, y0 = r.top + r.height / 2 - H / 2;
       var x1 = t.x - W / 2, y1 = t.y - H / 2;
-      var mx = (x0 + x1) / 2, my = Math.min(y0, y1) - Math.min(80, Math.abs(x1 - x0) * .12 + 30);
+      /* arc: target above (desktop rail) -> bow upward; target below (mobile tab bar) -> a small hop, then the drop */
+      var down = y1 > y0 + 40;
+      var mx = down ? x0 + (x1 - x0) * .35 : (x0 + x1) / 2, my = down ? y0 - 34 : Math.min(y0, y1) - Math.min(80, Math.abs(x1 - x0) * .12 + 30);
       /* per-segment easing on a linear timeline: lift (ease-out), arc (ease-in-out), dive (ease-in), short fade -> the nav reacts the moment it arrives */
       var an = el.animate([
         { transform: "translate(" + x0 + "px," + y0 + "px) scale(1)", opacity: 1, easing: "cubic-bezier(.2,.7,.3,1)" },

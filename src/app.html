@@ -2419,6 +2419,7 @@ Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味�
   "Not this?": "不是这个？",
   "Which one did you mean?": "你指的是哪一个？",
   "Something else": "都不是，搜一下",
+  "Keep as my own thing": "存成我自己的卡",
   "Find the right one": "找到对的那个",
   "Switched.": "已换好。",
   "That did not switch. Try again.": "没换成，再试一次。",
@@ -6547,6 +6548,7 @@ function renderInbox(){
       '<div class="inbox-actions">' +
         '<button class="btn btn-primary" type="button" data-inbox-yes' + (best ? "" : " disabled") + ">Yes, that</button>" +
         '<button class="btn btn-outline" type="button" data-inbox-no>Not a thing</button>' +
+        '<button class="text-btn" type="button" data-inbox-keep>' + esc(t("Keep as my own thing")) + '</button>' +
       "</div>" +
       (items.length > 1 ? '<div class="keep-all"><button class="text-btn" type="button" data-inbox-keepall>Keep all guesses</button></div>' : "") +
     "</article></div>";
@@ -6698,6 +6700,7 @@ function renderInbox(){
       return;
     }
     if (e.target.closest("[data-inbox-no]")) { act("reject"); return; }
+    if (e.target.closest("[data-inbox-keep]")) { act("keep"); return; }
     if (e.target.closest("[data-inbox-else]")) {
       const it = items[0]; if (!it || !window.Picker) return;
       Picker.open({ mode: "sheet", title: "Which one did you mean?", query: it.mention || "", onPick: function(r){ act("accept", r.qloo_id, r); } });

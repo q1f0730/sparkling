@@ -2061,7 +2061,7 @@ const ZH = {
   "The note and what it added will be removed. This cannot be undone.": "这条笔记和它带来的内容都会被删除，无法撤销。",
   "Note deleted.": "笔记已删除。", "This cannot be undone.": "此操作无法撤销。", "That could not be undone.": "撤销失败。",
   "Your notes did not load. Check your connection, then try again.": "笔记没加载出来。检查网络后再试一次。", "Your notes did not refresh.": "笔记没刷新成功。",
-  "The note did not come back.": "笔记没能恢复。", "did you go": "去了吗", "Went to": "去了", "Didn't go": "没去", "Didn\u2019t go": "没去",
+  "The note did not come back.": "笔记没能恢复。", "did you go": "去了吗", "Went to": "去了", "Didn't go": "没去", "Didn\u2019t go": "没去", "What got in the way?": "是什么拦住了你？", "Too far": "太远", "Not my taste": "不对口味", "Closed": "没开门", "No time": "没时间",
   "Yes, add a line": "去了，写一句", "Not a thing": "都不是", "Waiting for a look": "等你看一眼", "waiting for a look": "等你看一眼",
   "reading the text...": "正在识别文字…", "Mention it again sometime and it will remember.": "下次再提到它，Sparkling 会记住。",
   // camera
@@ -4964,7 +4964,7 @@ function renderNotes(){
     });
   }
 
-  async function didYouGoAction(went){
+  async function didYouGoAction(went, reason){
     const rec = readDidYouGo();
     if (!rec) { paintDidYouGo(); return; }
     const wrap = view.querySelector(".didyougo");
@@ -4973,7 +4973,7 @@ function renderNotes(){
     Array.prototype.forEach.call(buttons, function(b){ b.disabled = true; });
     if (err) { err.hidden = true; err.textContent = ""; }
     try {
-      await api("/api/plan/" + encodeURIComponent(rec.plan_id) + "/went", { method: "POST", body: { went: went } });
+      await api("/api/plan/" + encodeURIComponent(rec.plan_id) + "/went", { method: "POST", body: { went: went, reason: reason || undefined } });
       if (!isCurrent(token)) return;
       clearDidYouGo();
       paintDidYouGo();
@@ -5128,7 +5128,18 @@ function renderNotes(){
       return;
     }
     if (e.target.closest("[data-dyg-yes]")) { didYouGoAction(true); return; }
-    if (e.target.closest("[data-dyg-no]")) { didYouGoAction(false); return; }
+    if (e.target.closest("[data-dyg-no]")) {
+      const w = view.querySelector(".didyougo");
+      if (w && !w.querySelector("[data-dyg-why]")) {
+        const q = w.querySelector(".didyougo-q"); if (q) q.textContent = "What got in the way?";
+        const a = w.querySelector(".didyougo-actions");
+        a.innerHTML = [["far","Too far"],["taste","Not my taste"],["closed","Closed"],["time","No time"]].map(function(r){ return '<button class="btn btn-sm btn-ghost" type="button" data-dyg-why="' + r[0] + '">' + r[1] + "</button>"; }).join("");
+        return;
+      }
+      didYouGoAction(false); return;
+    }
+    const whyBtn = e.target.closest("[data-dyg-why]");
+    if (whyBtn) { didYouGoAction(false, whyBtn.getAttribute("data-dyg-why")); return; }
     if (e.target.closest("[data-dyg-dismiss]")) {
       clearDidYouGo();
       paintDidYouGo();

@@ -1365,6 +1365,14 @@ button.trace.t-film,button.trace.film{border-left-color:#3a5a8c}
 .onboard-status{font-size:13px}
 .onboard-error{border-color:color-mix(in srgb,var(--b-danger) 25%,transparent);background:color-mix(in srgb,var(--b-danger) 5%,var(--b-card));font-size:13px}
 .onboard-import h1{font-size:28px;line-height:34px;margin:32px 0 8px}
+/* onboard-lang: footer row = note (left) + language switch (right) */
+.onboard-foot-row{margin-top:auto;padding-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.onboard-foot-row .onboard-foot{margin:0;padding:0;flex:1 1 auto;min-width:0;text-align:left}
+.onboard-lang{flex:0 0 auto;min-height:44px;min-width:44px;margin-right:-10px;padding:0 10px;border:0;border-radius:999px;background:transparent;font:400 12px/1 var(--mono);letter-spacing:.04em;color:var(--b-sage-ink);opacity:.82;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background var(--t-fast,.15s) ease-out,opacity var(--t-fast,.15s) ease-out}
+@media (hover:hover){.onboard-lang:hover{opacity:1;background:color-mix(in srgb,var(--b-sage) 55%,transparent)}}
+.onboard-lang:active{background:var(--b-sage)}
+.onboard-lang:focus-visible{outline:2px solid var(--b-sage-ink);outline-offset:-2px;opacity:1}
+.onboard-lang[lang=zh-CN]{font-family:var(--b-sans,inherit);font-size:13px;letter-spacing:.06em}
 
 /* camera */
 .camera-sheet{background:var(--b-card);border-color:var(--b-line);border-radius:20px;padding:16px}
@@ -1906,6 +1914,54 @@ html[data-theme="dark"] .pk{box-shadow:0 28px 60px -26px rgba(0,0,0,.7)}
 .note-chip.is-confirmed::after{content:"";display:inline-block;width:5px;height:5px;margin-left:5px;border-radius:50%;background:currentColor;opacity:.55;vertical-align:middle}
 
 /* picker:css:end */
+
+/* stayin: Go out / Stay in toggle + picks */
+.mode-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.mode-toggle{display:inline-flex;padding:3px;border-radius:999px;background:var(--b-soft,#ece6d8);border:1px solid var(--b-line,rgba(60,50,30,.12))}
+.mode-opt{height:32px;padding:0 16px;border-radius:999px;border:0;background:transparent;font:500 14px/1 var(--sans,inherit);color:var(--b-ink2,#5a5145);cursor:pointer;transition:background .18s ease-out,color .18s ease-out,box-shadow .18s}
+.mode-opt[aria-pressed="true"]{background:var(--b-card,#fffdf7);color:var(--b-ink,#2b261f);box-shadow:0 1px 3px rgba(60,45,20,.14)}
+.mode-hint{font:400 12px/1.3 var(--sans,inherit);color:var(--b-faint,#8a8174)}
+.mode-hint[hidden]{display:none}
+.out-only{display:contents}.out-only[hidden],[data-out-only][hidden],[data-in-only][hidden]{display:none!important}
+.picks{display:flex;flex-direction:column;gap:14px;margin:6px 0 14px}
+.pick{display:grid;grid-template-columns:96px 1fr;gap:14px;padding:14px;border-radius:20px;background:var(--b-card,#fffdf7);border:1px solid var(--b-line,rgba(60,50,30,.12))}
+.pick-poster{position:relative;aspect-ratio:2/3;border-radius:12px;overflow:hidden;background:linear-gradient(160deg,#ece3d1,#d9cdb5)}
+.pick-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.pick.type-music .pick-poster{aspect-ratio:1/1}
+.pick-n{position:absolute;left:6px;top:6px;font:600 11px/1 var(--mono,monospace);padding:4px 6px;border-radius:8px;background:rgba(255,253,247,.88);color:#3b3328}
+.pick-body{min-width:0;display:flex;flex-direction:column;gap:6px}
+.pick-eyebrow{margin:0;display:flex;align-items:center;gap:8px;font:500 12px/1.2 var(--sans,inherit);letter-spacing:.02em;color:var(--b-faint,#8a8174);text-transform:capitalize}
+.pick-name{margin:0;font:500 22px/1.15 var(--b-serif,var(--serif,serif));color:var(--b-ink,#2b261f);overflow-wrap:anywhere}
+.pick-why{margin:0;font:500 14px/1.5 var(--sans,inherit);color:var(--b-clay-ink,#8a4a2a)}
+.pick-desc{margin:0;font:400 14px/1.55 var(--sans,inherit);color:var(--b-ink2,#5a5145)}
+.pick-src{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+.pick-trace{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:7px 9px;border-radius:12px;border:1px solid var(--b-line,rgba(60,50,30,.12));border-left:3px solid var(--b-clay-ink,#a5502e);background:var(--b-soft,#f3eee3);color:inherit;font:inherit;cursor:pointer}
+.pick-trace img,.pick-trace .ph{width:28px;height:28px;border-radius:7px;object-fit:cover;flex:none;background:#e4dccb}
+.pick-trace span{display:flex;flex-direction:column;min-width:0;flex:1}
+.pick-trace b{font:500 13px/1.3 var(--sans,inherit);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick-trace b em{font-style:normal;color:var(--b-faint,#8a8174)}
+.pick-trace small{font:400 12px/1.35 var(--sans,inherit);color:var(--b-ink2,#5a5145);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.pick-band{flex:none !important;display:inline-block !important;font:500 11px/1 var(--sans,inherit);padding:4px 7px;border-radius:99px;background:var(--b-sage,#dfe6d3);color:var(--b-sage-ink,#3d5a32)}
+.pick .why-btn{align-self:flex-start;margin-top:2px}
+.pick-foot{font:400 12px/1.5 var(--sans,inherit);color:var(--b-faint,#8a8174);margin:0 0 12px}
+@media (min-width:720px){.pick{grid-template-columns:140px 1fr;gap:20px;padding:18px}.pick-name{font-size:26px}}
+@media (min-width:1024px){.plan-in-view .picks{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.plan-in-view .pick{grid-template-columns:1fr;align-content:start}.plan-in-view .pick-poster{max-width:none}}
+/* fly-deck:css — a new card lands on the Cards nav (desktop rail item or mobile tab) */
+.fx-land{position:relative}
+.fx-land{animation:fx-land-glow 1.2s ease-out}
+.fx-land svg{animation:fx-land-bump .55s cubic-bezier(.3,1.5,.5,1)}
+.fx-land-dot{position:absolute;z-index:3;pointer-events:none;padding:2px 5px;border-radius:999px;background:var(--b-butter);color:var(--b-butter-ink);
+  font:600 10px/1 var(--sans);letter-spacing:.02em;box-shadow:0 0 0 2px var(--b-paper),0 4px 10px -4px rgba(64,50,28,.35);animation:fx-land-dot 1.4s ease-out both}
+@keyframes fx-land-bump{0%{transform:scale(1)}35%{transform:scale(1.22) rotate(-4deg)}70%{transform:scale(.96)}100%{transform:none}}
+@keyframes fx-land-glow{ /* only mid keyframes: from/to fall back to the item's own background + shadow (active item keeps its card fill) */
+  22%{background-color:color-mix(in srgb,var(--b-butter) 88%,var(--b-card));box-shadow:0 0 0 3px color-mix(in srgb,var(--b-butter-ink) 16%,transparent),0 8px 22px -8px color-mix(in srgb,var(--b-sage-ink) 50%,transparent)}
+  55%{background-color:color-mix(in srgb,var(--b-butter) 60%,var(--b-card));box-shadow:0 0 0 6px color-mix(in srgb,var(--b-butter-ink) 0%,transparent),0 8px 22px -8px color-mix(in srgb,var(--b-sage-ink) 20%,transparent)}}
+@keyframes fx-land-dot{0%{opacity:0;transform:translateY(4px) scale(.6)}15%{opacity:1;transform:none}70%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){
+  .fx-land svg{animation:none}
+  .fx-land-dot{animation-name:fx-land-dot-rm}
+}
+@keyframes fx-land-dot-rm{0%{opacity:0}15%{opacity:1}70%{opacity:1}100%{opacity:0}}
 </style>
 <!-- pf:begin (generated by platforms/web/build.py; do not edit by hand) -->
 <link rel="manifest" href="/manifest.webmanifest">
@@ -2152,7 +2208,12 @@ const ZH = {
   "Something a little off my usual track": "稍微偏离我平时的路线", "A quiet bookstore, then somewhere to sit": "一家安静的书店，再找个地方坐坐",
   "A record shop and a slow coffee": "一家唱片店，一杯慢慢喝的咖啡", "An old cinema, then a late bite": "一家老电影院，再吃点夜宵",
   "Anything else?": "还有别的吗？", "Area": "区域", "Budget": "预算", "When": "时间", "Mood": "心情", "Somewhere": "某处",
-  "Saturday afternoon": "周六下午", "Saved plans": "已保存的计划", "Your saved plans did not load.": "已保存的计划没加载出来。",
+  "Saturday afternoon": "周六下午", "Go out": "出门", "Stay in": "在家", "Go out or stay in": "出门还是在家",
+  "Picked from what you wrote": "按你写的自动选了", "The catalogue returned it for your cards taken together.": "口味目录根据你的卡片整体给出。", "Stay in.": "在家，", "Why this pick?": "为什么推荐这个？", "Plan something else": "换个计划",
+  "A film for tonight, from my notes": "今晚看部电影，按我的记录推荐", "An album to put on while I cook": "做饭时放一张专辑", "A book for a slow Sunday": "慢悠悠的周日读本书",
+  "Press play.": "按下播放。", "One more episode.": "再看一集。", "Put it on.": "放起来。", "Turn the page.": "翻开第一页。", "Take your time.": "慢慢来。",
+  "kind": "类型", "film": "电影", "tv": "剧集", "music": "音乐", "book": "书", "podcast": "播客", "mixed": "混搭",
+  "Already in your cards? Left out.": "你已经有卡片的不会再推荐。", "Where to watch is not shown: the catalogue does not list it.": "不显示在哪看：口味目录里没有这项数据。", "Saved plans": "已保存的计划", "Your saved plans did not load.": "已保存的计划没加载出来。",
   "A neighbourhood is enough. GPS is optional.": "填一个街区就够了，不需要 GPS。", "Neighbourhood": "街区",
   "That plan did not come together.": "这个计划没能拼出来。", "The plan stream ended before a plan arrived.": "计划还没生成完，连接就断了。",
   "A few more things would help.": "再多几样会更好。", "A number above zero is all it needs.": "填一个大于零的数字就行。",
@@ -2483,6 +2544,27 @@ function reasonZh(r){
 }
 function reasonHtml(r){ var h = esc(reasonZh(r)); if (LANG !== "zh") return h; return h.replace(/[A-Za-z][A-Za-z0-9'’&:.\-]*(?: [A-Z][A-Za-z0-9'’&:.\-]*)*/g, function(m){ return '<span translate="no" style="margin:0 .18em">' + m + '</span>'; }); }
 function t(s){ return LANG === "zh" ? trZh(s) : s; }
+/* stayin:intent — mirror of stayIntent in src/plan.js (tests/stayin.test.mjs checks they agree) */
+function stayIntent(text) {
+  const s = String(text == null ? "" : text).toLowerCase();
+  if (!s.trim()) return { mode: null, kinds: [] };
+  const home = /\b(stay(ing)? in|at home|night in|home tonight|on the couch|on the sofa|cosy night|cozy night)\b|在家|宅家|宅着|不出门|不想出门|窝在|躺平/.test(s);
+  const out = /cinema|movie theat|theatre|theater|bookstore|book store|bookshop|record (shop|store)|vinyl shop|caf[eé]|coffee|\bbar\b|pub|museum|galler|park|restaurant|bakery|jazz club|live music|concert|gig\b|go out|going out|walk around|stroll|neighbo(u)?rhood|电影院|影院|影城|书店|唱片店|咖啡|酒吧|博物馆|美术馆|画廊|公园|餐厅|饭店|livehouse|演唱会|音乐节|出门|外出|逛|散步|街区|去外面/.test(s);
+  const k = [];
+  const hit = (kind, re) => { const m = s.search(re); if (m >= 0) k.push([kind, m]); };
+  hit("film", /\b(movies?|films?)\b|watch something|something to watch|电影|影片|片子|看部片|看个片/);
+  hit("tv", /\b(series|tv show|tv|show to binge|binge|episodes?)\b|电视剧|美剧|日剧|韩剧|英剧|追剧|剧集|看剧|番剧|动画/);
+  hit("music", /\b(listen|album|albums|playlist|songs?|music|record to put on)\b|听歌|听音乐|听专辑|听点|音乐|专辑|歌单|唱片/);
+  hit("book", /\b(read|reading|books?|novel|novels)\b|看书|读书|读点|读本|小说|一本书|书单/);
+  hit("podcast", /\bpodcasts?\b|播客|电台/);
+  const kinds = [...new Set(k.sort((a, b) => a[1] - b[1]).map(([x]) => x))];
+  const cook = /\b(cook|cooking|bake|baking)\b|做饭|下厨|煮饭|烤蛋糕/.test(s);
+  if (home) return { mode: "in", kinds };
+  if (out) return { mode: "out", kinds: [] };
+  if (kinds.length || cook) return { mode: "in", kinds };
+  return { mode: null, kinds: [] };
+}
+/* end stayin:intent */
 function stopRead(s){
   if (LANG !== "zh" || !s) return (s && s.read) || "";
   if (s.read_zh) return s.read_zh;
@@ -3363,6 +3445,21 @@ function onboardingChoiceHTML(key, title, support){
     '<span class="choice-chev">' + icons.chevron + "</span>" +
   "</button>";
 }
+/* onboard-lang: welcome-screen language switch; shows the other language's own name, never run through the zh DOM pass */
+function onboardLangHTML(){
+  const zh = LANG === "zh";
+  return '<button class="onboard-lang" type="button" data-onboard-lang translate="no" lang="' + (zh ? "en" : "zh-CN") + '" aria-label="' + (zh ? "Switch to English" : "\u5207\u6362\u5230\u4e2d\u6587") + '">' + (zh ? "English" : "\u4e2d\u6587") + "</button>";
+}
+function switchOnboardLang(){
+  const next = LANG === "zh" ? "en" : "zh";
+  const booted = state.booted;
+  state.booted = false; /* setLang would route(); stay on this screen instead */
+  try { setLang(next); } finally { state.booted = booted; }
+  renderOnboarding();
+  applyLang();
+  const b = view.querySelector("[data-onboard-lang]");
+  if (b) try { b.focus({ preventScroll: true }); } catch (_) {}
+}
 function renderOnboarding(){
   beginView();
   setShell({ hide: true });
@@ -3389,7 +3486,10 @@ function renderOnboarding(){
         onboardingChoiceHTML("history", "Bring some history", "Start from your Letterboxd export.") +
       "</div>" +
       '<p class="onboard-status" data-onboard-status role="status" hidden></p>' +
-      '<div class="onboard-foot">Your notes stay yours. Export or delete anytime.</div>' +
+      '<div class="onboard-foot-row">' +
+        '<div class="onboard-foot">Your notes stay yours. Export or delete anytime.</div>' +
+        onboardLangHTML() +
+      "</div>" +
     "</div>";
 
   const status = view.querySelector("[data-onboard-status]");
@@ -3440,6 +3540,7 @@ function renderOnboarding(){
   }
 
   on(view, "click", function(e){
+    if (e.target.closest("[data-onboard-lang]")) { switchOnboardLang(); return; }
     const retry = e.target.closest("[data-retry-boot]");
     if (retry) { retryBootFromOnboarding(retry); return; }
     const choice = e.target.closest("[data-choice]");
@@ -3601,7 +3702,7 @@ function mentionedTextHTML(text, mentions, opts){
       const delay = drawIndex * 55;
       drawIndex += 1;
       const mt = (m.card && m.card.type) ? String(m.card.type).replace(/[^a-z]/g, "") : "";
-      out += '<button type="button" class="mention matched' + (mt ? " mt-" + mt : "") + (o.draw ? " draw" : "") + '" style="--d:' + delay + 'ms"' + ((m.card && m.card.image) ? ' data-img="' + attr(String(m.card.image)) + '"' : '') + ' data-nav="' +
+      out += '<button type="button" class="mention matched' + (mt ? " mt-" + mt : "") + (o.draw ? " draw" : "") + '" style="--d:' + delay + 'ms" data-card="' + attr(cardId) + '"' + (m.plus_one ? "" : ' data-fresh="1"') + ((m.card && m.card.image) ? ' data-img="' + attr(String(m.card.image)) + '"' : '') + ' data-nav="' +
         attr("#/cards/" + encodeURIComponent(cardId)) + '">' + esc(seg) + "</button>";
       if (o.plus && m.plus_one) out += '<span class="plus-one" aria-hidden="true">+1</span>';
     } else if (st === "inbox") {
@@ -3640,7 +3741,7 @@ function noteHTML(note, opts){
   if (grown.length) {
     body += '<div class="grown' + (o.draw ? " grow-in" : "") + '">' + grown.slice(0, 3).map(function(m, k){
       const im = imgSrc(m.card.image);
-      return '<button type="button" class="grown-chip ' + typeClass(m.card.type) + '" style="--k:' + k + '" data-nav="#/cards/' + attr(m.card_id) + '">' +
+      return '<button type="button" class="grown-chip ' + typeClass(m.card.type) + '" style="--k:' + k + '" data-card="' + attr(m.card_id) + '" data-nav="#/cards/' + attr(m.card_id) + '">' +
         (im ? '<img src="' + attr(im) + '" alt="" loading="lazy" onerror="this.remove()">' : '<span class="grown-face">' + esc(String(m.card.name || "").slice(0, 1)) + "</span>") +
         '<span class="grown-name">' + esc(m.card.name) + "</span>" +
         '<span class="grown-meta">' + esc(typeLabel(m.card.type)) + (m.plus_one ? (m.card.n > 1 ? " · mentioned " + m.card.n + "×" : " · again") : " · new card") + "</span></button>";
@@ -6821,6 +6922,9 @@ function renderPlanRequest(){
   let mood = "familiar", lens = "";
   let period = "all";
   let busy = false;
+  /* stayin: Go out / Stay in. Follows the ask until the user taps the toggle. */
+  let mode = stayIntent(prefill).mode === "in" ? "in" : "out", modeLocked = false;
+  const whenVal = LANG === "zh" ? trZh(String(user.when || "")) : String(user.when || "");
 
   function moodButtonHTML(value, label){
     return '<button class="mood" type="button" data-mood="' + attr(value) + '" aria-pressed="' + (value === mood ? "true" : "false") + '">' + esc(label) + "</button>";
@@ -6863,17 +6967,23 @@ function renderPlanRequest(){
   view.classList.add('plan-input-view');
   view.innerHTML =
     '<h2 class="plan-prompt">An afternoon, built from what you keep.</h2>' +
-    '<form class="plan-form" data-plan-form novalidate>' +
+    '<form class="plan-form" data-plan-form data-mode-now="' + mode + '" novalidate>' +
+      '<div class="mode-row"><div class="mode-toggle" role="group" aria-label="Go out or stay in">' +
+        '<button type="button" class="mode-opt" data-plan-mode="out" aria-pressed="' + (mode === "out") + '">Go out</button>' +
+        '<button type="button" class="mode-opt" data-plan-mode="in" aria-pressed="' + (mode === "in") + '">Stay in</button>' +
+      '</div><span class="mode-hint" data-mode-hint' + (mode === "in" && prefill ? "" : " hidden") + '>Picked from what you wrote</span></div>' +
       '<div class="plan-sentence">' +
         "<span>On</span>" +
-        '<input class="inline-input when-input" data-when aria-label="When" placeholder="Saturday afternoon" value="' + attr(user.when || "") + '">' +
+        '<input class="inline-input when-input" data-when aria-label="When" placeholder="Saturday afternoon" value="' + attr(whenVal) + '">' +
+        '<span class="out-only" data-out-only' + (mode === "in" ? " hidden" : "") + '>' +
         '<span class="sep" aria-hidden="true">&middot;</span>' +
         "<span>around</span>" +
         '<input class="inline-input area-input" data-area aria-label="Area" placeholder="Greenpoint" value="' + attr(user.area || "") + '">' +
+        '</span><span class="out-only" data-out-only' + (mode === "in" ? " hidden" : "") + '>' +
         '<span class="sep" aria-hidden="true">&middot;</span>' +
         "<span>under $</span>" +
         '<input class="inline-input budget-input" data-budget inputmode="numeric" aria-label="Budget" placeholder="40" value="' + attr(user.budget == null ? "" : user.budget) + '">' +
-      "</div>" +
+      "</span></div>" +
       '<div class="mood-row" role="group" aria-label="Mood">' +
         moodButtonHTML("familiar", "Familiar") +
         moodButtonHTML("different", "A little different") +
@@ -6888,17 +6998,34 @@ function renderPlanRequest(){
         '<input class="free-input" data-free aria-label="Anything else?" placeholder="A quiet bookstore, then somewhere to sit" value="' + attr(prefill) + '">' +
       "</div>" +
       '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>Make a plan</button></div>' +
-      '<div class="duo-box"><button class="btn btn-sm" type="button" data-duo-go>Plan for two &middot; try with a sample friend</button><div data-duo-out></div></div>' +
+      '<div class="duo-box" data-out-only' + (mode === "in" ? " hidden" : "") + '><button class="btn btn-sm" type="button" data-duo-go>Plan for two &middot; try with a sample friend</button><div data-duo-out></div></div>' +
       '<div data-plan-progress></div>' +
       '<div data-plan-error></div>' +
     "</form>" +
     '<div class="plan-ideas"><p class="plan-ideas-h">Try one of these</p>' +
-    ["A quiet bookstore, then somewhere to sit","A record shop and a slow coffee","Something a little off my usual track","An old cinema, then a late bite"].map(function(t){return '<button type="button" class="plan-idea" data-idea="'+attr(t)+'">'+esc(t)+'</button>';}).join("") +
+    ["A quiet bookstore, then somewhere to sit","A record shop and a slow coffee","An old cinema, then a late bite"].map(function(t){return '<button type="button" class="plan-idea" data-idea="'+attr(t)+'" data-out-only' + (mode === "in" ? " hidden" : "") + '>'+esc(t)+'</button>';}).join("") +
+    ["A film for tonight, from my notes","An album to put on while I cook","A book for a slow Sunday"].map(function(t){return '<button type="button" class="plan-idea" data-idea="'+attr(t)+'" data-in-only' + (mode === "out" ? " hidden" : "") + '>'+esc(t)+'</button>';}).join("") +
     "</div>" +
     "<div data-saved-plans></div>";
 
-  view.querySelectorAll("[data-idea]").forEach(function(b){b.addEventListener("click",function(){var f=view.querySelector("[data-free]");f.value=b.getAttribute("data-idea");f.focus();});});
+  view.querySelectorAll("[data-idea]").forEach(function(b){b.addEventListener("click",function(){var f=view.querySelector("[data-free]");f.value=b.getAttribute("data-idea");followAsk();f.focus();});});
   const form = view.querySelector("[data-plan-form]");
+  function setMode(next, auto){
+    mode = next === "in" ? "in" : "out";
+    if (form) form.setAttribute("data-mode-now", mode);
+    view.querySelectorAll("[data-plan-mode]").forEach(function(b){ b.setAttribute("aria-pressed", b.getAttribute("data-plan-mode") === mode ? "true" : "false"); });
+    view.querySelectorAll("[data-out-only]").forEach(function(el){ el.hidden = mode === "in"; });
+    view.querySelectorAll("[data-in-only]").forEach(function(el){ el.hidden = mode !== "in"; });
+    const hint = view.querySelector("[data-mode-hint]"); if (hint) hint.hidden = !auto;
+    if (mode === "in") { const es = view.querySelector("[data-plan-error]"); if (es && es.querySelector("[data-error-area]")) es.innerHTML = ""; }
+  }
+  function followAsk(){
+    if (modeLocked) return;
+    const f = view.querySelector("[data-free]"); const it = stayIntent(f ? f.value : "");
+    if (it.mode) setMode(it.mode, it.mode === "in"); else if (mode === "in") setMode("out", false);
+  }
+  view.querySelectorAll("[data-plan-mode]").forEach(function(b){ b.addEventListener("click", function(){ modeLocked = true; setMode(b.getAttribute("data-plan-mode"), false); }); });
+  (function(){ const f = view.querySelector("[data-free]"); if (f) f.addEventListener("input", followAsk); })();
   const whenInput = view.querySelector("[data-when]");
   const areaInput = view.querySelector("[data-area]");
   const budgetInput = view.querySelector("[data-budget]");
@@ -6931,6 +7058,7 @@ function renderPlanRequest(){
   function showPlanError(stateName, text){
     if (!isCurrent(token)) return;
     progressSlot.innerHTML = "";
+    if (stateName === "no_area" && mode === "in") stateName = null; /* stay-in never asks where */
     errSlot.innerHTML = planErrorHTML(stateName, text);
     if (stateName === "no_area") {
       const input = errSlot.querySelector("[data-error-area]");
@@ -6955,13 +7083,13 @@ function renderPlanRequest(){
     progressSlot.innerHTML = logPanelHTML();
     planBtn.disabled = true;
     planBtn.textContent = "Making a plan";
-    const body = { mood: mood, period: period };
+    const body = { mood: mood, period: period, mode: mode };
     if (lens) body.audience = lens;
     if (LANG === "zh") body.lang = "zh";
     if (when) body.when = when;
-    if (area) body.area = area;
+    if (area && mode !== "in") body.area = area;
     const budgetN = numberValue(budgetRaw);
-    if (budgetRaw && budgetN !== null) body.budget = budgetN;
+    if (mode !== "in" && budgetRaw && budgetN !== null) body.budget = budgetN;
     if (text) body.text = text;
     body.lang = LANG === "zh" ? "zh" : "en";
     try {
@@ -7035,7 +7163,7 @@ function renderPlanRequest(){
       '<div class="saved-list">' + plans.map(savedPlanHTML).join("") + "</div>";
   }
   function savedPlanHTML(plan){
-    const stops = Array.isArray(plan.stops) ? plan.stops : [];
+    const stops = Array.isArray(plan.stops) && plan.stops.length ? plan.stops : Array.isArray(plan.picks) ? plan.picks : [];
     const names = stops.map(function(s){ return s && s.name; }).filter(Boolean).join(" · ");
     const when = Number(plan.saved_at || plan.created_at);
     return '<button class="saved-plan" type="button" data-nav="' + attr("#/plan/" + encodeURIComponent(String(plan.id))) + '">' +
@@ -7168,10 +7296,10 @@ function renderPlanResult(id){
     "</section>";
     const readCard = stop && stop.read ? '<section class="bcard bread"><div class="blabel"><span>Sparkling&rsquo;s read</span></div><p>' + esc(stopRead(stop)) + "</p><p class=\"why-line\">" + (stop.read_src === "model" ? "A sentence written by a model from the venue&rsquo;s description. It is not Qloo data." : "A plain template filled from Qloo&rsquo;s tags. No model wrote this.") + "</p></section>" : "";
     const rc = '<div class="why-receipt" translate="no">' +
-      "<div>GET /v2/insights &middot; filter.type=urn:entity:place</div>" +
+      "<div>GET /v2/insights &middot; filter.type=" + esc(w.type || "urn:entity:place") + "</div>" +
       "<div class=\"ind\">feature.explainability=true</div>" +
-      "<div class=\"ind\">near " + esc((w.area || "")) + " &middot; " + esc(String(w.seeds_sent || cf.length)) + " card IDs sent</div>" +
-      "<div class=\"ind\">place " + esc(String(w.qloo_id || "").slice(0, 8)) + "&hellip;</div>" +
+      "<div class=\"ind\">" + (w.area ? "near " + esc(w.area) + " &middot; " : "") + esc(String(w.seeds_sent || cf.length)) + " card IDs sent</div>" +
+      "<div class=\"ind\">" + esc(String(w.type || "place").split(":").pop()) + " " + esc(String(w.qloo_id || "").slice(0, 8)) + "&hellip;</div>" +
       (stop && stop.checks && !Array.isArray(stop.checks) ? "<div>checks &middot; " + esc([stop.checks.category ? "genre " + stop.checks.category : "", stop.checks.neighborhood_source ? "hood via " + stop.checks.neighborhood_source : "", stop.checks.fit != null ? "fit " + stop.checks.fit : "", stop.open_on_arrival != null ? "open on arrival " + stop.open_on_arrival : ""].filter(Boolean).join(" · ")) + "</div>" : "") +
       cf.map(function(r){ return '<div class="ind">' + esc(String(r.qloo_id || "").slice(0, 8)) + "&hellip; " + esc(String(r.score)) + ' <span class="why-faint">' + esc(r.name) + "</span></div>"; }).join("") +
       "</div>";
@@ -7196,10 +7324,10 @@ function renderPlanResult(id){
       '<h3>' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list">' + mine + '</ol><p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p>';
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: body });
   }
-  function openWhyStop(i){
-    const stop = currentPlan && currentPlan.stops && currentPlan.stops[i];
+  function openWhyStop(i, pick){
+    const stop = currentPlan && (pick ? currentPlan.picks : currentPlan.stops) && (pick ? currentPlan.picks : currentPlan.stops)[i];
     if (!stop) return;
-    openSheet({ title: "Why this stop?", cls: "why-sheet", body: whyStopHTML(stop, currentPlan), onMount: function(m){
+    openSheet({ title: pick ? "Why this pick?" : "Why this stop?", cls: "why-sheet", body: whyStopHTML(stop, currentPlan), onMount: function(m){
       m.querySelectorAll("[data-close-nav]").forEach(function(btn){
         btn.addEventListener("click", function(){ const h = btn.getAttribute("data-close-nav"); closeModal(); location.hash = h; });
       });
@@ -7212,7 +7340,7 @@ function renderPlanResult(id){
   async function redoPlan(cardId, restore){
     if (busyAction || !cardId) return;
     busyAction = true;
-    const cardName = (function(){ const rows = ((currentPlan && currentPlan.stops) || []).reduce(function(a, st){ return a.concat((st.why && st.why.contributions) || [], st.sources || []); }, []); const hit = rows.filter(function(r){ return r && r.card_id === cardId; })[0]; return hit ? hit.name : ""; })();
+    const cardName = (function(){ const rows = ((currentPlan && currentPlan.stops && currentPlan.stops.length ? currentPlan.stops : currentPlan && currentPlan.picks) || []).reduce(function(a, st){ return a.concat((st.why && st.why.contributions) || [], st.sources || []); }, []); const hit = rows.filter(function(r){ return r && r.card_id === cardId; })[0]; return hit ? hit.name : ""; })();
     view.innerHTML = '<div class="redo-wait" role="status"><p class="r7-eyebrow">' + esc(restore ? (LANG === "zh" ? "放回去" : "Putting it back") : (LANG === "zh" ? "已标记" : "Marked not for me")) + '</p>' +
       '<h2 class="r7-display"><em translate="no">' + esc(cardName || "…") + '</em></h2>' +
       '<p class="muted">' + esc(LANG === "zh" ? "按同样的要求重新计划，一会儿告诉你变了什么。" : "Planning the same afternoon again. Then you will see exactly what changed.") + '</p><div class="skeleton sk-detail"></div></div>';
@@ -7245,7 +7373,7 @@ function renderPlanResult(id){
     const zh = LANG === "zh";
     const rows = (d.changes || []).map(function(c){
       const was = c.was ? '<s translate="no">' + esc(c.was) + '</s>' : "", now = c.now ? '<b translate="no">' + esc(c.now) + '</b>' : '<i>' + esc(zh ? "没有替代" : "nothing replaces it") + '</i>';
-      return '<li><span class="df-n num">' + esc(zh ? "第" + c.stop + "站" : "Stop " + c.stop) + '</span>' + (c.was ? was + ' <span aria-hidden="true">&rarr;</span> ' : (zh ? "新增 " : "added ")) + now + '</li>';
+      return '<li><span class="df-n num">' + esc(d.unit === "pick" ? (zh ? "第" + c.stop + "个" : "Pick " + c.stop) : zh ? "第" + c.stop + "站" : "Stop " + c.stop) + '</span>' + (c.was ? was + ' <span aria-hidden="true">&rarr;</span> ' : (zh ? "新增 " : "added ")) + now + '</li>';
     }).join("");
     const rc = (d.recredit || []).map(function(c){
       return '<li><span class="df-n num">' + esc(zh ? "第" + c.stop + "站" : "Stop " + c.stop) + '</span><b translate="no">' + esc(c.name) + '</b> ' + esc(zh ? "还在，理由换成了 " : "stays, now because of ") + '<span translate="no">' + esc((c.now || []).join(", ") || "—") + '</span></li>';
@@ -7350,9 +7478,69 @@ function renderPlanResult(id){
     const first = stops[0] && stops[0].arrive, last = stops[stops.length - 1] && stops[stops.length - 1].leave;
     return first && last ? first + " to " + last : "";
   }
+  /* stayin: result for a night in — 3 picks with poster, year, why-it-fits, and the cards behind each */
+  function pickWhyLine(pk){
+    const zh = LANG === "zh";
+    const names = (Array.isArray(pk.sources) ? pk.sources : []).map(function(x){ return x && x.name; }).filter(Boolean).slice(0, 2);
+    const tags = (Array.isArray(pk.tags) ? pk.tags : []).slice(0, 2);
+    if (!names.length) return pk.why_line || t("The catalogue returned it for your cards taken together.");
+    return zh ? "因为你记过 " + names.map(function(n){ return "《" + n + "》"; }).join("和") + (tags.length ? "；Qloo 给它的标签：" + tags.join("、") + "。" : "。")
+      : "Because you kept " + names.join(" and ") + (tags.length ? "; Qloo files it with " + tags.join(" and ").toLowerCase() + "." : ".");
+  }
+  function pickHTML(pk, i){
+    const zh = LANG === "zh";
+    const meta = [pk.year ? String(pk.year) : "", pk.by || ""].filter(Boolean).join(" · ");
+    const src = Array.isArray(pk.sources) ? pk.sources.filter(function(x){ return x && x.name; }) : [];
+    const BAND = zh ? { near: "熟悉", mid: "邻近", far: "远一步" } : { near: "familiar", mid: "nearby", far: "a step out" };
+    return '<article class="pick type-' + attr(pk.kind === "music" ? "music" : pk.kind === "book" ? "book" : "film") + '">' +
+      '<div class="pick-poster">' + (pk.image ? '<img src="' + attr(pk.image) + '" alt="" loading="lazy" onerror="this.parentNode.classList.add(\'ph\');this.remove()">' : "") + '<span class="pick-n num">' + String(i + 1).padStart(2, "0") + '</span></div>' +
+      '<div class="pick-body">' +
+        '<p class="pick-eyebrow">' + esc(t(pk.kind || "film")) + (meta ? '<span class="r7-sep" aria-hidden="true"></span><span class="num" translate="no">' + esc(meta) + "</span>" : "") + "</p>" +
+        '<h3 class="pick-name" translate="no">' + esc(pk.name || "") + "</h3>" +
+        '<p class="pick-why">' + esc(pickWhyLine(pk)) + "</p>" +
+        (stopRead(pk) ? '<p class="pick-desc">' + esc(stopRead(pk)) + "</p>" : "") +
+        (src.length ? '<div class="pick-src">' + src.map(function(x){
+          return '<button type="button" class="pick-trace" data-nav="#/cards/' + attr(x.card_id || "") + '"' + (x.card_id ? "" : " disabled") + '>' +
+            (x.image ? '<img src="' + attr(x.image) + '" alt="" loading="lazy" onerror="this.remove()">' : '<i class="ph"></i>') +
+            '<span><b translate="no">' + esc(x.name) + (x.n > 1 ? " <em>×" + esc(String(x.n)) + "</em>" : "") + "</b>" +
+            (x.quote ? '<small translate="no">&ldquo;' + esc(x.quote) + "&rdquo;</small>" : "") + "</span>" +
+            (x.band ? '<span class="pick-band">' + esc(BAND[x.band] || x.band) + "</span>" : "") + "</button>";
+        }).join("") + "</div>" : "") +
+        '<button class="why-btn" type="button" data-why-pick="' + i + '">' + esc(t("Why this pick?")) + "</button>" +
+      "</div></article>";
+  }
+  function paintIn(plan){
+    const picks = Array.isArray(plan.picks) ? plan.picks : [];
+    const saved = !!plan.saved;
+    const kinds = Array.isArray(plan.kinds) ? plan.kinds : [];
+    const one = kinds.length === 1 ? kinds[0] : null;
+    const em = { film: "Press play.", tv: "One more episode.", music: "Put it on.", book: "Turn the page.", podcast: "Put it on." }[one] || "Take your time.";
+    const hp = String(plan.header || "").split(" · ");
+    const when = hp[0] || "", moodC = hp[2] || "";
+    view.innerHTML =
+      '<header class="r7-plan-mast pick-mast">' +
+        '<p class="r7-eyebrow"><span>' + esc(LANG === "zh" ? trZh(when) : when) + '</span><span class="r7-sep" aria-hidden="true"></span><span>' + esc(t("Stay in")) + "</span>" + (saved ? '<span class="r7-saved">Saved</span>' : "") + "</p>" +
+        '<h2 class="plan-header r7-display"><span>' + esc(t("Stay in")) + (LANG === "zh" ? "，" : ".") + '</span> <em>' + esc(t(em)) + "</em></h2>" +
+        '<div class="plan-chips">' + (moodC ? '<span class="plan-chip">' + esc(LANG === "zh" ? trZh(moodC) : moodC) + "</span>" : "") + '<span class="plan-chip">' + esc(picks.length + " " + (LANG === "zh" ? "个推荐" : plural(picks.length, "pick", "picks"))) + '</span><span class="plan-chip">' + esc(t(one || "mixed")) + "</span></div>" +
+      "</header>" +
+      (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +
+      diffHTML(plan) +
+      '<div class="picks">' + picks.map(pickHTML).join("") + "</div>" +
+      '<p class="pick-foot">' + esc(t("Already in your cards? Left out.")) + " " + esc(t("Where to watch is not shown: the catalogue does not list it.")) + "</p>" +
+      '<div class="plan-actions">' +
+        '<button class="btn" type="button" data-nav="#/plan">' + esc(t("Plan something else")) + "</button>" +
+        '<button class="btn btn-primary" type="button" data-action="save"' + (saved || busyAction ? " disabled" : "") + ">" + (saved ? "Saved" : "Save") + "</button>" +
+      "</div>" +
+      (Array.isArray(plan.log) && plan.log.length ?
+        '<details class="how"><summary>How this was made</summary>' + traceHeadHTML(plan) + '<ol class="trace">' +
+          (Array.isArray(plan.trace) && plan.trace.length === plan.log.length ? plan.trace : plan.log.map(function(l){ return { text: l }; })).map(function(l, i){ return '<li><span class="trace-n num">' + (i + 1) + '</span><span class="trace-t">' + esc(l.text) + '</span>' + (l.ms != null ? '<span class="trace-ms num">+' + (l.ms / 1000).toFixed(1) + 's</span>' : "") + "</li>"; }).join("") +
+        "</ol>" + receiptHTML(plan.receipt) + "</details>" : "");
+  }
   function paint(plan){
     if (!isCurrent(token)) return;
     currentPlan = plan;
+    if (plan && plan.mode === "in") { view.classList.add("plan-in-view"); paintIn(plan); return; }
+    view.classList.remove("plan-in-view");
     const stops = Array.isArray(plan.stops) ? plan.stops : [];
     const saved = !!plan.saved;
     view.innerHTML =
@@ -7396,7 +7584,7 @@ function renderPlanResult(id){
     const qs = Array.isArray(r.queries) ? r.queries : [];
     return '<div class="receipt"><p class="receipt-title">' + (LANG === "zh" ? "回执" : "Receipt") + '</p>' +
       '<p class="receipt-line"><span>' + (LANG === "zh" ? "发给 Qloo 的种子" : "Seeds sent to Qloo") + '</span> ' + seeds.map(function(x){ return esc(x.name) + ' <code>' + esc(String(x.qloo_id || "").slice(0, 8)) + '</code>'; }).join(", ") + "</p>" +
-      qs.map(function(q){ return '<p class="receipt-line"><code>GET ' + esc(q.endpoint) + "</code>" + (LANG === "zh" ? " 类型 place · 标签 " : " type place · tag ") + esc(q["filter.tags"] || (LANG === "zh" ? "无" : "none")) + (LANG === "zh" ? " · 位置 " : " · near ") + esc(q["filter.location.query"] || "") + " · " + esc(String(q.returned)) + (LANG === "zh" ? " 个返回" : " back") + "</p>"; }).join("") +
+      qs.map(function(q){ return '<p class="receipt-line"><code>GET ' + esc(q.endpoint) + "</code>" + (q["filter.location.query"] ? (LANG === "zh" ? " 类型 place · 标签 " : " type place · tag ") + esc(q["filter.tags"] || (LANG === "zh" ? "无" : "none")) + (LANG === "zh" ? " · 位置 " : " · near ") + esc(q["filter.location.query"] || "") : " " + esc(String(q["filter.type"] || "").split(":").pop())) + " · " + esc(String(q.returned)) + (LANG === "zh" ? " 个返回" : " back") + "</p>"; }).join("") +
       '<p class="receipt-line muted">' + esc(r.sent_to_qloo || "") + (r.provenance ? " · " + esc(r.provenance.label) + " (" + (r.provenance.live|0) + " live, " + (r.provenance.cached|0) + " cached)" : "") + "</p></div>";
   }
   function setActionBusy(b){
@@ -7489,6 +7677,8 @@ function renderPlanResult(id){
     if (e.target.closest("[data-plain]")) { openPlain(); return; }
     const wsBtn = e.target.closest("[data-why-stop]");
     if (wsBtn) { openWhyStop(Number(wsBtn.getAttribute("data-why-stop")) || 0); return; }
+    const wpBtn = e.target.closest("[data-why-pick]");
+    if (wpBtn) { openWhyStop(Number(wpBtn.getAttribute("data-why-pick")) || 0, true); return; }
     const swapBtn = e.target.closest("[data-swap]");
     if (swapBtn) {
       runPlanAction("swap", { index: Number(swapBtn.getAttribute("data-swap")) || 0 });
@@ -8202,38 +8392,97 @@ boot();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 
-  // note -> card: each newly matched mention lifts off as a small card and flies to the Cards tab
+  // fly-deck:js — note -> card. A card that is NEW to the deck lifts off its chip and lands on the Cards nav:
+  // the desktop rail item (wide or collapsed) when the rail is shown, else the mobile tab bar. Measure what is actually
+  // on screen: the mobile #tabs is display:none on desktop, so it measures 0x0 at (0,0), which used to send the flight
+  // to the top-left logo. A repeat mention (footprint appended to an existing card) gets no flight and no nav reaction.
+  function deckTarget(){
+    var c = [document.querySelector('.pf-rail .pf-nav [data-pf-go="cards"]'), document.querySelector('#tabs:not([hidden]) .tab[data-tab="cards"]')];
+    for (var i = 0; i < c.length; i++) {
+      var el = c[i]; if (!el) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > innerHeight) continue;
+      var ic = el.querySelector("svg"), ir = ic ? ic.getBoundingClientRect() : r;
+      if (!ir.width) ir = r;
+      return { el: el, x: ir.left + ir.width / 2, y: ir.top + ir.height / 2 };
+    }
+    return null;
+  }
+  Fx.deckTarget = deckTarget;
+  function land(){
+    var t = deckTarget(); if (!t) return; /* re-measured: the rail re-renders its buttons on route/lang changes */
+    var el = t.el, ic = el.querySelector("svg");
+    el.classList.remove("fx-land"); void el.offsetWidth; el.classList.add("fx-land");
+    var old = el.querySelector(".fx-land-dot"); if (old) old.remove();
+    var dot = document.createElement("i"); dot.className = "fx-land-dot"; dot.setAttribute("aria-hidden", "true"); dot.textContent = "+1";
+    var br = el.getBoundingClientRect(), ir = ic ? ic.getBoundingClientRect() : br;
+    dot.style.left = Math.round(ir.right - br.left - 1) + "px"; dot.style.top = Math.round(ir.top - br.top - 12) + "px";
+    el.appendChild(dot);
+    clearTimeout(el.__fxLand);
+    el.__fxLand = setTimeout(function(){ el.classList.remove("fx-land"); if (dot.isConnected) dot.remove(); }, 1500);
+  }
+  Fx.landDeck = land;
+  function waitAnims(el, cap){
+    var list = [];
+    try { list = el.getAnimations ? el.getAnimations().filter(function(a){ return a.playState !== "finished"; }) : []; } catch (_) {}
+    if (!list.length) return Promise.resolve();
+    return Promise.race([Promise.all(list.map(function(a){ return a.finished.catch(function(){}); })), new Promise(function(r){ setTimeout(r, cap); })]);
+  }
   Fx.grow = function(noteEl){
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    var tab = document.querySelector('.tab[data-tab="cards"]');
-    if (!tab) return;
-    var tr = tab.getBoundingClientRect();
-    var ms = noteEl.querySelectorAll(".mention.matched.draw");
-    Array.prototype.forEach.call(ms, function(m, i){
-      setTimeout(function(){
-        var r = m.getBoundingClientRect();
-        if (!r.width) return;
-        var el = document.createElement("div");
-        el.className = "fx-grow";
-        var img = m.getAttribute("data-img");
-        el.style.cssText = "position:fixed;z-index:9999;pointer-events:none;width:44px;height:62px;border-radius:8px;overflow:hidden;background:#efe6d2 center/cover;box-shadow:0 10px 24px rgba(60,40,10,.28);left:0;top:0;transform-origin:center;";
-        if (img) el.style.backgroundImage = "url(" + JSON.stringify(img) + ")";
-        else el.innerHTML = '<span style="font:600 11px Fraunces,serif;padding:6px;display:block;color:#5b4a2e">' + (m.textContent||"").slice(0,18).replace(/</g,"") + "</span>";
-        document.body.appendChild(el);
-        var x0 = r.left + r.width/2 - 22, y0 = r.top + r.height/2 - 31;
-        var x1 = tr.left + tr.width/2 - 22, y1 = tr.top + tr.height/2 - 31;
-        var an = el.animate([
-          { transform: "translate("+x0+"px,"+y0+"px) scale(.2) rotate(-6deg)", opacity: 0 },
-          { transform: "translate("+x0+"px,"+(y0-46)+"px) scale(1.25) rotate(-3deg)", opacity: 1, offset: .3 },
-          { transform: "translate("+((x0+x1)/2+30)+"px,"+((y0+y1)/2-30)+"px) scale(.8) rotate(8deg)", opacity: 1, offset: .65 },
-          { transform: "translate("+x1+"px,"+y1+"px) scale(.15) rotate(14deg)", opacity: 0 }
-        ], { duration: 1100, easing: "cubic-bezier(.5,.05,.3,1)" });
-        an.onfinish = function(){
-          el.remove();
-          tab.animate([{transform:"scale(1)"},{transform:"scale(1.25)"},{transform:"scale(1)"}], {duration:360,easing:"ease-out"});
-        };
-      }, i * 220);
+    if (!noteEl) return;
+    var rm = false; try { rm = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (_) {}
+    var nid = noteEl.getAttribute("data-note-id");
+    var fresh = [], seen = {};
+    Array.prototype.forEach.call(noteEl.querySelectorAll(".mention.matched.draw[data-card]"), function(m){
+      var id = m.getAttribute("data-card");
+      if (seen[id]) { if (m.hasAttribute("data-fresh")) seen[id].fresh = true; return; }
+      seen[id] = { id: id, m: m, fresh: m.hasAttribute("data-fresh") };
+      fresh.push(seen[id]);
     });
+    fresh = fresh.filter(function(x){ return x.fresh; });
+    if (!fresh.length || !deckTarget()) return;
+    function liveNote(){ return noteEl.isConnected ? noteEl : (nid && document.querySelector('#view [data-note-id="' + nid.replace(/"/g, "") + '"]')) || noteEl; }
+    function chipOf(id){ var n = liveNote(); return n.querySelector('.grown-chip[data-card="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]'); }
+    if (rm) { /* no flight: the nav just fades its glow and +1 in once the chips are in */
+      var c0 = chipOf(fresh[0].id);
+      (c0 ? waitAnims(c0, 1600) : Promise.resolve()).then(land);
+      return;
+    }
+    fresh.forEach(function(x, i){
+      var chip = chipOf(x.id);
+      (chip ? waitAnims(chip, 2000) : Promise.resolve()).then(function(){
+        setTimeout(function(){ fly(x, i); }, 120 + i * 260);
+      });
+    });
+    function fly(x){
+      var chip = chipOf(x.id), src = chip && (chip.querySelector("img") || chip.querySelector(".grown-face") || chip);
+      if (!src || !src.getBoundingClientRect().width) src = x.m.isConnected ? x.m : null;
+      var t = deckTarget(); if (!src || !t) return;
+      var r = src.getBoundingClientRect(); if (!r.width) return;
+      var W = 34, H = 46;
+      var el = document.createElement("div");
+      el.className = "fx-grow"; el.setAttribute("aria-hidden", "true");
+      el.style.cssText = "position:fixed;z-index:9999;pointer-events:none;width:" + W + "px;height:" + H + "px;border-radius:7px;overflow:hidden;background:var(--b-butter,#f3e7c2) center/cover;box-shadow:0 0 0 2px var(--b-card,#fffaf0),0 10px 22px -6px rgba(64,50,28,.4);left:0;top:0;transform-origin:center;will-change:transform,opacity;";
+      var img = (chip && chip.querySelector("img") && chip.querySelector("img").currentSrc) || x.m.getAttribute("data-img");
+      if (img) el.style.backgroundImage = "url(" + JSON.stringify(img) + ")";
+      else el.innerHTML = '<span style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;font:400 18px/1 var(--serif,Georgia);color:var(--b-butter-ink,#6e5413)">' + esc1(((chip && chip.querySelector(".grown-name")) || x.m).textContent || "").slice(0, 1) + "</span>";
+      document.body.appendChild(el);
+      var x0 = r.left + r.width / 2 - W / 2, y0 = r.top + r.height / 2 - H / 2;
+      var x1 = t.x - W / 2, y1 = t.y - H / 2;
+      var mx = (x0 + x1) / 2, my = Math.min(y0, y1) - Math.min(80, Math.abs(x1 - x0) * .12 + 30);
+      /* per-segment easing on a linear timeline: lift (ease-out), arc (ease-in-out), dive (ease-in), short fade -> the nav reacts the moment it arrives */
+      var an = el.animate([
+        { transform: "translate(" + x0 + "px," + y0 + "px) scale(1)", opacity: 1, easing: "cubic-bezier(.2,.7,.3,1)" },
+        { transform: "translate(" + x0 + "px," + (y0 - 14) + "px) scale(1.12) rotate(-4deg)", opacity: 1, offset: .16, easing: "cubic-bezier(.45,0,.55,1)" },
+        { transform: "translate(" + mx + "px," + my + "px) scale(.85) rotate(-10deg)", opacity: 1, offset: .58, easing: "cubic-bezier(.5,0,.75,.4)" },
+        { transform: "translate(" + x1 + "px," + y1 + "px) scale(.34) rotate(-2deg)", opacity: .95, offset: .9 },
+        { transform: "translate(" + x1 + "px," + y1 + "px) scale(.22)", opacity: 0 }
+      ], { duration: 820, easing: "linear", fill: "forwards" });
+      var done = false;
+      function end(){ if (done) return; done = true; el.remove(); land(); }
+      an.onfinish = end; setTimeout(end, 1400);
+    }
+    function esc1(v){ return String(v).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   };
 })();
 

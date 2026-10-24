@@ -674,7 +674,7 @@ async function recognizeImport(env, userId, note) {
 /** Parse a Letterboxd diary.csv / reviews.csv / watched.csv export. */
 export function parseLetterboxd(csv) {
   csv = String(csv || "").replace(/^\uFEFF/, "");
-  if (!csv) return null;
+  if (!csv) return [];
   const rows = [];
   let row = [], cell = "", q = false;
   for (let i = 0; i < csv.length; i++) {

@@ -2183,7 +2183,9 @@ function trZh(s){
   if (out == null) return raw;
   return raw.replace(key, out);
 }
+function fixCase(x){ return String(x).replace(/\b([A-Z][a-z]{2,})([A-Z])([a-z]+)\b/g, function(_, a, b, c){ return a + b.toLowerCase() + c; }); }
 function reasonZh(r){
+  if (r) r = fixCase(r);
   if (LANG !== "zh" || !r) return r;
   var TY = {show:"剧集", film:"电影", music:"音乐", book:"书", place:"地点", tv:"剧集", artist:"艺人"};
   return String(r).replace(/"([^"]+)" is a ([a-z]+)(?: and a ([a-z]+))?\./g, function(_, m, a, b){ return "“" + m + "”既是" + (TY[a]||a) + (b ? "也是" + (TY[b]||b) : "") + "。"; })

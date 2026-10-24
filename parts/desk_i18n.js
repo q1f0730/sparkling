@@ -41,7 +41,12 @@ Object.assign(ZH, {
 })();
 Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味卡片", "Your taste letter": "你的口味来信" });
 (function(){
-  var two = function(s){ var p = String(s).split(" and "); return p.length === 2 ? p.join(" 和 ") : s; };
+  var two = function(s){ s = String(s); var N = window.SP_NAMES || {}, out = [], rest = s, guard = 0;
+    while (rest && guard++ < 8) { var hit = null; Object.keys(N).forEach(function(k){ if ((rest === k || rest.indexOf(k + " and ") === 0) && (!hit || k.length > hit.length)) hit = k; });
+      if (hit) { out.push(hit); rest = rest.slice(hit.length + 5); continue; }
+      var i = rest.indexOf(" and "); while (i >= 0 && /^(the|a|an) /.test(rest.slice(i + 5))) i = rest.indexOf(" and ", i + 5);
+      if (i < 0) { out.push(rest); rest = ""; } else { out.push(rest.slice(0, i)); rest = rest.slice(i + 5); } }
+    return out.length === 2 ? out.join(" 和 ") : out.length > 2 ? out.slice(0, -1).join("、") + " 和 " + out[out.length - 1] : s; };
   var MW = { films: "部电影", shows: "部剧", artists: "位艺人", books: "本书", places: "个地方", things: "样东西" };
   var lead = function(s){
     var x;

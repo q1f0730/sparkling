@@ -367,13 +367,17 @@
     h += '<div class="dk-actions dk-open"><button class="btn btn-sm" type="button" data-nav="#/cards/' + encodeURIComponent(c.id) + '">' + esc(tr("Open full card")) + "</button></div>";
     return h + "</article>";
   }
+  function syncTile(id, heart) {
+    var t = document.querySelector('#view .card-tile[data-nav="#/cards/' + encodeURIComponent(id) + '"]');
+    if (t) t.classList.toggle("is-out", heart === -1);
+  }
   function wireReact() {
     Array.prototype.forEach.call(insp.querySelectorAll("[data-dk-heart]"), function (b) {
       b.addEventListener("click", function () {
         var art = b.closest("[data-dk-card]"), id = art.getAttribute("data-dk-card"), x = cache[id]; if (!x) return;
         var v = Number(b.getAttribute("data-dk-heart")), now = Number(x.card.heart) || 0, next = now === v ? 0 : v;
-        x.card.heart = next; refreshInsp();
-        getJSON("/api/cards/" + encodeURIComponent(id), { method: "PATCH", body: { heart: next } }).catch(function () { x.card.heart = now; refreshInsp(); });
+        x.card.heart = next; syncTile(id, next); refreshInsp();
+        getJSON("/api/cards/" + encodeURIComponent(id), { method: "PATCH", body: { heart: next } }).catch(function () { x.card.heart = now; syncTile(id, now); refreshInsp(); });
       });
     });
   }

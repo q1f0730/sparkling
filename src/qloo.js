@@ -94,6 +94,7 @@ export function slimEntity(e) {
 const MEDIA_TYPES = ["movie", "tv_show", "artist", "book", "podcast"].map((d) => DOMAINS[d]);
 
 export async function searchEntity(env, { query, domain, mediaFirst }) {
+  if (!query || !String(query).trim()) return [];
   const types = domain && DOMAINS[domain] ? DOMAINS[domain] : mediaFirst ? MEDIA_TYPES : undefined;
   const data = await qloo(env, "/search", { query, types, take: 4 });
   return (data.results || []).map((r) => {
@@ -111,6 +112,7 @@ export async function searchEntity(env, { query, domain, mediaFirst }) {
 
 /** Compare two taste profiles: shared tags, and what is unique to each side. */
 export async function compareTastes(env, { a_ids, b_ids, take = 10 }) {
+  if (!a_ids?.length || !b_ids?.length) return { shared: [], only_a: [], only_b: [] };
   const data = await qloo(env, "/v2/insights/compare", {
     "a.signal.interests.entities": a_ids,
     "b.signal.interests.entities": b_ids,
@@ -161,7 +163,7 @@ export async function searchTags(env, { query, domain }) {
 
 /** Full entity records by id (used to enrich the final plan). */
 export async function getEntities(env, ids) {
-  if (!ids.length) return [];
+  if (!ids?.length) return [];
   const data = await qloo(env, "/entities", { entity_ids: ids });
   return (data.results || []).map(slimEntity).filter(Boolean);
 }

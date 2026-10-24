@@ -315,3 +315,12 @@ html.pf-macapp #chrome{-webkit-app-region:drag}
 html.pf-macapp #chrome button,html.pf-macapp #chrome a,html.pf-macapp #chrome input{-webkit-app-region:no-drag}
 @media (max-width:1023px){html.pf-macapp .topbar{padding-left:calc(var(--pad) + 70px)}}
 @media (min-width:1024px){html.pf-macapp .pf-rail{padding-top:44px}html.pf-macapp .dk-insp{padding-top:44px}}
+
+@media (min-width:1280px){
+  .plan-input-view{max-width:1040px!important;width:100%;display:grid;grid-template-columns:minmax(0,1fr) 340px;column-gap:56px;align-items:start}
+  .plan-input-view>.plan-prompt{grid-column:1/-1}
+  .plan-input-view>.plan-form{grid-column:1;grid-row:2}
+  .plan-input-view>.plan-ideas{grid-column:2;grid-row:2;position:sticky;top:24px;padding:20px;border:1px solid rgba(0,0,0,.08);border-radius:20px;background:rgba(255,250,240,.7)}
+  .plan-input-view>.plan-ideas .plan-idea{display:block;width:100%;text-align:left;margin-bottom:8px}
+  .plan-input-view>[data-saved-plans]{grid-column:1/-1}
+}

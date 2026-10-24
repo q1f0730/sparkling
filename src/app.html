@@ -508,6 +508,7 @@ svg{flex:0 0 auto}
 .shift-pill.fading{background:transparent;border:1px dashed var(--faint);color:var(--muted)}
 .why-btn{margin-top:10px;font-size:12px;font-weight:500;color:var(--accent);padding:6px 0;min-height:32px}
 .why-sec{margin:0 0 16px}
+.ws-band{font-size:10.5px;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:1px 7px;margin:0 auto 0 8px}
 .why-h{margin:0 0 8px;font-size:12px;font-weight:500}
 .from-notes{display:inline-flex;align-items:center;height:21px;padding:0 8px;border-radius:999px;background:var(--surface);color:var(--text);font-size:10.5px;font-weight:500}
 .why-read-h{font-style:italic;color:var(--muted);font-weight:500}
@@ -7057,7 +7058,7 @@ function renderPlanResult(id){
       (cf.length ? cf.slice(0, 4).map(function(r){
         const pct = Math.round((r.score || 0) * 100);
         return '<button type="button" class="ws-row type-' + attr(r.type || "other") + '" data-close-nav="#/cards/' + attr(r.card_id) + '">' +
-          '<span class="ws-top"><b translate="no">' + esc(r.name) + '</b><span class="ws-pct num">' + pct + "%</span></span>" +
+          '<span class="ws-top"><b translate="no">' + esc(r.name) + '</b>' + (r.band ? '<span class="ws-band">' + esc(LANG === "zh" ? ({near:"熟悉",mid:"邻近",far:"远一步"})[r.band] : ({near:"familiar",mid:"nearby",far:"a step out"})[r.band]) + '</span>' : '') + '<span class="ws-pct num">' + pct + "%</span></span>" +
           '<span class="ws-bar"><i style="width:' + Math.max(4, Math.round((r.score || 0) / max * 100)) + '%"></i></span>' +
           (r.quote ? '<span class="ws-quote" translate="no">&ldquo;' + esc(r.quote) + "&rdquo;" + (r.at ? " &middot; " + esc(formatDate(r.at)) : "") + "</span>" : "") +
         "</button>" + (r.card_id ? '<button type="button" class="ws-no" data-redo="' + attr(r.card_id) + '">' + esc(LANG === "zh" ? "这张不适合我，重新计划" : "Not for me, re-plan without it") + "</button>" : "");

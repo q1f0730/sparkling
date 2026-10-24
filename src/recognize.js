@@ -135,7 +135,7 @@ async function qsearch(env, query, types, take = 5) {
     const p = e.properties || {};
     const urn = (e.types || []).find((t) => URN_TYPE[t]) || (e.types || [])[0];
     return {
-      qloo_id: e.entity_id, name: e.name, type: URN_TYPE[urn] || "other",
+      qloo_id: e.entity_id, name: e.name, type: URN_TYPE[urn] || "other", desc: String(p.short_description || "").slice(0, 160),
       year: String(p.release_year || p.publication_year || "") || undefined,
       by: Array.isArray(p.authors) ? p.authors[0] : p.author || (Array.isArray(p.directors) ? p.directors[0]?.name : undefined) || p.neighborhood || undefined,
       image: p.image?.url, popularity: e.popularity,
@@ -311,6 +311,11 @@ async function resolveMention(env, userId, note, noteId, text, m) {
   if (!pick && !songish && !m.heuristic) {
     const q = m.title || m.surface;
     let res = await qsearch(env, q, TYPE_URNS[m.type]);
+    // an "artist" whose blurb says film director/author is really a person (e.g. Wong Kar-Wai)
+    if (m.type === "music" && res.length && /\b(film ?makers?|directors?|screenwriters?|novelists?|authors?)\b/i.test(res[0].desc || "") && !/\b(singer|band|musician|composer|rapper)\b/i.test(res[0].desc || "")) {
+      const pr = await qsearch(env, q, TYPE_URNS.person);
+      if (pr.length) { res = pr; m = { ...m, type: "person" }; }
+    }
     if (!res.length && m.type === "person") res = await qsearch(env, q, TYPE_URNS.music); // musicians the model called people
     if (!res.length) res = await qsearch(env, q);
     const j = judge(m, res);

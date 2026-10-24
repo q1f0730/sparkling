@@ -239,13 +239,15 @@ async function api(req, env, ctx, url) {
     const URNS = { all: CARD_URNS, person: TYPE_URNS.person, film: TYPE_URNS.film, tv: TYPE_URNS.tv, music: TYPE_URNS.music, book: TYPE_URNS.book, place: TYPE_URNS.place };
     if (!URNS[type]) return ERR("Unknown type.");
     if (!raw) return J({ query: "", results: [] });
-    const key = "cat:v1:" + type + ":" + raw.toLowerCase();
+    const key = "cat:v4:" + type + ":" + raw.toLowerCase();
     try { const hit = await env.MEDIA_KV.getWithMetadata(key, "text"); if (hit && hit.value) return J(JSON.parse(hit.value)); } catch (_) {}
     let q = raw;
     if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(raw)) q = (await translateName(env, raw)) || raw;
-    let list;
-    try { list = await qsearch(env, q, URNS[type], 12); } catch (e) { return ERR("The catalogue did not answer. Try again.", 502); }
-    const out = { query: raw, en: q !== raw ? q : undefined, results: pickerMerge(q, [list], type) };
+    // "All" searches people, works and places apart (3 calls) so cafés called Margaret don't bury Margaret Qualley
+    const plan = type === "all" ? [[TYPE_URNS.person, 10], [[...TYPE_URNS.film, ...TYPE_URNS.tv, ...TYPE_URNS.music, ...TYPE_URNS.book, "urn:entity:podcast"], 10], [TYPE_URNS.place, 4]] : [[URNS[type], 12]];
+    const lists = await Promise.all(plan.map(([urns, take]) => qsearch(env, q, urns, take).catch(() => null)));
+    if (lists.every((l) => l === null)) return ERR("The catalogue did not answer. Try again.", 502);
+    const out = { query: raw, en: q !== raw ? q : undefined, results: pickerMerge(q, lists, type) };
     if (raw.length >= 2) await env.MEDIA_KV.put(key, JSON.stringify(out), { expirationTtl: 600 }).catch(() => {});
     return J(out);
   }

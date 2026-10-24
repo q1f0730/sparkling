@@ -125,7 +125,7 @@ export async function extractMentions(env, text) {
   }).slice(0, 6);
 }
 
-async function qsearch(env, query, types, take = 5) {
+export async function qsearch(env, query, types, take = 5) {
   const qs = new URLSearchParams({ query, take: String(take) });
   if (types) qs.set("types", types.join(","));
   const r = await fetch(`${BASE}/search?${qs}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
@@ -135,7 +135,7 @@ async function qsearch(env, query, types, take = 5) {
     const p = e.properties || {};
     const urn = (e.types || []).find((t) => URN_TYPE[t]) || (e.types || [])[0];
     return {
-      qloo_id: e.entity_id, name: e.name, type: URN_TYPE[urn] || "other", desc: String(p.short_description || "").slice(0, 160),
+      qloo_id: e.entity_id, name: e.name, type: URN_TYPE[urn] || "other", urn, desc: String(p.short_description || "").slice(0, 160),
       year: String(p.release_year || p.publication_year || "") || undefined,
       by: Array.isArray(p.authors) ? p.authors[0] : p.author || (Array.isArray(p.directors) ? p.directors[0]?.name : undefined) || p.neighborhood || undefined,
       image: p.image?.url, popularity: e.popularity,
@@ -181,6 +181,98 @@ export function cleanSurface(m, text) {
   }
   if (sf.split(/\s+/).length > 8) return null; // a sentence, not a name
   return sf;
+}
+
+// ---- Cross-type ambiguity (10-24): a bare name like "Margaret" or "Amanda" is a film, a singer and a book at once.
+// The model still guesses a type for it; that guess is not evidence. Only words in the note (or what the photo shows) are.
+export const CARD_URNS = ["urn:entity:person", "urn:entity:movie", "urn:entity:tv_show", "urn:entity:artist", "urn:entity:book", "urn:entity:place", "urn:entity:podcast"];
+const CUES = [
+  ["film", /\b(watch(ed|ing)?|re-?watch(ed)?|movie|film|cinema|screening|director'?s cut|trailer|letterboxd)\b|电影|影片|看了|重看|二刷|观影|影院|预告/i],
+  ["tv", /\b(episode|season|series|show|binge|tv)\b|剧集|追剧|这一集|第.季|美剧|日剧|韩剧/i],
+  ["book", /\b(read|reading|re-?read|novel|book|chapter|pages?|author)\b|读了|在读|看完这本|小说|这本书|章节|作者/i],
+  ["music", /\b(listen(ed|ing)?|song|album|track|record|vinyl|playlist|on repeat|concert|gig|spotify)\b|听了|在听|单曲|专辑|歌|演唱会|循环/i],
+  ["place", /\b(went to|visited|walked to|cafe|café|bar|bookshop|bookstore|museum|gallery|restaurant)\b|去了|咖啡馆|书店|酒吧|美术馆|博物馆|餐厅/i],
+  ["person", /\b(actor|actress|director|singer|she|he|her face|interview)\b|演员|导演|女演员|男演员|她|他/i],
+];
+/** Which type the note itself points at, from its own words; "screenshot" is a weak film hint. Scene comes from the photo reader. */
+export function typeCue(text, scene) {
+  const t = String(text || "");
+  for (const [type, re] of CUES) if (re.test(t)) return { type, strong: type !== "person" };
+  if (/film_still/.test(scene || "")) return { type: "film", strong: true };
+  if (/poster/.test(scene || "")) return { type: "film", strong: false };
+  if (/\bscreenshot\b|截图|截屏/i.test(t) || /screen/.test(scene || "")) return { type: "film", strong: false };
+  if (/book/.test(scene || "")) return { type: "book", strong: true };
+  if (/record/.test(scene || "")) return { type: "music", strong: true };
+  if (/portrait/.test(scene || "")) return { type: "person", strong: false };
+  return null;
+}
+/** A short bare name: one or two words (or a short CJK run), the kind the model types by guesswork. */
+export function bareName(surface) {
+  const s = String(surface || "").trim();
+  if (!s) return false;
+  if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(s)) return s.length <= 6;
+  return s.split(/\s+/).length <= 2 && s.length <= 24;
+}
+const MUSICIAN = /\b(singer|songwriter|rapper|musician|band|dj|composer|vocalist)\b/i;
+/**
+ * results: cross-type /search rows for the name. Returns { ambiguous, choices, pick }.
+ * Strong = an exact-name hit with popularity >= 0.5 and within 0.06 of the most popular exact hit.
+ * Places count only when the note points at a place (cafes and bars borrow every name).
+ * A "person" row that is the same singer as an exact "artist" row is one thing, not two.
+ */
+export function crossType(surface, title, results, cue) {
+  const keys = new Set([norm(surface), norm(title || "")].filter(Boolean));
+  let exact = (results || []).filter((r) => r && keys.has(norm(r.name)) && r.type !== "other");
+  if (!cue || cue.type !== "place") exact = exact.filter((r) => r.type !== "place");
+  const artists = new Set(exact.filter((r) => r.type === "music").map((r) => norm(r.name)));
+  exact = exact.filter((r) => !(r.type === "person" && artists.has(norm(r.name)) && (MUSICIAN.test(r.desc || "") || !r.desc)));
+  if (!exact.length) return { ambiguous: false, choices: [], pick: null };
+  const pop = (r) => (typeof r.popularity === "number" ? r.popularity : 0);
+  const top = Math.max(...exact.map(pop));
+  const strong = exact.filter((r) => pop(r) >= 0.5 && pop(r) >= top - 0.06).sort((a, b) => pop(b) - pop(a));
+  const types = [...new Set(strong.map((r) => r.type))];
+  // A strong cue in the note settles it when that type has a strong hit.
+  if (cue && cue.strong) {
+    const ofCue = exact.filter((r) => r.type === cue.type && pop(r) >= 0.5).sort((a, b) => pop(b) - pop(a));
+    if (ofCue.length) {
+      const rivals = ofCue.filter((r) => r !== ofCue[0] && pop(r) > pop(ofCue[0]) * 0.6);
+      return rivals.length ? { ambiguous: true, choices: ofCue.slice(0, 3), pick: null } : { ambiguous: false, choices: [], pick: ofCue[0] };
+    }
+  }
+  if (types.length < 2) return { ambiguous: false, choices: [], pick: null };
+  // Up to two of the hinted type first (a weak cue only orders), then the best of each other type, then the rest.
+  const pref = cue ? cue.type : null;
+  const pool = [...strong, ...exact.filter((r) => !strong.includes(r) && pop(r) >= 0.3)];
+  const out = [];
+  if (pref) for (const r of pool.filter((x) => x.type === pref).slice(0, 2)) out.push(r);
+  for (const t of types) { const r = pool.find((x) => x.type === t && !out.includes(x)); if (r && !out.some((o) => o.type === t && t !== pref)) out.push(r); }
+  for (const r of pool) if (!out.includes(r)) out.push(r);
+  return { ambiguous: true, choices: out.slice(0, 3), pick: null };
+}
+
+/** One catalogue row for the / picker: name, type and a short line that tells two Margarets apart. */
+export function pickerRow(r) {
+  if (!r) return null;
+  const desc = String(r.desc || "").replace(/\s*\(born[^)]*\)/i, "").trim();
+  let sub = "";
+  if (r.type === "person") sub = desc.replace(/^(american|british|english|french|canadian|australian|irish|korean|japanese|chinese|polish|german|italian|spanish|swedish|indonesian|south korean|hong kong)\s+/i, "").slice(0, 40);
+  else if (r.type === "film" || r.type === "tv") sub = [r.year, r.by].filter(Boolean).join(" · ");
+  else if (r.type === "book") sub = [r.year, r.by].filter(Boolean).join(" · ");
+  else if (r.type === "music") sub = (/\b(band|duo|group)\b/i.test(desc) ? "band" : /singer|songwriter|rapper|musician/i.test(desc) ? (desc.match(/singer-songwriter|singer|songwriter|rapper|musician/i) || [""])[0].toLowerCase() : "");
+  else if (r.type === "place") sub = String(r.by || "").slice(0, 40);
+  return { qloo_id: r.qloo_id, name: r.name, type: r.type, year: r.year || undefined, by: r.by || undefined, sub: sub || undefined, image: r.image || undefined, popularity: r.popularity };
+}
+/** Merge picker result lists (original + translated query), drop dupes and non-card types, exact names first. */
+export function pickerMerge(query, lists, type) {
+  const seen = new Set(), out = [];
+  for (const list of Array.isArray(lists) ? lists : []) for (const r of list || []) {
+    if (!r || !r.qloo_id || seen.has(r.qloo_id) || !r.urn || !CARD_URNS.includes(r.urn)) continue;
+    if (type && type !== "all" && r.type !== type) continue;
+    seen.add(r.qloo_id); out.push(r);
+  }
+  const q = norm(query);
+  const rank = (r) => (norm(r.name) === q ? 2 : norm(r.name).startsWith(q) ? 1 : 0);
+  return out.map((r, i) => ({ r, i })).sort((a, b) => rank(b.r) - rank(a.r) || a.i - b.i).map((x) => pickerRow(x.r)).slice(0, 12);
 }
 
 // Decide whether the best search result is a sure match.
@@ -275,7 +367,7 @@ async function qinsights(env, params) {
 }
 
 /** One mention -> matched card, an inbox question, or plain text. */
-async function resolveMention(env, userId, note, noteId, text, m) {
+async function resolveMention(env, userId, note, noteId, text, m, scene) {
   const sf = cleanSurface(m, note.text || text) || m.surface;
   if (sf !== m.surface && (note.text || text).includes(sf)) m = { ...m, surface: sf };
   const start = (note.text || "").indexOf(m.surface);
@@ -310,9 +402,28 @@ async function resolveMention(env, userId, note, noteId, text, m) {
     }
     if (!pick && !guesses.length) return mention;
   }
+  let ambiguous = false, pre = null;
   if (!pick && !songish && !m.heuristic) {
     const q = m.title || m.surface;
-    let res = await qsearch(env, q, TYPE_URNS[m.type]);
+    // Bare short names: also look across every type, because the model's type for "Margaret" is a guess.
+    const bare = bareName(m.surface);
+    const cue = bare ? typeCue(String(text || "").split(m.surface).join(" "), scene) : null;
+    let [res, cross] = await Promise.all([qsearch(env, q, TYPE_URNS[m.type]), bare ? qsearch(env, q, CARD_URNS, 10).catch(() => null) : null]);
+    if (cross) {
+      const x = crossType(m.surface, m.title, cross, cue);
+      if (x.pick) { pick = x.pick; m = { ...m, type: x.pick.type }; }
+      else if (x.ambiguous) { ambiguous = true; guesses = x.choices; }
+      else if (!res.some((r) => norm(r.name) === norm(q) || norm(r.name) === norm(m.surface))) {
+        // nothing of the guessed type has this name; something of another type does (阿曼达 typed "person", Amanda is a film)
+        const ex = cross.filter((r) => (norm(r.name) === norm(q) || norm(r.name) === norm(m.surface)) && r.type !== "other" && r.type !== "place");
+        if (ex.length) { res = cross; m = { ...m, type: ex[0].type }; }
+      }
+    }
+    pre = res;
+  }
+  if (!pick && !songish && !m.heuristic && !ambiguous) {
+    const q = m.title || m.surface;
+    let res = pre || await qsearch(env, q, TYPE_URNS[m.type]);
     // an "artist" whose blurb says film director/author is really a person (e.g. Wong Kar-Wai)
     if (m.type === "music" && res.length && /\b(film ?makers?|directors?|screenwriters?|novelists?|authors?)\b/i.test(res[0].desc || "") && !/\b(singer|band|musician|composer|rapper)\b/i.test(res[0].desc || "")) {
       const pr = await qsearch(env, q, TYPE_URNS.person);
@@ -330,7 +441,9 @@ async function resolveMention(env, userId, note, noteId, text, m) {
     if (!dup) await addFootprint(env, userId, cardId, noteId, m, note.created_at);
     Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: pick.name, type: cardType(pick.type), image: pick.image || null, year: pick.year || null, n: had ? ((await env.DB.prepare("SELECT COUNT(DISTINCT COALESCE(note_id, id)) n FROM footprints WHERE card_id=?").bind(cardId).first()) || {}).n || null : 1 } });
   } else if (guesses.length && !(m.heuristic && !/\s/.test(m.surface)) && (properish(m.surface) || guesses.some((g) => norm(g.name) === norm(m.surface)))) {
-    const ranked = await tasteRank(env, userId, guesses.map(({ tags, ...g }) => g));
+    const plainG = guesses.map(({ tags, urn, ...g }) => g);
+    // cross-type choices keep their order: affinities from different types are not comparable
+    const ranked = ambiguous ? plainG.map((g) => ({ ...g, cross: true })) : await tasteRank(env, userId, plainG);
     await askInbox(env, userId, noteId, m.surface, m.kind, m.sentiment, ranked);
     mention.state = "inbox";
   }
@@ -409,38 +522,84 @@ export async function recognizeNote(env, userId, noteId) {
   let sm = null;
   try { sm = JSON.parse(note.meta || "{}").sample || null; } catch (_) {}
   if (sm) { try { await recognizeSampleNote(env, userId, note, sm); } catch (e) { console.log("sample note", e.message); } return; }
+  let meta = {};
+  try { meta = JSON.parse(note.meta || "{}") || {}; } catch (_) {}
+  const tags = cleanTags(meta.tags).filter((g) => (note.text || "").includes(g.name));
   try {
-    const found = await extractMentions(env, text);
+    // Things the user tagged with "/" are cards already: no model, no guessing, never the Inbox.
+    const tagged = await Promise.all(tags.map((g) => resolveTag(env, userId, note, g)));
+    const rest = tags.reduce((acc, g) => acc.split(g.name).join(" "), text);
+    const found = /[\p{L}\p{N}]{2,}/u.test(rest) ? await extractMentions(env, text) : [];
+    const free = found.filter((m) => !tags.some((g) => overlaps(m.surface, g.name)));
     // Mentions are independent: resolve them in parallel (one note = one round of Qloo calls, not N).
-    const mentions = await Promise.all(found.map((m) => resolveMention(env, userId, note, noteId, text, m)));
+    const mentions = [...tagged, ...(await Promise.all(free.map((m) => resolveMention(env, userId, note, noteId, text, m, meta.scene))))];
     await env.DB.prepare("UPDATE notes SET mentions=?, status='done' WHERE id=?").bind(JSON.stringify(mentions), noteId).run();
   } catch (e) {
     console.log("recognize failed", e.message);
-    let tries = 0;
-    try { tries = (JSON.parse(note.meta || "{}").tries || 0) + 1; } catch {}
+    const tries = (meta.tries || 0) + 1;
     // Transient errors (quota, timeouts) go back to pending up to 3 times; then the note stays failed with the reason.
     const status = tries < 3 ? "pending" : "failed";
-    await env.DB.prepare("UPDATE notes SET status=?, meta=? WHERE id=?").bind(status, JSON.stringify({ error: String(e.message || e).slice(0, 300), tries }), noteId).run();
+    await env.DB.prepare("UPDATE notes SET status=?, meta=? WHERE id=?").bind(status, JSON.stringify({ ...meta, error: String(e.message || e).slice(0, 300), tries }), noteId).run();
   }
+}
+
+// ---- "/" tags: the user picked the exact entity in the composer.
+const TAG_TYPES = new Set(["film", "tv", "music", "book", "place", "person", "other"]);
+/** Keep only well-formed tags: a Qloo id, the name as written in the note, a card type. At most 8. */
+export function cleanTags(raw) {
+  let arr = raw;
+  if (typeof arr === "string") { try { arr = JSON.parse(arr); } catch (_) { return []; } }
+  if (!Array.isArray(arr)) return [];
+  const out = [], seen = new Set();
+  for (const g of arr) {
+    if (!g || typeof g !== "object") continue;
+    const id = typeof g.qloo_id === "string" ? g.qloo_id.trim() : "";
+    const name = typeof g.name === "string" ? g.name.trim().slice(0, 120) : "";
+    if (!/^[A-Za-z0-9-]{6,64}$/.test(id) || !name || seen.has(id)) continue;
+    seen.add(id);
+    out.push({ qloo_id: id, name, type: TAG_TYPES.has(g.type) ? g.type : "other", year: typeof g.year === "string" || typeof g.year === "number" ? String(g.year).slice(0, 8) : undefined, image: typeof g.image === "string" && /^https:\/\//.test(g.image) ? g.image.slice(0, 300) : undefined });
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+const overlaps = (a, b) => { const x = norm(a), y = norm(b); return !!x && !!y && (x.includes(y) || y.includes(x)); };
+async function resolveTag(env, userId, note, g) {
+  const start = (note.text || "").indexOf(g.name);
+  const mention = { start, end: start >= 0 ? start + g.name.length : -1, surface: g.name, state: "plain", confirmed: true };
+  const had = await env.DB.prepare("SELECT id FROM cards WHERE user_id=? AND qloo_id=?").bind(userId, g.qloo_id).first();
+  const cardId = await upsertCard(env, userId, { qloo_id: g.qloo_id, name: g.name, type: g.type, year: g.year, image: g.image }, Date.now());
+  await addFootprint(env, userId, cardId, note.id, { kind: "note", sentiment: "neutral", quote: note.text || "" }, note.created_at, "tagged");
+  await env.DB.prepare("INSERT OR REPLACE INTO mappings (user_id,surface,qloo_id) VALUES (?,?,?)").bind(userId, norm(g.name), g.qloo_id).run();
+  const n = had ? ((await env.DB.prepare("SELECT COUNT(DISTINCT COALESCE(note_id, id)) n FROM footprints WHERE card_id=?").bind(cardId).first()) || {}).n || null : 1;
+  return Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: g.name, type: g.type, image: g.image || null, year: g.year || null, n } });
 }
 
 function mapType(domain) {
   return { movie: "film", tv_show: "tv", artist: "music", book: "book", place: "place" }[domain] || "other";
 }
 
-/** Image -> text with a vision model; Qloo never sees the image. */
-export async function readImage(env, bytes, mime) {
+/** Image -> text with a vision model; Qloo never sees the image. Also one SCENE word (portrait, film_still, poster...)
+ * so a bare name under a face reads differently from the same name under a film frame. The model never names a face. */
+export const SCENES = ["portrait", "film_still", "poster", "book", "record", "place", "screen", "other"];
+export function parseVision(raw) {
+  let t = String(raw || "").trim(), scene = null;
+  const m = t.match(/(?:^|\n)\s*SCENE:\s*([a-z_]+)[^\n]*\s*$/i);
+  if (m) { const w = m[1].toLowerCase(); scene = SCENES.includes(w) ? w : null; t = t.slice(0, m.index).trim(); }
+  if (/^NONE\.?$/i.test(t)) t = "";
+  return { text: t, scene };
+}
+export async function readImageFull(env, bytes, mime) {
   const b64 = btoa(Array.from(new Uint8Array(bytes), (c) => String.fromCharCode(c)).join(""));
   const r = await env.AI.run("@cf/meta/llama-4-scout-17b-16e-instruct", {
     messages: [
-      { role: "system", content: "Transcribe the readable text in the image (titles, names, lyrics, signs). If it is a poster, book cover, record sleeve or shop sign, start with: TITLE: <title> BY: <creator>. If there is no readable text, reply exactly NONE. No commentary." },
+      { role: "system", content: "Transcribe the readable text in the image (titles, names, lyrics, signs). If it is a poster, book cover, record sleeve or shop sign, start with: TITLE: <title> BY: <creator>. If there is no readable text, write NONE. Then, on the last line, classify the picture as exactly one of: SCENE: portrait (a photo of people, not from a film) | SCENE: film_still (a frame from a film or TV show) | SCENE: poster | SCENE: book | SCENE: record | SCENE: place | SCENE: screen (a phone or app screenshot) | SCENE: other. No commentary. Never name a person from their face." },
       { role: "user", content: [{ type: "text", text: "Read this image." }, { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } }] },
     ],
     max_tokens: 400,
   });
-  const t = (r?.response || "").trim();
-  return t === "NONE" ? "" : t;
+  return parseVision(r?.response);
 }
+export async function readImage(env, bytes, mime) { return (await readImageFull(env, bytes, mime)).text; }
 
 /** One honest line on why Sparkling asks, using Qloo's taste ranking when it ran. */
 export function inboxReason(mention, guesses) {
@@ -451,6 +610,11 @@ export function inboxReason(mention, guesses) {
   const same = guesses.filter((g) => String(g.name || "").toLowerCase() === String(top.name || "").toLowerCase());
   const types = [...new Set(guesses.map((g) => g.type))];
   const label = (g) => g.name + (g.year ? ` (${g.year}${types.length > 1 ? ", " + (g.type === "tv" ? "show" : g.type) : ""})` : types.length > 1 ? ` (${g.type === "tv" ? "show" : g.type})` : "");
+  if (guesses.some((g) => g.cross) && types.length > 1) {
+    const noun = { film: "a film", tv: "a TV show", music: "a musician", book: "a book", place: "a place", person: "a person", other: "something else" };
+    const list = types.map((t) => noun[t] || "something else");
+    return `"${mention}" is the name of ${list.length > 1 ? list.slice(0, -1).join(", ") + " or " + list[list.length - 1] : list[0]}. Pick the one you meant.`;
+  }
   const lead = same.length > 1 ? (types.length > 1 ? `"${mention}" is a ${types.map((t) => (t === "tv" ? "show" : t)).join(" and a ")}.` : `${same.length} ${word[top.type] || "things"} are called ${top.name}.`) : guesses.length > 1 ? `"${mention}" could be a few things.` : `Not sure "${mention}" means ${top.name}.`;
   if (top.taste && typeof top.taste.affinity === "number") {
     const via = (top.taste.via || []).map((v) => v.name).filter(Boolean).slice(0, 2);

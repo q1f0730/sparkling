@@ -5043,6 +5043,7 @@ function renderLetter(){
         '<p class="letter-stats"><b>' + L.new_cards + '</b> new cards · <b>' + L.touched + '</b> touched</p>' +
         L.paragraphs.map(function(t){ return '<p class="letter-p">' + esc(t) + "</p>"; }).join("") +
         (L.returns.length ? '<h3 class="letter-h">You kept going back to</h3><div class="letter-row">' + thumbs(L.returns) + "</div>" : "") +
+        ((L.places||[]).length ? '<h3 class="letter-h">' + (LANG === "zh" ? "你地图上的地点" : "Places on your map") + '</h3><div class="letter-row">' + thumbs(L.places) + "</div>" : "") +
         (L.new.length ? '<h3 class="letter-h">New this month</h3><div class="letter-row">' + thumbs(L.new) + "</div>" : "") +
         (L.your_words.length ? '<h3 class="letter-h">In your own words</h3>' + L.your_words.map(function(w){ return '<blockquote class="letter-q">' + esc(w.text) + '<cite translate="no">' + (LANG === "zh" ? "关于 " : "about ") + esc(w.card) + "</cite></blockquote>"; }).join("") : "") +
         '<p class="letter-receipt">' + esc(L.receipt) + "</p>" +

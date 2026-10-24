@@ -2042,6 +2042,26 @@ Object.assign(ZH, { "Unsure": "不确定", "Did I get": "这几个", "this right
   "Sparkling was not sure about these. Keep the guess, pick another, or set it aside.": "这几条 Sparkling 没有把握。保留猜测、换一个，或者先放一边。" });
 ZH_PATTERNS.unshift([/^\+(\d+) more$/, function(m, n){ return "还有 " + n + " 条"; }]);
 Object.assign(ZH, { "Go": "出发，", "live it.": "去过一遍。", "stop": "站", "stops": "站", "window": "时段", "walking": "步行" });
+ZH_PATTERNS.unshift(
+  [/^Hours not listed$/, function(){ return "Qloo 没有营业时间"; }],
+  [/^Qloo lists (\w+) (.+?) \u00b7 not live-checked$/, function(m, d, t){ return "Qloo 列出" + (DAY_ZH[d] || d) + " " + t + " · 未实时核对"; }],
+  [/^Qloo lists it closed on (\w+?)s \u00b7 not live-checked$/, function(m, d){ return "Qloo 列出" + (DAY_ZH[d] || d) + "休息 · 未实时核对"; }],
+  [/^ \u00b7 may be closed when you arrive$/, function(){ return " · 到达时可能已关门"; }],
+  [/^Not much matched right in (.+?), so I looked a little further\. (.+)$/, function(m, a, rest){ return "在" + a + "附近匹配不多，所以我找得稍远了一点。" + zhT(rest); }],
+  [/^Qloo's best matches near (.+?) spill over the border\. (.+)$/, function(m, a, rest){ return "Qloo 在" + a + "附近的最佳匹配越过了边界。" + zhT(rest); }],
+  [/^Qloo has no hours for (one stop|\d+ stops)\; check before you go\.$/, function(m, n){ return "Qloo 没有" + (n === "one stop" ? "一站" : n.split(" ")[0] + " 站") + "的营业时间，出发前请确认。"; }]
+);
+function zhT(r){
+  var m, k = r.indexOf(" Qloo has no hours");
+  if (k > 0) return zhT(r.slice(0, k)) + trZh(r.slice(k + 1));
+  if ((m = r.match(/^Both stops are in (.+)\.$/))) return "两站都在" + m[1] + "。";
+  if ((m = r.match(/^All stops are in (.+)\.$/))) return "所有站点都在" + m[1] + "。";
+  if ((m = r.match(/^The stop is in (.+)\.$/))) return "这一站在" + m[1] + "。";
+  if ((m = r.match(/^The stops are in (.+)\.$/))) return "各站在" + m[1].replace(" and ", "和") + "。";
+  if ((m = r.match(/^One stop is in (.+)\.$/))) return "有一站在" + m[1] + "。";
+  if ((m = r.match(/^(\d+) stops are in (.+)\.$/))) return m[1] + " 站在" + m[2] + "。";
+  return r;
+}
 ZH_PATTERNS.unshift([/^Stop (\d+)$/, function(m, n){ return "第 " + n + " 站"; }]);
 if (!ZH["Letter"]) ZH["Letter"] = "来信";
 

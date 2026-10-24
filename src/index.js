@@ -343,7 +343,7 @@ async function api(req, env, ctx, url) {
       let mainAll;
       [nowT, thenT, mainAll] = await Promise.all([co.size >= 3 ? tagRead(co.now) : [], co.size >= 3 ? tagRead(co.then) : [], period === "all" ? tagRead(heavy) : null]);
       main = period === "now" ? nowT : period === "then" ? thenT : mainAll;
-    } catch (e) { return J({ threads: [], period, reason: "Qloo isn't answering right now. Your cards are fine." }); }
+    } catch (e) { return J({ threads: [], period, reason: "The taste catalogue isn't answering right now. Your cards are fine." }); }
     const evidence = (tag, pool) => pool.filter((c) => c.tags.some((t) => t.toLowerCase() === tag.toLowerCase()));
     const latestQ = new Map();
     for (const r of ((await env.DB.prepare("SELECT f.card_id, f.quote, n.text, f.created_at FROM footprints f JOIN notes n ON n.id=f.note_id WHERE f.user_id=? AND f.sentiment!='negative' ORDER BY f.created_at DESC").bind(U).all()).results || [])) if (!latestQ.has(r.card_id)) latestQ.set(r.card_id, r);
@@ -370,7 +370,7 @@ async function api(req, env, ctx, url) {
         carried_by_cards: ev.length >= 2,
         your_words: await quotesFor(cards),
         shift: shiftOf(t.name),
-        read: ev.length >= 2 ? `Shows up in ${[...new Set(ev.map((c) => kindWord[c.type] || "something"))].join(", ").replace(/, ([^,]*)$/, " and $1")} you keep returning to.` : "Qloo reads this across the cards you return to most.",
+        read: ev.length >= 2 ? `Shows up in ${[...new Set(ev.map((c) => kindWord[c.type] || "something"))].join(", ").replace(/, ([^,]*)$/, " and $1")} you keep returning to.` : "Read across the cards you return to most.",
       });
     }
     // Merge threads that rest on the same cards; drop near-duplicate tag names (Intimacy / Intimate).
@@ -491,7 +491,7 @@ async function api(req, env, ctx, url) {
         const next = pl.items.find((c) => !used.has(c.qloo_id));
         if (!next) return J({ plan, notice: "That's every good option I found for this stop." });
         plan.swapped = [...(plan.swapped || []), stops[i].qloo_id];
-        plan.log = [...(plan.log || []), `You swapped stop ${i + 1}: ${stops[i].name} is out, ${next.name} is in (next Qloo result for ${String(kind).toLowerCase()}).`];
+        plan.log = [...(plan.log || []), `You swapped stop ${i + 1}: ${stops[i].name} is out, ${next.name} is in (next catalogue result for ${String(kind).toLowerCase()}).`];
         plan.notice_swap = `Swapped stop ${i + 1}`;
         stops[i] = { ...next, kind };
       } else if (act === "shorten") {
@@ -504,7 +504,7 @@ async function api(req, env, ctx, url) {
         const fits = (s) => !s.price_level || s.price_level <= maxP;
         stops = stops.map((s, i) => (fits(s) ? s : ((pool.find((x) => x.kind === s.kind) || { items: [] }).items.find((c) => fits(c) && !stops.some((o) => o.qloo_id === c.qloo_id)) && { ...(pool.find((x) => x.kind === s.kind).items.find((c) => fits(c) && !stops.some((o) => o.qloo_id === c.qloo_id))), kind: s.kind }) || null)).filter(Boolean);
         plan.meta = { ...plan.meta, budget: nb };
-        plan.log = [...(plan.log || []), `You lowered the budget to $${nb}; re-ranked the same Qloo results.`];
+        plan.log = [...(plan.log || []), `You lowered the budget to $${nb}; re-ranked the same results.`];
         if (!stops.length) return J({ plan, notice: "Nothing I found fits that budget. Try a wider area." });
       }
       const seeds = plan.seeds || [];

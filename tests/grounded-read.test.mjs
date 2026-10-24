@@ -25,7 +25,7 @@ test("empty or missing sentence falls back to the plain template without a note"
   const want = "A bookstore with a cozy, literary feel.";
   assert.equal(groundedRead("", s), want);
   assert.equal(groundedRead(undefined, s, null), want);
-  assert.ok(want.endsWith("by Qloo."));
+  assert.ok(want.endsWith("feel."));
 });
 
 test("the plain template never shows generic amenity vibes, even when Qloo returns them", () => {

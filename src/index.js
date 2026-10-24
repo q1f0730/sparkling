@@ -2,7 +2,7 @@
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImageFull, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason, qsearch, CARD_URNS, TYPE_URNS, pickerMerge, cleanTags } from "./recognize.js";
-import { makePlan, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds } from "./plan.js";
+import { makePlan, makeStayIn, stayIntent, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds } from "./plan.js";
 import { llmJSON } from "./llm.js";
 import { qlooTagInsights, getEntities, compareTastes } from "./qloo.js";
 import { duoPlan } from "./duo.js";
@@ -50,19 +50,20 @@ async function noteOut(env, n) {
   };
 }
 
+function cardRow(r, now) {
+  const recency = r.last_at ? Math.exp(-(now - r.last_at) / (120 * DAY)) : 0.3;
+  const attention = r.fp * (0.5 + 0.5 * recency) + (r.heart === 1 ? 1 : 0);
+  return {
+    id: r.id, qloo_id: r.qloo_id, name: r.name, type: r.type, year: r.year || undefined, by: r.byline || undefined,
+    image: r.image || undefined, footprints: r.fp, heart: r.heart, last_at: r.last_at, first_at: r.first_at,
+    tags: JSON.parse(r.tags || "[]"), attention, size: attention >= 3.2 ? 3 : attention >= 1.6 ? 2 : 1,
+  };
+}
 async function cardsFor(env, userId, type) {
   const rows = (await env.DB.prepare(`SELECT c.*, COUNT(DISTINCT COALESCE(f.note_id, f.id)) fp, MAX(f.created_at) last_at, MIN(f.created_at) first_at
      FROM cards c LEFT JOIN footprints f ON f.card_id=c.id WHERE c.user_id=? GROUP BY c.id`).bind(userId).all()).results || [];
   const now = Date.now();
-  const out = rows.filter((r) => r.fp > 0 || r.heart === 1).map((r) => {
-    const recency = r.last_at ? Math.exp(-(now - r.last_at) / (120 * DAY)) : 0.3;
-    const attention = r.fp * (0.5 + 0.5 * recency) + (r.heart === 1 ? 1 : 0);
-    return {
-      id: r.id, qloo_id: r.qloo_id, name: r.name, type: r.type, year: r.year || undefined, by: r.byline || undefined,
-      image: r.image || undefined, footprints: r.fp, heart: r.heart, last_at: r.last_at, first_at: r.first_at,
-      tags: JSON.parse(r.tags || "[]"), attention, size: attention >= 3.2 ? 3 : attention >= 1.6 ? 2 : 1,
-    };
-  });
+  const out = rows.filter((r) => r.fp > 0 || r.heart === 1).map((r) => cardRow(r, now));
   const want = type && type !== "all" ? (type === "film" ? ["film", "tv"] : [type]) : null;
   return out.filter((c) => !want || want.includes(c.type)).sort((a, b) => b.size - a.size || (b.last_at || 0) - (a.last_at || 0));
 }
@@ -135,7 +136,7 @@ async function api(req, env, ctx, url) {
     if (pending.n) ctx.waitUntil(recognizePending(env, U));
     const due = await env.DB.prepare("SELECT id, plan, created_at FROM plans WHERE user_id=? AND saved=1 AND went IS NULL ORDER BY created_at DESC LIMIT 1").bind(U).first();
     let did_you_go = null;
-    if (due) { const pl = JSON.parse(due.plan); did_you_go = { plan_id: due.id, place: pl.stops[0]?.name, label: pl.meta?.when || "your plan" }; }
+    if (due) { const pl = JSON.parse(due.plan); did_you_go = { plan_id: due.id, place: (pl.stops || [])[0]?.name, label: pl.meta?.when || "your plan" }; }
     return J({ user: pubUser(user), inbox_count: ib.n, pending: pending.n, did_you_go });
   }
   if (p === "/api/me" && m === "PATCH") {
@@ -270,21 +271,30 @@ async function api(req, env, ctx, url) {
   // ---- cards
   if (p === "/api/cards" && m === "GET") return J({ cards: await cardsFor(env, U, url.searchParams.get("type")) });
   if ((mm = p.match(/^\/api\/cards\/(\w+)$/))) {
+    // Detail read: card row, footprints and this card's aggregate are independent D1 reads, run in parallel
+    // (was five reads in series: card, footprints, every card's aggregate, heart). PATCH reads after its write.
+    const detailReads = (cid) => Promise.all([
+      env.DB.prepare(`SELECT f.*, n.text note_text, n.media_key FROM footprints f LEFT JOIN notes n ON n.id=f.note_id WHERE f.card_id=? ORDER BY f.created_at DESC`).bind(cid).all(),
+      env.DB.prepare(`SELECT c.*, COUNT(DISTINCT COALESCE(f.note_id, f.id)) fp, MAX(f.created_at) last_at, MIN(f.created_at) first_at
+         FROM cards c LEFT JOIN footprints f ON f.card_id=c.id WHERE c.id=? AND c.user_id=? GROUP BY c.id`).bind(cid, U).first(),
+    ]);
+    const early = m === "GET" ? detailReads(mm[1]) : null;
     const c = await env.DB.prepare("SELECT * FROM cards WHERE id=? AND user_id=?").bind(mm[1], U).first();
-    if (!c) return ERR("not found", 404);
+    if (!c) { if (early) await early.catch(() => {}); return ERR("not found", 404); }
     if (m === "PATCH") { const b = await readJSON(req); if (!b) return BAD_BODY(); await env.DB.prepare("UPDATE cards SET heart=? WHERE id=?").bind(Math.max(-1, Math.min(1, Math.round(+b.heart) || 0)), c.id).run(); }
     if (m === "DELETE") {
       await env.DB.batch([env.DB.prepare("DELETE FROM footprints WHERE card_id=?").bind(c.id), env.DB.prepare("DELETE FROM cards WHERE id=?").bind(c.id)]);
       return J({ ok: true });
     }
-    const fps = ((await env.DB.prepare(`SELECT f.*, n.text note_text, n.media_key FROM footprints f LEFT JOIN notes n ON n.id=f.note_id WHERE f.card_id=? ORDER BY f.created_at DESC`).bind(c.id).all()).results || [])
+    const [fpRows, agg] = await (early || detailReads(c.id));
+    const fps = ((fpRows && fpRows.results) || [])
       .filter((f, i, a) => !f.note_id || a.findIndex((g) => g.note_id === f.note_id) === i)
       .map((f) => ({ id: f.id, note_id: f.note_id, kind: f.kind, sentiment: f.sentiment, quote: f.note_text || f.quote || "", created_at: f.created_at, source: f.source, image_url: f.media_key ? `/media/${f.media_key}` : undefined }));
     let view_changed = null;
     const pos = fps.find((f) => f.sentiment === "positive"), neg = fps.find((f) => f.sentiment === "negative");
     if (pos && neg) view_changed = pos.created_at > neg.created_at ? { a: neg, b: pos } : { a: pos, b: neg };
-    const card = (await cardsFor(env, U)).find((x) => x.id === c.id) || { id: c.id, name: c.name, type: c.type, heart: c.heart, footprints: 0 };
-    return J({ card: { ...card, heart: (await env.DB.prepare("SELECT heart FROM cards WHERE id=?").bind(c.id).first()).heart }, footprints: fps, view_changed, qloo_tags: JSON.parse(c.tags || "[]").slice(0, 3), photos: fps.filter((f) => f.image_url).map((f) => f.image_url) });
+    const card = agg && (agg.fp > 0 || agg.heart === 1) ? cardRow(agg, Date.now()) : { id: c.id, name: c.name, type: c.type, heart: agg ? agg.heart : c.heart, footprints: 0 };
+    return J({ card: { ...card, heart: agg ? agg.heart : c.heart }, footprints: fps, view_changed, qloo_tags: JSON.parse(c.tags || "[]").slice(0, 3), photos: fps.filter((f) => f.image_url).map((f) => f.image_url) });
   }
   if ((mm = p.match(/^\/api\/footprints\/(\w+)$/)) && m === "DELETE") {
     const f = await env.DB.prepare("SELECT f.*, c.qloo_id, n.text FROM footprints f JOIN cards c ON c.id=f.card_id LEFT JOIN notes n ON n.id=f.note_id WHERE f.id=? AND f.user_id=?").bind(mm[1], U).first();
@@ -466,6 +476,8 @@ async function api(req, env, ctx, url) {
     if (typeof b.area === "string") b.area = b.area.trim().slice(0, 120);
     if (b.text != null) b.text = String(b.text).slice(0, 1000);
     if (b.audience != null && !AUDIENCES[b.audience]) delete b.audience;
+    // Go out / Stay in: the client sends its toggle; without one, the ask decides (stay-in never needs an area).
+    if (b.mode !== "in" && b.mode !== "out") b.mode = stayIntent(b.text).mode === "in" ? "in" : "out";
     // correction beat: "not for me" on one of the cards behind a plan -> same request, re-planned, with a visible diff
     let redo = null;
     if (typeof b.redo_from === "string" && /^\w+$/.test(b.redo_from)) {
@@ -482,6 +494,7 @@ async function api(req, env, ctx, url) {
       redo = { from: prev.id, card: card.name, restore, before };
       for (const k of Object.keys(b)) delete b[k];
       Object.assign(b, orig, { lang });
+      if (b.mode !== "in" && b.mode !== "out") b.mode = stayIntent(b.text).mode === "in" ? "in" : "out";
     }
     const { readable, writable } = new TransformStream();
     const w = writable.getWriter(), enc = new TextEncoder();
@@ -489,10 +502,10 @@ async function api(req, env, ctx, url) {
     ctx.waitUntil((async () => {
       const logs = [], trace = [], t0 = Date.now();
       try {
-        if (b.area && b.area !== user.area) await env.DB.prepare("UPDATE users SET area=? WHERE id=?").bind(b.area, U).run();
-        const plan = await makePlan(env, user, b, (t) => { logs.push(t); trace.push({ ms: Date.now() - t0, text: t }); send({ type: "log", text: t }); });
+        if (b.mode !== "in" && b.area && b.area !== user.area) await env.DB.prepare("UPDATE users SET area=? WHERE id=?").bind(b.area, U).run();
+        const plan = await (b.mode === "in" ? makeStayIn : makePlan)(env, user, b, (t) => { logs.push(t); trace.push({ ms: Date.now() - t0, text: t }); send({ type: "log", text: t }); });
         plan.log = logs; plan.trace = trace;
-        if (redo) plan.diff = planDiff(redo.before, plan, redo.card, redo.restore, redo.from);
+        if (redo) plan.diff = plan.mode === "in" ? { ...planDiff({ stops: redo.before.picks || [] }, { stops: plan.picks || [] }, redo.card, redo.restore, redo.from), unit: "pick" } : planDiff(redo.before, plan, redo.card, redo.restore, redo.from);
         const { pool, ...rest } = plan;
         await env.DB.prepare("INSERT INTO plans (id,user_id,request,plan,pool,saved,created_at) VALUES (?,?,?,?,?,0,?)").bind(plan.id, U, JSON.stringify(b), JSON.stringify(rest), JSON.stringify(pool), Date.now()).run();
         await send({ type: "plan", plan: rest });
@@ -525,6 +538,7 @@ async function api(req, env, ctx, url) {
     if (act && m !== "POST") return ERR("not found", 404); // plan actions change state: POST only
     const b = m === "POST" ? (await readJSON(req)) || {} : {};
     if (!act && m === "GET") return J({ plan: { ...plan, saved: !!row.saved } });
+    if (plan.mode === "in" && ["plain", "swap", "shorten", "budget"].includes(act)) return J({ plan, notice: "That only applies to a plan out." });
     if (act === "plain") {
       const centreOf = (st) => { const c = (st || []).map((x) => x.coords).filter((c) => c && isFinite(c.lat) && isFinite(c.lon)); return c.length ? { lat: c.reduce((a, x) => a + x.lat, 0) / c.length, lon: c.reduce((a, x) => a + x.lon, 0) / c.length } : null; };
       if (plan.plain && plan.plain.checked === 3) return J({ plain: plan.plain });

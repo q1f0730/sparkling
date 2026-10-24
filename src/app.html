@@ -2077,6 +2077,18 @@ ZH_PATTERNS.push([/^([\d.]+) mi from the route$/, function(m, n){ return "离路
 Object.assign(ZH, {"A sentence written by a model from the venue’s description. It is not Qloo data.": "这句由模型根据地点简介写成，不是 Qloo 数据。", "A plain template filled from Qloo’s tags. No model wrote this.": "这是用 Qloo 标签填出来的固定句式，不是模型写的。"});
 Object.assign(ZH, {"Same notes, no Qloo": "同样的笔记，不用 Qloo", "Compare →": "对比 →", "Open when you arrive, per Qloo's listed hours": "按 Qloo 列出的营业时间，到达时在营业", "May be closed when you arrive": "到达时可能已关门"});
 Object.assign(ZH, {"Person": "人物", "People": "人物"});
+Object.assign(ZH, {"Steady":"稳定","Show less":"收起"});
+(function(){
+  var andZh = function(x){ return String(x).replace(/ and /g, "和"); };
+  ZH_PATTERNS.push(
+    [/^\+ (\d+) more from your notes$/, function(m, n){ return "+ 还有 " + n + " 条你的笔记"; }],
+    [/^(\d+) min walk$/, function(m, n){ return "步行 " + n + " 分钟"; }],
+    [/^(\d+) min by bike \(([\d.]+) mi\)$/, function(m, n, d){ return "骑车 " + n + " 分钟（" + d + " 英里）"; }],
+    [/^Qloo matched this (.+?) mostly through (.+?)(?:; affinity ([\d.]+))?\.$/, function(m, k, list, a){ return "Qloo 主要通过 " + andZh(list.replace(/ \((\d+)% of the match\)/g, "（占 $1%）")) + " 匹配到这家" + k + (a ? "；亲和度 " + a : "") + "。"; }],
+    [/^Qloo ranked this (.+?) near (.+?) in taste(?: \(popularity ([\d.]+)\))?\.$/, function(m, k, l, p){ return "按 Qloo 的品味排序，这家" + k + "和 " + andZh(l) + " 相近" + (p ? "（热度 " + p + "）" : "") + "。"; }],
+    [/^(.+) is how Qloo reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, lead, q){ lead = lead === "your recent cards" ? "你最近的卡片" : lead === "your cards" ? "你的卡片" : andZh(lead); return "Qloo 用 " + andZh(tags) + " 来解读 " + lead + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
+  );
+})();
 /* r7i18n:end */
 function trZh(s){
   if (s == null) return s;

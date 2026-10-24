@@ -172,6 +172,7 @@ function isVibeTag(t) {
   return !!name && !TIME_TAG.test(name) && !/time_of_day/.test(ty) && !GENERIC_VIBE.test(name) && !FACILITY_TAG.test(ty);
 }
 function slimPlace(e) {
+  if (!e || typeof e !== "object") return null;
   const p = e.properties || {};
   const loc = e.location || p.geocode || {};
   const lat = loc.lat ?? p.latitude, lon = loc.lon ?? loc.lng ?? p.longitude;
@@ -351,7 +352,7 @@ export async function makePlan(env, user, req, log) {
     try {
       qlooCalls++;
       const d = await qloo(env, "/v2/insights", params);
-      const out = (d.results?.entities || []).map(slimPlace);
+      const out = (d.results?.entities || []).map(slimPlace).filter(Boolean);
       await cachePut(env, key, out);
       return out;
     } catch (e) {

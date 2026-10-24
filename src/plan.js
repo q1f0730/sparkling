@@ -554,7 +554,8 @@ export async function dressPlan(env, user, seeds, stops, meta) {
       coords: s.coords, vibes: s.vibes, description: s.description, hours: s.hours, price_level: s.price_level,
     };
   });
-  const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[meta.mood] || "a little different";
+  const moodWords = { familiar: "familiar", different: "a little different", surprise: "surprise me" };
+  const moodWord = typeof meta.mood === "string" && meta.mood ? moodWords[meta.mood] || meta.mood : "familiar";
   return { id: uid(), period: meta.period, header: `${meta.when} · ${meta.area} · under $${meta.budget} · ${moodWord}`, stops: out, seeds: seeds.map((s) => ({ qloo_id: s.qloo_id, name: s.name })), meta };
 }
 

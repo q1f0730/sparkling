@@ -316,7 +316,7 @@ async function api(req, env, ctx, url) {
       if (gaps.length) paraOut.push(`这个月没有${gaps.map((g) => ({ films: "电影", music: "音乐", artists: "音乐", books: "书", places: "地点" }[g] || g)).join("或")}。这不是评判，只是一个空着的书架。`);
       receiptOut = "由你的卡片、足迹和 Qloo 标签计算得出，没有模型参与撰写。";
     }
-    return J({ letter: { month: monthOut, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, your_words: words, paragraphs: paraOut, receipt: receiptOut } });
+    return J({ letter: { month: monthOut, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), places: pl.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, your_words: words, paragraphs: paraOut, receipt: receiptOut } });
   }
 
   // ---- threads

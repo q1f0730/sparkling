@@ -1805,7 +1805,7 @@ const ZH = {
   "Film": "电影", "TV": "剧集", "Music": "音乐", "Book": "书", "Place": "地点", "Other": "其他", "Books": "书", "Places": "地点",
   "Film & TV": "影视", "All": "全部", "Today": "今天", "Earlier": "更早", "Untitled": "未命名", "Unnamed": "未命名",
   "Note": "笔记", "Card": "卡片", "Photo": "照片", "Photos": "照片", "Link": "链接", "Quote": "引用", "Screenshot": "截图",
-  "Plain notes": "纯笔记", "With cards": "有卡片", "plain note": "纯笔记", "photos": "照片",
+  "Plain notes": "纯笔记", "With cards": "有卡片", "plain note": "纯笔记", "In inbox": "在收件箱", "photos": "照片",
   // onboarding
   "Keep the things that stay with you.": "留住那些让你念念不忘的东西。",
   "Write a thought, paste a link, or add a screenshot. Sparkling connects the cultural things you return to.": "写一句想法、贴一个链接，或加一张截图。Sparkling 会把你反复回到的那些作品和地方串起来。",
@@ -2283,7 +2283,9 @@ function lastSeen(ms){
   if (diff > 1 && diff < 7) return weekdayShort(ms);
   return formatDate(ms);
 }
-function cardCountLabel(n){
+function cardCountLabel(n, mentions){
+  const arr = Array.isArray(mentions) ? mentions : [];
+  if (arr.some(function(m){ return m && m.state === "inbox"; })) return "In inbox";
   const count = Number(n) || 0;
   if (count <= 0) return "plain note";
   return count + " " + plural(count, "card", "cards");
@@ -3116,6 +3118,7 @@ function composeLinkChipHTML(linkUrl){
 /* ---------------------------------------------------------------------------
    Notes
    --------------------------------------------------------------------------- */
+const END_PUNCT = /[.,!?;:)\]}，。！？；：）】》、]/;
 function mentionedTextHTML(text, mentions, opts){
   const o = opts || {};
   const whole = String(text == null ? "" : text);
@@ -3135,7 +3138,10 @@ function mentionedTextHTML(text, mentions, opts){
   valid.forEach(function(item){
     if (item.s < cursor) return;
     if (item.s > cursor) out += esc(whole.slice(cursor, item.s));
-    const seg = whole.slice(item.s, item.e);
+    let seg = whole.slice(item.s, item.e);
+    // a surface echoed with trailing blanks must not push the next punctuation off the underline
+    const trail = seg.match(/\s+$/);
+    if (trail && END_PUNCT.test(whole.charAt(item.e))) seg = seg.slice(0, -trail[0].length);
     const m = item.m;
     const st = m.state || "plain";
     const cardId = m.card_id == null ? "" : String(m.card_id);
@@ -3172,7 +3178,7 @@ function noteHTML(note, opts){
   const meta = [];
   if (time) meta.push('<span class="note-time">' + esc(time) + "</span>");
   if (note.status === "pending") meta.push('<span class="fx-orb-pill note-count">' + (window.Fx ? Fx.orb(16) : "") + '<span class="fx-shine">' + esc(t("Recognizing")) + "…</span></span>");
-  else meta.push('<span class="note-count">' + esc(cardCountLabel(count)) + "</span>");
+  else meta.push('<span class="note-count">' + esc(cardCountLabel(count, note.mentions)) + "</span>");
   let body = "";
   if (text.trim()) body += '<p class="note-text" translate="no">' + mentionedTextHTML(text, note.mentions, o) + "</p>";
   const grown = (Array.isArray(note.mentions) ? note.mentions : []).filter(function(m){ return m && m.state === "matched" && m.card_id && m.card; });

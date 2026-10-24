@@ -229,6 +229,14 @@ export async function addFootprint(env, userId, cardId, noteId, m, at, source = 
   return id;
 }
 
+/** One question per note and mention: a retried recognition must not duplicate an open inbox row. */
+async function askInbox(env, userId, noteId, mention, kind, sentiment, guesses) {
+  const open = await env.DB.prepare("SELECT 1 FROM inbox WHERE user_id=? AND note_id=? AND mention=? AND status='open' LIMIT 1").bind(userId, noteId, mention).first();
+  if (open) return;
+  await env.DB.prepare("INSERT INTO inbox (id,user_id,note_id,mention,kind,sentiment,guesses,status,created_at) VALUES (?,?,?,?,?,?,?,'open',?)")
+    .bind(uid(), userId, noteId, mention, kind, sentiment, JSON.stringify(guesses), Date.now()).run();
+}
+
 /**
  * Rank candidate entities by the user's own taste: Qloo /v2/insights restricted to the candidates
  * (filter.results.entities), with the user's most-returned cards as signal.interests.entities and
@@ -316,8 +324,7 @@ async function resolveMention(env, userId, note, noteId, text, m) {
     Object.assign(mention, { state: "matched", card_id: cardId, plus_one: !!had, card: { name: pick.name, type: cardType(pick.type), image: pick.image || null, year: pick.year || null } });
   } else if (guesses.length && !(m.heuristic && !/\s/.test(m.surface)) && (properish(m.surface) || guesses.some((g) => norm(g.name) === norm(m.surface)))) {
     const ranked = await tasteRank(env, userId, guesses.map(({ tags, ...g }) => g));
-    await env.DB.prepare("INSERT INTO inbox (id,user_id,note_id,mention,kind,sentiment,guesses,status,created_at) VALUES (?,?,?,?,?,?,?,'open',?)")
-      .bind(uid(), userId, noteId, m.surface, m.kind, m.sentiment, JSON.stringify(ranked), Date.now()).run();
+    await askInbox(env, userId, noteId, m.surface, m.kind, m.sentiment, ranked);
     mention.state = "inbox";
   }
   return mention;
@@ -377,8 +384,7 @@ async function sampleNoteBody(env, userId, note, sm, ents) {
     const mention = { start, end: start >= 0 ? start + sm.ask.surface.length : -1, surface: sm.ask.surface, state: "plain" };
     if (guesses.length) {
       const ranked = await tasteRank(env, userId, guesses);
-      await env.DB.prepare("INSERT INTO inbox (id,user_id,note_id,mention,kind,sentiment,guesses,status,created_at) VALUES (?,?,?,?,?,?,?,'open',?)")
-        .bind(uid(), userId, note.id, sm.ask.surface, sm.ask.fk || "note", sm.sentiment || "positive", JSON.stringify(ranked), Date.now()).run();
+      await askInbox(env, userId, note.id, sm.ask.surface, sm.ask.fk || "note", sm.sentiment || "positive", ranked);
       mention.state = "inbox";
     }
     mentions.push(mention);
@@ -463,8 +469,7 @@ async function recognizeImport(env, userId, note) {
       await addFootprint(env, userId, cardId, note.id, m, note.created_at, meta.dated ? "imported" : "imported_pref");
       Object.assign(mention, { state: "matched", card_id: cardId });
     } else if (hits.length) {
-      await env.DB.prepare("INSERT INTO inbox (id,user_id,note_id,mention,kind,sentiment,guesses,status,created_at) VALUES (?,?,?,?,?,?,?,'open',?)")
-        .bind(uid(), userId, note.id, meta.title, m.kind, m.sentiment, JSON.stringify(hits.slice(0, 3)), Date.now()).run();
+      await askInbox(env, userId, note.id, meta.title, m.kind, m.sentiment, hits.slice(0, 3));
       mention.state = "inbox";
     }
     await env.DB.prepare("UPDATE notes SET mentions=?, status='done' WHERE id=?").bind(JSON.stringify([mention]), note.id).run();

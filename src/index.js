@@ -1,10 +1,10 @@
 // Sparkling Worker: notebook API + static app.
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
-import { recognizeNote, readImage, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason } from "./recognize.js";
-import { makePlan, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces } from "./plan.js";
+import { recognizeNote, readImageFull, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason, qsearch, CARD_URNS, TYPE_URNS, pickerMerge, cleanTags } from "./recognize.js";
+import { makePlan, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces } from "./plan.js";
 import { llmJSON } from "./llm.js";
-import { qlooTagInsights } from "./qloo.js";
+import { qlooTagInsights, getEntities } from "./qloo.js";
 import { SAMPLE_NOTES } from "./sample.js";
 
 const J = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", ...headers } });
@@ -171,7 +171,8 @@ async function api(req, env, ctx, url) {
     if (!text.trim()) return ERR("empty");
     const link = (text.match(/https?:\/\/\S+/) || [])[0];
     const id = uid(), now = Date.now();
-    await env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,link,status,created_at) VALUES (?,?,?,?,?,'pending',?)").bind(id, U, text, link ? "link" : "text", link || null, now).run();
+    const tags = cleanTags(b.tags).filter((g) => text.includes(g.name));
+    await env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,link,meta,status,created_at) VALUES (?,?,?,?,?,?,'pending',?)").bind(id, U, text, link ? "link" : "text", link || null, tags.length ? JSON.stringify({ tags }) : null, now).run();
     ctx.waitUntil(recognizeNote(env, U, id));
     return J({ note: await noteOut(env, await env.DB.prepare("SELECT * FROM notes WHERE id=?").bind(id).first()) });
   }
@@ -183,10 +184,15 @@ async function api(req, env, ctx, url) {
     if (file.size > 8 * 1024 * 1024) return ERR("That image is too large (8 MB max).");
     if (!IMAGE_TYPES.test(file.type || "")) return ERR("That file is not a photo (JPEG, PNG, WebP, GIF or HEIC).");
     const id = uid(), key = `${U}/${id}`, bytes = await file.arrayBuffer();
+    const tags = cleanTags(String(fd.get("tags") || "")).filter((g) => caption.includes(g.name));
     await media.put(env, key, bytes, file.type || "image/jpeg");
-    await env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,media_key,status,created_at) VALUES (?,?,?,'photo',?,'pending',?)").bind(id, U, caption, key, Date.now()).run();
+    await env.DB.prepare("INSERT INTO notes (id,user_id,text,kind,media_key,meta,status,created_at) VALUES (?,?,?,'photo',?,?,'pending',?)").bind(id, U, caption, key, tags.length ? JSON.stringify({ tags }) : null, Date.now()).run();
     ctx.waitUntil((async () => {
-      try { const t = await readImage(env, bytes, file.type || "image/jpeg"); await env.DB.prepare("UPDATE notes SET ocr_text=? WHERE id=?").bind(t || null, id).run(); } catch (e) { console.log("ocr", e.message); }
+      // The vision model can take a minute on a real photo; past 18 s recognition goes ahead on the caption alone.
+      try {
+        const v = await Promise.race([readImageFull(env, bytes, file.type || "image/jpeg"), new Promise((_, rej) => setTimeout(() => rej(new Error("vision timeout")), 18000))]);
+        await env.DB.prepare("UPDATE notes SET ocr_text=?, meta=json_set(COALESCE(meta,'{}'),'$.scene',?) WHERE id=?").bind(v.text || null, v.scene || null, id).run();
+      } catch (e) { console.log("ocr", e.message); }
       await recognizeNote(env, U, id);
     })());
     return J({ note: await noteOut(env, await env.DB.prepare("SELECT * FROM notes WHERE id=?").bind(id).first()) });
@@ -224,6 +230,38 @@ async function api(req, env, ctx, url) {
     if (!o) return ERR("not found", 404);
     const type = IMAGE_TYPES.test(o.type || "") ? o.type : "application/octet-stream"; // older uploads were not type-checked
     return new Response(o.body, { headers: { "content-type": type, "cache-control": "private, max-age=86400", "content-security-policy": "default-src 'none'; sandbox", ...(type.startsWith("image/") ? {} : { "content-disposition": "attachment" }) } });
+  }
+
+  // ---- catalogue search for the "/" picker and "Not this?" (one Qloo call per query, cached 10 min)
+  if (p === "/api/catalogue" && m === "GET") {
+    const raw = (url.searchParams.get("q") || "").replace(/\s+/g, " ").trim().slice(0, 60);
+    const type = url.searchParams.get("type") || "all";
+    const URNS = { all: CARD_URNS, person: TYPE_URNS.person, film: TYPE_URNS.film, tv: TYPE_URNS.tv, music: TYPE_URNS.music, book: TYPE_URNS.book, place: TYPE_URNS.place };
+    if (!URNS[type]) return ERR("Unknown type.");
+    if (!raw) return J({ query: "", results: [] });
+    const key = "cat:v1:" + type + ":" + raw.toLowerCase();
+    try { const hit = await env.MEDIA_KV.getWithMetadata(key, "text"); if (hit && hit.value) return J(JSON.parse(hit.value)); } catch (_) {}
+    let q = raw;
+    if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(raw)) q = (await translateName(env, raw)) || raw;
+    let list;
+    try { list = await qsearch(env, q, URNS[type], 12); } catch (e) { return ERR("The catalogue did not answer. Try again.", 502); }
+    const out = { query: raw, en: q !== raw ? q : undefined, results: pickerMerge(q, [list], type) };
+    if (raw.length >= 2) await env.MEDIA_KV.put(key, JSON.stringify(out), { expirationTtl: 600 }).catch(() => {});
+    return J(out);
+  }
+  if ((mm = p.match(/^\/api\/cards\/(\w+)\/swap$/)) && m === "POST") {
+    const c = await env.DB.prepare("SELECT * FROM cards WHERE id=? AND user_id=?").bind(mm[1], U).first();
+    if (!c) return ERR("not found", 404);
+    const b = await readJSON(req);
+    const qid = b && typeof b.qloo_id === "string" ? b.qloo_id.trim() : "";
+    if (!/^[A-Za-z0-9-]{6,64}$/.test(qid)) return BAD_BODY();
+    if (qid.toLowerCase() === String(c.qloo_id).toLowerCase()) return J({ ok: true, card_id: c.id });
+    const [e] = await getEntities(env, [qid]).catch(() => []);
+    if (!e) return ERR("That one is not in the catalogue.", 404);
+    const DT = { movie: "film", tv_show: "tv", artist: "music", book: "book", place: "place", person: "person" };
+    const type = DT[e.domain] || (["film", "tv", "music", "book", "place", "person"].includes(b.type) ? b.type : "other");
+    const newId = await swapCard(env, U, c, { qloo_id: e.id, name: e.name, type, year: e.year ? String(e.year) : undefined, by: e.by, image: e.image, tags: e.tags || [] });
+    return J({ ok: true, card_id: newId });
   }
 
   // ---- cards
@@ -409,6 +447,23 @@ async function api(req, env, ctx, url) {
     if (b.area != null && typeof b.area !== "string") return ERR("area must be text");
     if (typeof b.area === "string") b.area = b.area.trim().slice(0, 120);
     if (b.text != null) b.text = String(b.text).slice(0, 1000);
+    // correction beat: "not for me" on one of the cards behind a plan -> same request, re-planned, with a visible diff
+    let redo = null;
+    if (typeof b.redo_from === "string" && /^\w+$/.test(b.redo_from)) {
+      const prev = await env.DB.prepare("SELECT * FROM plans WHERE id=? AND user_id=?").bind(b.redo_from, U).first();
+      if (!prev) return ERR("that plan is gone", 404);
+      const cid = typeof b.dislike_card === "string" ? b.dislike_card : typeof b.restore_card === "string" ? b.restore_card : null;
+      const card = cid ? await env.DB.prepare("SELECT id,name FROM cards WHERE id=? AND user_id=?").bind(cid, U).first() : null;
+      if (!card) return ERR("card not found", 404);
+      const restore = typeof b.restore_card === "string";
+      await env.DB.prepare("UPDATE cards SET heart=? WHERE id=? AND user_id=?").bind(restore ? 0 : -1, card.id, U).run();
+      let orig = {}; try { orig = JSON.parse(prev.request || "{}"); } catch (_) {}
+      const lang = b.lang === "zh" ? "zh" : orig.lang || "en";
+      let before = {}; try { before = JSON.parse(prev.plan || "{}"); } catch (_) {}
+      redo = { from: prev.id, card: card.name, restore, before };
+      for (const k of Object.keys(b)) delete b[k];
+      Object.assign(b, orig, { lang });
+    }
     const { readable, writable } = new TransformStream();
     const w = writable.getWriter(), enc = new TextEncoder();
     const send = (o) => w.write(enc.encode(JSON.stringify(o) + "\n"));
@@ -418,6 +473,7 @@ async function api(req, env, ctx, url) {
         if (b.area && b.area !== user.area) await env.DB.prepare("UPDATE users SET area=? WHERE id=?").bind(b.area, U).run();
         const plan = await makePlan(env, user, b, (t) => { logs.push(t); trace.push({ ms: Date.now() - t0, text: t }); send({ type: "log", text: t }); });
         plan.log = logs; plan.trace = trace;
+        if (redo) plan.diff = planDiff(redo.before, plan, redo.card, redo.restore, redo.from);
         const { pool, ...rest } = plan;
         await env.DB.prepare("INSERT INTO plans (id,user_id,request,plan,pool,saved,created_at) VALUES (?,?,?,?,?,0,?)").bind(plan.id, U, JSON.stringify(b), JSON.stringify(rest), JSON.stringify(pool), Date.now()).run();
         await send({ type: "plan", plan: rest });
@@ -604,7 +660,15 @@ async function inboxAct(env, U, id, b) {
     await setMention("plain");
     return { ok: true };
   }
-  const g = guesses.find((x) => x.qloo_id === b.qloo_id) || guesses[0];
+  let g = guesses.find((x) => x.qloo_id === b.qloo_id);
+  if (!g && b.pick && typeof b.qloo_id === "string" && /^[A-Za-z0-9-]{6,64}$/.test(b.qloo_id)) {
+    // picked from the catalogue ("Something else"), not one of the guesses
+    const [e] = await getEntities(env, [b.qloo_id]).catch(() => []);
+    if (!e) return { error: "not in catalogue" };
+    const DT = { movie: "film", tv_show: "tv", artist: "music", book: "book", place: "place", person: "person" };
+    g = { qloo_id: e.id, name: e.name, type: DT[e.domain] || (["film", "tv", "music", "book", "place", "person"].includes(b.type) ? b.type : "other"), year: e.year ? String(e.year) : undefined, by: e.by, image: e.image, tags: e.tags || [] };
+  }
+  g = g || guesses[0];
   if (!g) return { error: "no guess" };
   const cardId = await upsertCard(env, U, g, Date.now());
   const fp = await addFootprint(env, U, cardId, it.note_id, { kind: it.kind, sentiment: it.sentiment }, it.note_at);
@@ -612,6 +676,40 @@ async function inboxAct(env, U, id, b) {
   await env.DB.prepare("UPDATE inbox SET status='accepted', resolved_card=?, resolved_fp=? WHERE id=?").bind(cardId, fp, id).run();
   await setMention("matched", cardId);
   return { ok: true, card_id: cardId };
+}
+
+/** The "/" picker types Chinese; Qloo's catalogue is English. Cached a week per string. */
+async function translateName(env, raw) {
+  const key = "tr:v1:" + raw;
+  try { const hit = await env.MEDIA_KV.getWithMetadata(key, "text"); if (hit && hit.value) return hit.value; } catch (_) {}
+  try {
+    const out = await llmJSON(env, "The user is typing the name of a film, TV show, book, musician, person or place, maybe only part of it, in Chinese, Japanese or Korean. Return its usual English or international name as {\"en\":\"...\"}: the official title when it is a known work (花样年华 -> In the Mood for Love), otherwise the usual romanisation of the name (阿曼达 -> Amanda, 玛格丽特 -> Margaret). No explanation.",
+      `Text: """${raw}"""`, { type: "object", properties: { en: { type: "string" } }, required: ["en"] }, 60);
+    const en = typeof out?.en === "string" ? out.en.replace(/["“”]/g, "").trim().slice(0, 80) : "";
+    if (!en) return null;
+    await env.MEDIA_KV.put(key, en, { expirationTtl: 7 * 86400 }).catch(() => {});
+    return en;
+  } catch (_) { return null; }
+}
+
+/** "Not this?" on a card: the footprints, note chips and name mappings move to the right entity; the wrong card goes. */
+async function swapCard(env, U, c, ent) {
+  const newId = await upsertCard(env, U, ent, Date.now());
+  if (newId === c.id) return newId;
+  await env.DB.batch([
+    env.DB.prepare("UPDATE footprints SET card_id=? WHERE card_id=? AND (note_id IS NULL OR note_id NOT IN (SELECT note_id FROM footprints WHERE card_id=? AND note_id IS NOT NULL))").bind(newId, c.id, newId),
+    env.DB.prepare("DELETE FROM footprints WHERE card_id=?").bind(c.id),
+    env.DB.prepare("UPDATE cards SET heart=? WHERE id=? AND heart=0").bind(c.heart || 0, newId),
+    env.DB.prepare("UPDATE mappings SET qloo_id=? WHERE user_id=? AND qloo_id=?").bind(ent.qloo_id, U, c.qloo_id),
+    env.DB.prepare("DELETE FROM cards WHERE id=?").bind(c.id),
+  ]);
+  const rows = (await env.DB.prepare("SELECT id, mentions FROM notes WHERE user_id=? AND mentions LIKE ?").bind(U, `%${c.id}%`).all()).results || [];
+  for (const n of rows) {
+    let ms; try { ms = JSON.parse(n.mentions || "[]"); } catch (_) { continue; }
+    ms = ms.map((x) => (x && x.card_id === c.id ? { ...x, card_id: newId, confirmed: true, card: { ...(x.card || {}), name: ent.name, type: ent.type, image: ent.image || null, year: ent.year || null } } : x));
+    await env.DB.prepare("UPDATE notes SET mentions=? WHERE id=?").bind(JSON.stringify(ms), n.id).run();
+  }
+  return newId;
 }
 
 const app = {

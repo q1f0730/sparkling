@@ -2,9 +2,10 @@
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImageFull, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason, qsearch, CARD_URNS, TYPE_URNS, pickerMerge, cleanTags } from "./recognize.js";
-import { makePlan, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces } from "./plan.js";
+import { makePlan, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds } from "./plan.js";
 import { llmJSON } from "./llm.js";
 import { qlooTagInsights, getEntities, compareTastes } from "./qloo.js";
+import { duoPlan } from "./duo.js";
 import { SAMPLE_NOTES } from "./sample.js";
 
 const J = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", ...headers } });
@@ -501,6 +502,17 @@ async function api(req, env, ctx, url) {
       } finally { await w.close(); }
     })());
     return new Response(readable, { headers: { "content-type": "application/x-ndjson", "cache-control": "no-store" } });
+  }
+  if (p === "/api/duo" && m === "POST") {
+    const b = await readJSON(req);
+    if (!b) return BAD_BODY();
+    const area = typeof b.area === "string" && b.area.trim() ? b.area.trim().slice(0, 120) : user.area || "Brooklyn, NY";
+    const mine = (await pickSeeds(env, U, "familiar")).seeds;
+    // partner notebook: ids shared as a list of Qloo entity ids (max 6)
+    const ids = Array.isArray(b.partner_ids) ? b.partner_ids.filter((x) => typeof x === "string" && /^[\w-]{8,64}$/.test(x)).slice(0, 6) : [];
+    if (mine.length < 1 || ids.length < 1) return ERR("need seeds from both notebooks");
+    try { return J(await duoPlan(env, { area, seedsA: mine, seedsB: ids.map((qloo_id) => ({ qloo_id, name: qloo_id })) })); }
+    catch (e) { return ERR("The taste catalogue isn't answering right now.", 502); }
   }
   if (p === "/api/plans" && m === "GET") {
     const rows = (await env.DB.prepare("SELECT * FROM plans WHERE user_id=? AND saved=1 ORDER BY created_at DESC").bind(U).all()).results || [];

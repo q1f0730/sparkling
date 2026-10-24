@@ -1,6 +1,6 @@
 /* r7 designer pass strings */
 Object.assign(ZH, {
-  "The wall": "卡片墙", "Everything": "你留下的", "you kept.": "一切。", "cards": "卡片", "mentions": "提及", "loved": "喜欢",
+  "kinds": "类型", "The wall": "卡片墙", "Everything": "你留下的", "you kept.": "一切。", "cards": "卡片", "mentions": "提及", "loved": "喜欢",
   "Most on your mind": "最近最常想起", "mentioned": "提及", "mentioned once": "提到一次",
   "Card": "卡片", "mention": "提及", "first met": "初次相遇", "last seen": "最近一次",
 });

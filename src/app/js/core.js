@@ -521,7 +521,7 @@ function route(){
     case "plan": renderPlanRequest(); break;
     case "planResult": renderPlanResult(r.id); break;
     case "settings": renderSettings(r.page); break;
-    case "camera": state.capOpen = {}; history.replaceState(null, "", "#/notes"); renderNotes(); break;
+    case "camera": { state.capOpen = null; history.replaceState(null, "", "#/notes"); renderNotes(); const capFabEl = document.querySelector(".cap-fab"); if (window.Capture && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true")) Capture.open({}); break; }
     default: renderNotes();
   }
 }

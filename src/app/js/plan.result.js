@@ -1,6 +1,16 @@
 /* ---------------------------------------------------------------------------
    Plan result (screen 9)
    --------------------------------------------------------------------------- */
+/* one POST per plan id for the "Same notes, no Qloo" comparison, started as soon as the plan is painted */
+function prefetchPlain(planId){
+  const cache = prefetchPlain.cache || (prefetchPlain.cache = Object.create(null));
+  const id = planId == null ? "" : String(planId);
+  if (cache[id]) return cache[id];
+  const p = api("/api/plan/" + encodeURIComponent(id) + "/plain", { method: "POST", body: "{}" });
+  cache[id] = p;
+  p.catch(function(){ if (cache[id] === p) delete cache[id]; });
+  return p;
+}
 function renderPlanResult(id){
   const token = beginView();
   setShell({ title: "Plan", tabs: true, active: "plan" });
@@ -51,13 +61,13 @@ function renderPlanResult(id){
     if (!src.length) return stopEvidenceHTML("notes", "From your notes", stop && stop.from_notes, false);
     return '<div class="ev-row"><span class="ev-label notes">From your notes</span>' +
       '<div class="trace-list">' + src.map(function(x, i){
-        const when = x.at ? new Date(Number(x.at)).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+        const when = x.at ? new Date(Number(x.at)).toLocaleDateString(LANG === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric" }) : "";
         return '<button type="button" class="trace' + (i > 0 ? ' trace-extra' : '') + ' ' + typeClass(x.type) + '" data-nav="#/cards/' + attr(x.card_id) + '">' +
           (x.image ? '<img class="trace-img" src="' + attr(x.image) + '" alt="" loading="lazy" onerror="this.remove()">' : '<span class="trace-img ph"></span>') +
           '<span class="trace-body"><span class="trace-name">' + esc(x.name) + (x.n > 1 ? ' <i>×' + esc(String(x.n)) + "</i>" : "") + "</span>" +
           (x.quote ? '<span class="trace-quote">&ldquo;' + esc(x.quote) + "&rdquo;</span>" : "") +
           (when ? '<span class="trace-at">' + esc(when) + "</span>" : "") + "</span></button>";
-      }).join("") + (src.length > 1 ? '<button type="button" class="trace-more" onclick="var l=this.parentNode;l.classList.toggle(\'open\');this.textContent=l.classList.contains(\'open\')?\'Show less\':\'+ ' + (src.length - 1) + ' more from your notes\'">+ ' + (src.length - 1) + ' more from your notes</button>' : '') + "</div></div>";
+      }).join("") + (src.length > 1 ? '<button type="button" class="trace-more" data-less="' + attr(t("Show less")) + '" data-more="' + attr(t("+ " + (src.length - 1) + " more from your notes")) + '" onclick="var l=this.parentNode;l.classList.toggle(\'open\');this.textContent=l.classList.contains(\'open\')?this.getAttribute(\'data-less\'):this.getAttribute(\'data-more\')">' + esc(t("+ " + (src.length - 1) + " more from your notes")) + '</button>' : '') + "</div></div>";
   }
   function whyStopHTML(stop, plan){
     const w = stop && stop.why || {};
@@ -125,24 +135,41 @@ function renderPlanResult(id){
     const seeds = verdictSeeds(plan, pl);
     let withN = mine.filter(function(x){ return verdictKeptLink(x); }).length, withT = mine.length;
     let withoutN = plain.filter(function(x){ return verdictNamesSeed(x.why, seeds); }).length, withoutT = plain.length;
+    let checked = null;
     /* a server-sent verdict, when present, is authoritative */
     const v = pl && pl.verdict;
     if (v && typeof v === "object") {
-      const a = verdictPair(v.with_qloo || v.withQloo || v["with"] || v.sparkling);
-      const b = verdictPair(v.without_qloo || v.withoutQloo || v.without || v.plain);
-      if (a) { withN = a.tied; withT = a.total; }
-      if (b) { withoutN = b.tied; withoutT = b.total; }
+      /* the keys POST /api/plan/:id/plain really sends */
+      if (v.mine_linked != null || v.mine_total != null) {
+        if (v.mine_linked != null) withN = Number(v.mine_linked) || 0;
+        if (v.mine_total != null) withT = Number(v.mine_total) || 0;
+      } else {
+        const a = verdictPair(v.with_qloo || v.withQloo || v["with"] || v.sparkling);
+        if (a) { withN = a.tied; withT = a.total; }
+      }
+      if (v.plain_linked != null || v.plain_total != null) {
+        if (v.plain_linked != null) withoutN = Number(v.plain_linked) || 0;
+        if (v.plain_total != null) withoutT = Number(v.plain_total) || 0;
+      } else {
+        const b = verdictPair(v.without_qloo || v.withoutQloo || v.without || v.plain);
+        if (b) { withoutN = b.tied; withoutT = b.total; }
+      }
+      if (typeof v.plain_pass === "number" && isFinite(v.plain_pass)) checked = v.plain_pass;
     }
     return '<div class="plain-verdict" role="note" style="margin:2px 0 14px;padding:12px 14px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-soft)">' +
       '<p class="pv-with" style="margin:0;font-family:var(--sans);font-size:13px;font-weight:600;line-height:1.5;color:var(--b-ink)">' + esc(t("With Qloo: " + withN + " of " + withT + " tied to a card you kept.")) + "</p>" +
       '<p class="pv-without" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + withoutN + " of " + withoutT + " tied to a card you kept.")) + "</p>" +
+      (checked != null ? '<p class="pv-check" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + checked + " of " + withoutT + " places checked out.")) + "</p>" : "") +
     "</div>";
   }
   async function openPlain(){
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" aria-busy="true"><p class="muted">' + esc(t("Asking a plain model, no Qloo… usually 5–15 seconds.")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
     let d = null;
-    try { d = await api("/api/plan/" + encodeURIComponent(planId) + "/plain", { method: "POST", body: "{}" }); } catch (e) {}
+    try { d = await prefetchPlain(planId); } catch (e) {}
     const pl = d && d.plain;
+    /* the raw model id stays out of the sheet; it is only a hover title for provenance */
+    const modelSlug = pl && pl.model ? String(pl.model).split("/").pop() : "";
+    const modelLabel = modelSlug ? esc(modelSlug) : "";
     if (currentPlan && currentPlan.mode === "in") {
       /* stayin: compare the picks side by side — Sparkling's carry a kept-card link, the plain model's carry none */
       const picks = (Array.isArray(currentPlan.picks) ? currentPlan.picks : []).filter(function(p){ return p && p.name; });
@@ -159,7 +186,7 @@ function renderPlanResult(id){
       };
       const minePicks = picks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + keptLine(p) + "</li>"; }).join("");
       const theirPicks = plainPicks.length ? plainPicks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + (p.why ? '<small class="muted" translate="no">' + esc(p.why) + "</small>" : "") + "</li>"; }).join("") : '<li><small class="muted">' + esc((pl && pl.note) || t("Could not load.")) + "</small></li>";
-      const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted">' + esc(t("Same cards, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + "</small>" : "") + "</p>" +
+      const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same model. The only change: no Qloo.")) + "</p>" +
         '<div class="why-feed">' +
           '<section><h3 class="r7-eyebrow">' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + minePicks + "</ol></section>" +
           '<section><h3 class="r7-eyebrow">' + esc(t("Plain model")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
@@ -178,7 +205,7 @@ function renderPlanResult(id){
     const ckLine = function(c){ if (!c) return '<span class="pc pc-muted">' + esc(t("Not checked")) + "</span>"; const k = CK[c.status] || CK.unchecked; const dist = c.mi != null ? " · " + esc(t(c.mi < 0.1 ? "on the route" : c.mi + " mi from the route")) : ""; return '<span class="pc pc-' + k[0] + '">' + esc(t(k[1])) + "</span>" + (c.status !== "not_found" && c.status !== "unchecked" && c.status !== "elsewhere" ? '<small class="muted">' + dist + (c.hood ? " · " + esc(c.hood) : "") + "</small>" : ""); };
     const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
     const ok = pl && pl.stops ? pl.stops.filter(function(s){ return s.check && (s.check.status === "found"); }).length : 0;
-    const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + '</small>' : '') + '</p>' +
+    const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + '</p>' +
       '<h3>' + esc(t("Plain model")) + '</h3><ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p>' +
       '<h3>' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list">' + mine + '</ol><p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p>';
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: body });
@@ -223,7 +250,7 @@ function renderPlanResult(id){
     } catch (e) {
       busyAction = false;
       if (isAbort(e)) return;
-      toast((e && e.message) || (LANG === "zh" ? "没成功，再试一次。" : "That did not work. Try again."));
+      toast((e && e.message) || t("That did not work. Try again."));
       if (currentPlan) paint(currentPlan);
     }
   }
@@ -395,6 +422,7 @@ function renderPlanResult(id){
         '<details class="how"><summary>How this was made</summary>' + traceHeadHTML(plan) + '<ol class="trace">' +
           (Array.isArray(plan.trace) && plan.trace.length === plan.log.length ? plan.trace : plan.log.map(function(l){ return { text: l }; })).map(function(l, i){ return '<li><span class="trace-n num">' + (i + 1) + '</span><span class="trace-t">' + esc(l.text) + '</span>' + (l.ms != null ? '<span class="trace-ms num">+' + (l.ms / 1000).toFixed(1) + 's</span>' : "") + "</li>"; }).join("") +
         "</ol>" + receiptHTML(plan.receipt) + "</details>" : "");
+    if (plan && plan.id) prefetchPlain(plan.id);
   }
   function paint(plan){
     if (!isCurrent(token)) return;
@@ -424,13 +452,14 @@ function renderPlanResult(id){
       '<div class="plan-actions">' +
         '<button class="btn" type="button" data-action="shorten"' + (stops.length <= 1 || busyAction ? " disabled" : "") + ">Shorten</button>" +
         '<button class="btn" type="button" data-action="budget"' + (busyAction ? " disabled" : "") + ">Lower budget</button>" +
-        '<button class="btn" type="button" data-plain="1">Plain LLM</button>' +
+        '<button class="btn" type="button" data-plain="1">' + esc(t("Plain LLM")) + "</button>" +
         '<button class="btn btn-primary" type="button" data-action="save"' + (saved || busyAction ? " disabled" : "") + ">" + (saved ? "Saved" : "Save") + "</button>" +
       "</div>" +
       (Array.isArray(plan.log) && plan.log.length ?
         '<details class="how"><summary>How this was made</summary>' + traceHeadHTML(plan) + '<ol class="trace">' +
           (Array.isArray(plan.trace) && plan.trace.length === plan.log.length ? plan.trace : plan.log.map(function(l){ return { text: l }; })).map(function(l, i){ return '<li><span class="trace-n num">' + (i + 1) + '</span><span class="trace-t">' + esc(l.text) + '</span>' + (l.ms != null ? '<span class="trace-ms num">+' + (l.ms / 1000).toFixed(1) + 's</span>' : "") + "</li>"; }).join("") +
         "</ol>" + receiptHTML(plan.receipt) + "</details>" : "");
+    if (plan && plan.id) prefetchPlain(plan.id);
   }
   function traceHeadHTML(plan){
     const q = plan.receipt && Array.isArray(plan.receipt.queries) ? plan.receipt.queries.length : 0;
@@ -486,7 +515,7 @@ function renderPlanResult(id){
       } else if (action === "shorten") toast("Shortened.");
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
-      toast((e && e.message) || "That did not work. Try again.");
+      toast((e && e.message) || t("That did not work. Try again."));
     } finally {
       busyAction = false;
       if (isCurrent(token)) setActionBusy(false);
@@ -526,7 +555,7 @@ function renderPlanResult(id){
         if (fresh && fresh.id) { cachePlan(fresh); paint(fresh); }
         if (data && data.notice) toast(data.notice);
       } catch (e2) {
-        err.textContent = (e2 && e2.message) || "That did not work. Try again.";
+        err.textContent = (e2 && e2.message) || t("That did not work. Try again.");
         err.hidden = false;
         submitBtn.disabled = false;
       }

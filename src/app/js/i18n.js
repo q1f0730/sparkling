@@ -22,6 +22,7 @@ function trZh(s){
 Object.assign(ZH, {
   "I want to watch a film": "\u6211\u60f3\u770b\u4e00\u90e8\u7535\u5f71",
   "Saturday afternoon in Greenpoint, $40": "\u5468\u516d\u4e0b\u5348\uff0cGreenpoint\uff0c$40",
+  "Plan for two · try with a sample friend": "两个人一起规划 · 用示例朋友试试",
 });
 function fixCase(x){ return String(x).replace(/\b([A-Z][a-z]{2,})([A-Z])([a-z]+)\b/g, function(_, a, b, c){ return a + b.toLowerCase() + c; }); }
 function reasonZh(r){

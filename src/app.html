@@ -3315,7 +3315,7 @@ const TAG_TYPE = { mood: "mood", artist: "trait", theme: "theme", genre: "genre"
 function tagType(id){ const m = String(id || "").match(/^urn:tag:([a-z_]+)/); return m ? (TAG_TYPE[m[1]] || m[1].replace(/_/g, " ")) : ""; }
 function tagPretty(name){ const s = String(name || ""); if (/^urn:tag:/.test(s)) { const tail = s.split(":").pop().replace(/_/g, " "); return tail.charAt(0).toUpperCase() + tail.slice(1); } return s; }
 function scoreText(x){ const n = Number(x); if (!isFinite(n)) return ""; const f = n.toFixed(2); return n >= 0.995 ? "1.00" : f.replace(/^0/, ""); }
-const TAG_ZH={"creative writing":"创意写作","artistic":"艺术感","fine baking":"精致烘焙","patio":"露台","bakery shopping":"逛面包店","bread":"面包","pastry":"点心","community events":"社区活动","live music":"现场音乐","vegan":"纯素","quiet":"安静","cozy atmosphere":"温馨","craft":"手作","rare books":"珍本","used books":"二手书","zines":"独立刊物","art":"艺术","books":"书","music":"音乐","film":"电影","tea":"茶","wine":"葡萄酒","cocktails":"鸡尾酒","brunch":"早午餐","dessert":"甜点","foreground framing":"前景构图","framing":"构图","melancholy":"忧郁","nostalgic":"怀旧","nostalgia":"怀旧","romance":"浪漫","romantic":"浪漫","cozy":"温馨","dreamy":"梦幻","atmospheric":"氛围感","minimalist":"极简","minimalism":"极简","urban":"都市","independent":"独立","indie":"独立","jazz":"爵士","classic":"经典","vintage":"复古","retro":"复古","drama":"剧情","documentary":"纪录片","coming of age":"成长","slow cinema":"慢电影","neon":"霓虹","night":"夜晚","city":"城市","loneliness":"孤独","love":"爱情","art house":"文艺片","arthouse":"文艺片","literary":"文学","poetry":"诗","folk":"民谣","ambient":"氛围乐","electronic":"电子","pop":"流行","rock":"摇滚","hip hop":"嘻哈","soul":"灵魂乐","coffee":"咖啡","bookstore":"书店","book store":"书店","vinyl":"黑胶","record store":"唱片店","cinema":"影院","museum":"博物馆","gallery":"画廊","cafe":"咖啡馆","bar":"酒吧","park":"公园","adult":"成人","aesthetic minded":"审美取向","ambition":"野心","art versus mundanity":"艺术与世俗","asia":"亚洲","audiobook":"有声书","biography":"传记","biography memoir":"传记回忆录","chillout":"弛放音乐","cinematic":"电影感","classics":"经典","composed":"沉稳","confessional":"自白","contemplative":"沉思","contemporary":"当代","crime":"犯罪","dedicated":"专注","devoted":"虔诚","drama loving":"剧情爱好者","dream pop":"梦幻流行","elegantly":"优雅","emotionally engaged":"情感投入","essays":"随笔","event venue":"活动场地","everyday minimalism":"日常极简","fantasy":"奇幻","fiction":"小说","folk - rock":"民谣摇滚","food":"美食","forbidden desire":"禁忌之恋","fragmentary":"碎片感","friendship":"友情","german literature":"德国文学","germany":"德国","grief":"哀伤","hip - hop":"嘻哈","hipster chic":"潮人时尚","identity":"身份","improvised feel":"即兴感","indie - folk":"独立民谣","indie pop":"独立流行","indie rock":"独立摇滚","intimate":"亲密","introspective":"内省","japanese":"日式","japanese literature":"日本文学","jazz hop":"爵士嘻哈","literature":"文学","live music venue":"现场音乐场地","lounge":"休闲吧","lounge bar":"酒廊酒吧","lyrical":"抒情","mature":"成熟","memoir":"回忆录","memory":"记忆","memory drama":"记忆剧情","moody":"情绪化","movie theater":"电影院","muted":"低饱和","naturalistic":"自然主义","near future":"近未来","novels":"小说","observational":"观察式","obsession":"执念","passionate":"热情","photographic framing":"摄影构图","quiet lyricism":"静谧诗意","repetitive musical motifs":"重复乐句","sci fi romance":"科幻爱情","second chances":"二次机会","sensitive":"敏感","singer & songwriter":"唱作人","soft focus":"柔焦","speculative fiction":"推想小说","stylized":"风格化","sunrise motifs":"日出意象","temporal collage":"时间拼贴","thoughtful":"深思","tourist attraction":"旅游景点","traditional":"传统","travel":"旅行","trip - hop":"神游舞曲","urban alienation":"城市疏离","vulnerability":"脆弱"};
+const TAG_ZH={"creative writing":"创意写作","artistic":"艺术感","fine baking":"精致烘焙","patio":"露台","bakery shopping":"逛面包店","bread":"面包","pastry":"点心","community events":"社区活动","live music":"现场音乐","vegan":"纯素","quiet":"安静","cozy atmosphere":"温馨","craft":"手作","rare books":"珍本","used books":"二手书","zines":"独立刊物","art":"艺术","books":"书","music":"音乐","film":"电影","tea":"茶","wine":"葡萄酒","cocktails":"鸡尾酒","brunch":"早午餐","dessert":"甜点","foreground framing":"前景构图","framing":"构图","melancholy":"忧郁","nostalgic":"怀旧","nostalgia":"怀旧","romance":"浪漫","romantic":"浪漫","cozy":"温馨","dreamy":"梦幻","atmospheric":"氛围感","minimalist":"极简","minimalism":"极简","urban":"都市","independent":"独立","indie":"独立","jazz":"爵士","classic":"经典","vintage":"复古","retro":"复古","drama":"剧情","documentary":"纪录片","coming of age":"成长","slow cinema":"慢电影","neon":"霓虹","night":"夜晚","city":"城市","loneliness":"孤独","love":"爱情","art house":"文艺片","arthouse":"文艺片","literary":"文学","poetry":"诗","folk":"民谣","ambient":"氛围乐","electronic":"电子","pop":"流行","rock":"摇滚","hip hop":"嘻哈","soul":"灵魂乐","coffee":"咖啡","bookstore":"书店","book store":"书店","vinyl":"黑胶","record store":"唱片店","cinema":"影院","museum":"博物馆","gallery":"画廊","cafe":"咖啡馆","bar":"酒吧","park":"公园","adult":"成人","aesthetic minded":"审美取向","ambition":"野心","art versus mundanity":"艺术与世俗","asia":"亚洲","audiobook":"有声书","biography":"传记","biography memoir":"传记回忆录","chillout":"弛放音乐","cinematic":"电影感","classics":"经典","composed":"沉稳","confessional":"自白","contemplative":"沉思","contemporary":"当代","crime":"犯罪","dedicated":"专注","devoted":"虔诚","drama loving":"剧情爱好者","dream pop":"梦幻流行","elegantly":"优雅","emotionally engaged":"情感投入","essays":"随笔","event venue":"活动场地","everyday minimalism":"日常极简","fantasy":"奇幻","fiction":"小说","folk - rock":"民谣摇滚","food":"美食","forbidden desire":"禁忌之恋","fragmentary":"碎片感","friendship":"友情","german literature":"德国文学","germany":"德国","grief":"哀伤","hip - hop":"嘻哈","hipster chic":"潮人时尚","identity":"身份","improvised feel":"即兴感","indie - folk":"独立民谣","indie pop":"独立流行","indie rock":"独立摇滚","intimate":"亲密","introspective":"内省","japanese":"日式","japanese literature":"日本文学","jazz hop":"爵士嘻哈","literature":"文学","live music venue":"现场音乐场地","lounge":"休闲吧","lounge bar":"酒廊酒吧","lyrical":"抒情","mature":"成熟","memoir":"回忆录","memory":"记忆","memory drama":"记忆剧情","moody":"情绪化","movie theater":"电影院","muted":"低饱和","naturalistic":"自然主义","near future":"近未来","novels":"小说","observational":"观察式","obsession":"执念","passionate":"热情","photographic framing":"摄影构图","quiet lyricism":"静谧诗意","repetitive musical motifs":"重复乐句","sci fi romance":"科幻爱情","second chances":"二次机会","sensitive":"敏感","singer & songwriter":"唱作人","soft focus":"柔焦","speculative fiction":"推想小说","stylized":"风格化","sunrise motifs":"日出意象","temporal collage":"时间拼贴","thoughtful":"深思","tourist attraction":"旅游景点","traditional":"传统","travel":"旅行","trip - hop":"神游舞曲","urban alienation":"城市疏离","vulnerability":"脆弱","affair":"婚外情","elegantly composed":"从容雅致","emotional growth":"情感成长","impressionistic":"印象派","intimacy":"亲密感"};
 function tagZh(n){ if (typeof LANG === "undefined" || LANG !== "zh") return n; const k=String(n).toLowerCase().trim(); return TAG_ZH[k] || n; }
 function seedHTML(tag, cls){
   const o = typeof tag === "object" && tag ? tag : { name: tag };
@@ -7746,8 +7746,12 @@ function renderPlanResult(id){
     const names = (Array.isArray(pk.sources) ? pk.sources : []).map(function(x){ return x && x.name; }).filter(Boolean).slice(0, 2);
     const tags = (Array.isArray(pk.tags) ? pk.tags : []).slice(0, 2);
     if (!names.length) return pk.why_line || t("The catalogue returned it for your cards taken together.");
-    return zh ? "因为你记过" + names.map(function(n){ return "《" + n + "》"; }).join("和") + (tags.length ? "；口味目录把它归在 " + tags.map(tagZh).join("、") + "。" : "。")
-      : "Because you kept " + names.join(" and ") + (tags.length ? "; the catalogue files it under " + tags.join(", ").toLowerCase() + "." : ".");
+    if (zh) {
+      const zhTags = tags.map(function(x){ return typeof tagZh === "function" ? tagZh(x) : x; })
+        .filter(function(x){ return x != null && /[\u4e00-\u9fff]/.test(String(x)); });
+      return "因为你记过" + names.map(function(n){ return "《" + n + "》"; }).join("和") + (zhTags.length ? "；口味目录把它归在 " + zhTags.join("、") + "。" : "。");
+    }
+    return "Because you kept " + names.join(" and ") + (tags.length ? "; the catalogue files it under " + tags.join(", ").toLowerCase() + "." : ".");
   }
   function pickHTML(pk, i){
     const zh = LANG === "zh";
@@ -7847,10 +7851,26 @@ function renderPlanResult(id){
     if (!r) return "";
     const seeds = Array.isArray(r.seeds) ? r.seeds : [];
     const qs = Array.isArray(r.queries) ? r.queries : [];
-    return '<div class="receipt"><p class="receipt-title">' + (LANG === "zh" ? "回执" : "Receipt") + '</p>' +
+    const zh = LANG === "zh";
+    const SENT_ZH = {
+      "Card IDs only. No note text, no location.": "只发卡片 ID，不发笔记原文，也不发位置。",
+      "Card IDs and your area. No note text.": "只发卡片 ID 和你的区域，不发笔记原文。"
+    };
+    const PROV_ZH = { "cached": "缓存", "live": "实时", "live + cached": "实时 + 缓存" };
+    const sent = String(r.sent_to_qloo || "");
+    const sentOut = zh ? (SENT_ZH[sent] || t(sent)) : sent;
+    let prov = "";
+    if (r.provenance) {
+      const live = r.provenance.live | 0, cached = r.provenance.cached | 0;
+      const label = String(r.provenance.label || "");
+      prov = zh
+        ? " · " + esc(PROV_ZH[label] || t(label)) + "（实时 " + live + " 次，缓存 " + cached + " 次）"
+        : " · " + esc(label) + " (" + live + " live, " + cached + " cached)";
+    }
+    return '<div class="receipt"><p class="receipt-title">' + (zh ? "回执" : "Receipt") + '</p>' +
       '<p class="receipt-line"><span>' + (LANG === "zh" ? "发给 Qloo 的种子" : "Seeds sent to Qloo") + '</span> ' + seeds.map(function(x){ return esc(x.name) + ' <code>' + esc(String(x.qloo_id || "").slice(0, 8)) + '</code>'; }).join(", ") + "</p>" +
       qs.map(function(q){ return '<p class="receipt-line"><code>GET ' + esc(q.endpoint) + "</code>" + (q["filter.location.query"] ? (LANG === "zh" ? " 类型 place · 标签 " : " type place · tag ") + esc(q["filter.tags"] || (LANG === "zh" ? "无" : "none")) + (LANG === "zh" ? " · 位置 " : " · near ") + esc(q["filter.location.query"] || "") : " " + esc(String(q["filter.type"] || "").split(":").pop())) + " · " + esc(String(q.returned)) + (LANG === "zh" ? " 个返回" : " back") + "</p>"; }).join("") +
-      '<p class="receipt-line muted">' + esc(r.sent_to_qloo || "") + (r.provenance ? " · " + esc(r.provenance.label) + " (" + (r.provenance.live|0) + " live, " + (r.provenance.cached|0) + " cached)" : "") + "</p></div>";
+      '<p class="receipt-line muted">' + esc(sentOut) + prov + "</p></div>";
   }
   function setActionBusy(b){
     Array.prototype.forEach.call(view.querySelectorAll("[data-action], [data-swap]"), function(el){

@@ -237,6 +237,7 @@ a{color:var(--b-sage-ink)}
 .fp-kind{font:500 12px/16px var(--sans);background:var(--b-soft);color:var(--muted);padding:2px 8px}
 .fp-detach{font-size:12px}
 .fp-quote{font:italic 400 17px/24px var(--serif);margin:4px 0 0}
+.fp-hit{background:var(--b-butter);color:var(--b-butter-ink);border-radius:4px;padding:0 3px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
 .fp-thumb{border-radius:10px;border-color:var(--b-line)}
 .viewchanged,.qloo-tags,.detail-actions{border-top-color:var(--b-line);margin-top:24px;padding-top:16px}
 .viewchanged h3{font:400 20px/26px var(--serif);margin:0 0 12px}

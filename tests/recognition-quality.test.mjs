@@ -25,7 +25,7 @@ test("inbox reason says why it asks, with Qloo's taste ranking", () => {
     { name: "Solaris", type: "film", year: "1972", taste: { affinity: 0.83, via: [{ name: "In the Mood for Love", score: 0.29 }, { name: "Fallen Angels", score: 0.28 }] } },
     { name: "Solaris", type: "film", year: "2002", taste: { affinity: 0.74, via: [] } },
   ]);
-  assert.match(r, /2 films are called Solaris\. Qloo puts Solaris \(1972\) closest to your taste \(0\.83\), mostly through In the Mood for Love and Fallen Angels\./);
+  assert.match(r, /2 films are called Solaris\. The catalogue puts Solaris \(1972\) closest to your taste, mostly through In the Mood for Love and Fallen Angels\./);
   assert.match(inboxReason("Normal People", [{ name: "Normal People", type: "book", year: "2018" }, { name: "Normal People", type: "tv", year: "2020" }]), /is a book and a show/);
 });
 test("tasteRank orders guesses by Qloo affinity against the user's cards", async () => {

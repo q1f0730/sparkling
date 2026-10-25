@@ -41,10 +41,9 @@ export function plainWhyOk(why, name) {
   if (/[!！]/.test(w)) return false;
   return !PLAIN_WHY_BAD.test(w);
 }
-/** Neutral stand-in for a rejected why: the plan's own template, in the plan's language. */
+/** Honest stand-in for a rejected why: say the plain model gave no reason tied to the notes. */
 function plainWhyFallback(kind, lang) {
-  const k = String(kind || "place").toLowerCase();
-  return lang === "zh" ? `一家和你的口味相近的${k}。` : groundedRead("", { kind: k }, "");
+  return lang === "zh" ? "纯模型没有给出和你笔记相关的理由。" : "The plain model gave no reason tied to your notes.";
 }
 // Shot 5: how much of each side is tied to a kept card. Computed per response so cached plain blocks get it too.
 function plainVerdict(plan, plain) {
@@ -610,6 +609,18 @@ async function api(req, env, ctx, url) {
       const whyZh = lang === "zh" ? " Write every why in Simplified Chinese (keep names as they are)." : "";
       // FP-36: the why speaks to the reader, not about them.
       const youVoice = ' Write each why addressed to the reader as "you" (never "they" or "their").';
+      // The model chain inside llmJSON retries without a deadline, so one stalled model holds the whole
+      // comparison. Bound each plain call: on timeout answer at once, write nothing, cache nothing.
+      const plainTimeout = Number(env.PLAIN_TIMEOUT_MS) || 9000;
+      const inTime = (p) => new Promise((resolve, reject) => {
+        let done = false;
+        const timer = setTimeout(() => { if (!done) { done = true; const e = new Error("plain model timeout"); e.plainTimeout = true; reject(e); } }, plainTimeout);
+        p.then((v) => { if (!done) { done = true; clearTimeout(timer); resolve(v); } },
+          (e) => { if (!done) { done = true; clearTimeout(timer); reject(e); } });
+      });
+      const modelNote = (e) => e && e.plainTimeout
+        ? (lang === "zh" ? "纯模型太久没回应，再试一次。" : "The plain model took too long to answer. Try again.")
+        : "The plain model is unavailable right now (daily AI quota). Try again later.";
       const answer = (pl) => J({ plain: { ...pl, verdict: plainVerdict(plan, pl) } });
       if (plan.mode === "in") {
         if (cachedFor(plan.plain) && plan.plain.checked === 3) return answer(plan.plain);
@@ -617,15 +628,15 @@ async function api(req, env, ctx, url) {
         const want = (plan.picks || []).length || 3;
         let picksOut = [], note = null;
         try {
-          const out = await llmJSON(env, "You suggest things to watch, listen to or read at home. Suggest real titles from your own memory only. Return {\"picks\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
+          const out = await inTime(llmJSON(env, "You suggest things to watch, listen to or read at home. Suggest real titles from your own memory only. Return {\"picks\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
             `Things this person loves: ${seeds.join(", ")}. Suggest ${want} things${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.` + youVoice,
-            { name: "plain", schema: { type: "object", properties: { picks: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["picks"] } }, 600);
+            { name: "plain", schema: { type: "object", properties: { picks: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["picks"] } }, 600));
           picksOut = (out.picks || []).slice(0, 4).map((x) => {
             const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
             const why = String(x.why || "").slice(0, 240);
             return { name, kind, why: plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang) };
           }).filter((x) => x.name);
-        } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
+        } catch (e) { note = modelNote(e); }
         const plain = { model: MODEL, lang, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
         if (picksOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
         return answer(plain);
@@ -642,15 +653,15 @@ async function api(req, env, ctx, url) {
       const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
       let stopsOut = [], note = null;
       try {
-        const out = await llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
+        const out = await inTime(llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
           `Things this person loves: ${seeds.join(", ")}. Area: ${area}. Plan ${(kinds.length || 3)} stops${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.` + youVoice,
-          { name: "plain", schema: { type: "object", properties: { stops: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["stops"] } }, 600);
+          { name: "plain", schema: { type: "object", properties: { stops: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["stops"] } }, 600));
         stopsOut = (out.stops || []).slice(0, 4).map((x) => {
           const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
           const why = String(x.why || "").slice(0, 240);
           return { name, kind, why: plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang) };
         }).filter((x) => x.name);
-      } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
+      } catch (e) { note = modelNote(e); }
       if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }
       const plain = { model: MODEL, lang, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };
       if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }

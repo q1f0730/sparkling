@@ -172,7 +172,7 @@ function renderCardDetail(id){
             '<span class="fp-date">' + esc(formatDayLabel(fp.created_at)) + "</span>" +
             '<span class="fp-kind">' + esc(kindLabel(fp.kind)) + "</span>" +
             (source ? '<span class="fp-kind" title="' + attr(source.title) + '">' + esc(source.label) + "</span>" : "") +
-            '<button class="fp-detach" type="button" data-detach="' + attr(fp.id) + '" aria-label="Not about this footprint">Not about this</button>' +
+            '<button class="fp-detach" type="button" data-detach="' + attr(fp.id) + '" aria-label="Not about this footprint" title="Not about this footprint">×</button>' +
           "</div>" +
           (quote ? '<p class="fp-quote">' + fpQuoteHTML(quote, card && card.name) + "</p>" : "") +
           (image ? '<img class="fp-thumb" src="' + attr(image) + '" alt="Photo from this footprint" loading="lazy">' : "") +

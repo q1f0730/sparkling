@@ -609,7 +609,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
         const cf = contribFor(s);
         return { attribution: !!cf, contributions: cf, affinity: s.affinity ?? null, qloo_id: s.qloo_id, popularity: s.popularity ?? null, vibes: (s.vibes || []).slice(0, 6), kinds: s.kinds || [], price_level: s.price_level ?? null, area: meta.area, seeds_sent: seedNames.length };
       })(),
-      from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
+      from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => r.name).join(" and ")}.`; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
       read: groundedRead(reads[i], s, fc?.name || null),
       read_src: reads[i] && groundedRead(reads[i], s, fc?.name || null) === reads[i] ? "model" : "template",
       ops: hoursLine(s.hours, meta.when) + (open === false ? " · may be closed when you arrive" : ""),
@@ -704,6 +704,31 @@ const TAG_OK = /genre:media|theme|plot|style|character|mood|subgenre/;
 // The client's zh tag table (src/app/js/core.js TAG_ZH), mirrored so the server-side why line can speak zh
 // without a model call. Unknown tags keep their catalogue name.
 const ZH_TAGS = {"creative writing":"创意写作","artistic":"艺术感","fine baking":"精致烘焙","patio":"露台","bakery shopping":"逛面包店","bread":"面包","pastry":"点心","community events":"社区活动","live music":"现场音乐","vegan":"纯素","quiet":"安静","cozy atmosphere":"温馨","craft":"手作","rare books":"珍本","used books":"二手书","zines":"独立刊物","art":"艺术","books":"书","music":"音乐","film":"电影","tea":"茶","wine":"葡萄酒","cocktails":"鸡尾酒","brunch":"早午餐","dessert":"甜点","foreground framing":"前景构图","framing":"构图","melancholy":"忧郁","nostalgic":"怀旧","nostalgia":"怀旧","romance":"浪漫","romantic":"浪漫","cozy":"温馨","dreamy":"梦幻","atmospheric":"氛围感","minimalist":"极简","minimalism":"极简","urban":"都市","independent":"独立","indie":"独立","jazz":"爵士","classic":"经典","vintage":"复古","retro":"复古","drama":"剧情","documentary":"纪录片","coming of age":"成长","slow cinema":"慢电影","neon":"霓虹","night":"夜晚","city":"城市","loneliness":"孤独","love":"爱情","art house":"文艺片","arthouse":"文艺片","literary":"文学","poetry":"诗","folk":"民谣","ambient":"氛围乐","electronic":"电子","pop":"流行","rock":"摇滚","hip hop":"嘻哈","soul":"灵魂乐","coffee":"咖啡","bookstore":"书店","book store":"书店","vinyl":"黑胶","record store":"唱片店","cinema":"影院","museum":"博物馆","gallery":"画廊","cafe":"咖啡馆","bar":"酒吧","park":"公园"};
+// Catalogue tags seen in the sample notebook but not in the client table; kept short so a zh why line reads naturally.
+Object.assign(ZH_TAGS, {
+  "adult": "成人向", "aesthetic minded": "讲究美感", "ambition": "野心", "art versus mundanity": "艺术与日常",
+  "asia": "亚洲", "audiobook": "有声书", "biography": "传记", "biography memoir": "传记回忆录",
+  "chillout": "弛放", "cinematic": "电影感", "classics": "经典", "composed": "从容",
+  "confessional": "自白", "contemplative": "沉思", "contemporary": "当代", "crime": "犯罪",
+  "dedicated": "专注", "devoted": "深情", "drama loving": "爱看剧情", "dream pop": "梦幻流行",
+  "elegantly": "优雅", "emotionally engaged": "情感投入", "essays": "随笔", "event venue": "活动场地",
+  "everyday minimalism": "日常极简", "fantasy": "奇幻", "fiction": "小说", "folk - rock": "民谣摇滚",
+  "food": "美食", "forbidden desire": "禁忌之欲", "fragmentary": "碎片化", "friendship": "友情",
+  "german literature": "德国文学", "germany": "德国", "grief": "悲伤", "hip - hop": "嘻哈",
+  "hipster chic": "雅痞", "identity": "身份", "improvised feel": "即兴感", "indie - folk": "独立民谣",
+  "indie pop": "独立流行", "indie rock": "独立摇滚", "intimate": "亲密", "introspective": "内省",
+  "japanese": "日本", "japanese literature": "日本文学", "jazz hop": "爵士嘻哈", "literature": "文学",
+  "live music venue": "现场音乐场地", "lounge": "酒廊", "lounge bar": "酒廊酒吧", "lyrical": "诗意",
+  "mature": "成熟", "memoir": "回忆录", "memory": "记忆", "memory drama": "记忆剧情",
+  "moody": "情绪化", "movie theater": "电影院", "muted": "低饱和", "naturalistic": "自然主义",
+  "near future": "近未来", "novels": "小说", "observational": "观察式", "obsession": "执念",
+  "passionate": "热烈", "photographic framing": "摄影构图", "quiet lyricism": "静谧诗意",
+  "repetitive musical motifs": "重复乐句", "sci fi romance": "科幻爱情", "second chances": "第二次机会",
+  "sensitive": "细腻", "singer & songwriter": "唱作人", "soft focus": "柔焦", "speculative fiction": "推想小说",
+  "stylized": "风格化", "sunrise motifs": "日出意象", "temporal collage": "时间拼贴", "thoughtful": "深思",
+  "tourist attraction": "景点", "traditional": "传统", "travel": "旅行", "trip - hop": "神游舞曲",
+  "urban alienation": "都市疏离", "vulnerability": "脆弱",
+});
 export const zhTag = (t) => ZH_TAGS[lc(t)] || String(t || "");
 export function slimMedia(e, kind) {
   if (!e || typeof e !== "object" || !e.entity_id || !e.name) return null;
@@ -737,10 +762,16 @@ export async function makeStayIn(env, user, req, log) {
   const intent = stayIntent(req.text);
   const slots = stayKinds(intent.kinds);
   const { seeds, all, good } = await pickSeeds(env, user.id, req.mood, req.period);
-  if (req.period === "now" || req.period === "then") log(`Planning from ${req.period === "now" ? "your recent notes" : "your earlier notes"} only.`);
+  if (req.period === "now" || req.period === "then") log(lang === "zh"
+    ? (req.period === "now" ? "只依据你最近的记录。" : "只依据你更早的记录。")
+    : `Planning from ${req.period === "now" ? "your recent notes" : "your earlier notes"} only.`);
   if (seeds.length < 2) throw { state: "too_few", text: "I need a few more things you love to plan from. Mark a couple of cards with a heart, or start from one card." };
   const kinds = [...new Set(slots)];
-  log(`Staying in: looking for ${kinds.map((k) => ({ film: "a film", tv: "a series", music: "music", book: "a book", podcast: "a podcast" })[k]).join(", ")}. No neighbourhood needed.`);
+  const kindNoun = { film: "a film", tv: "a series", music: "music", book: "a book", podcast: "a podcast" };
+  const kindNounZh = { film: "一部电影", tv: "一部剧集", music: "一些音乐", book: "一本书", podcast: "一档播客" };
+  log(lang === "zh"
+    ? `在家：找${kinds.map((k) => kindNounZh[k]).join("、")}，不需要选街区。`
+    : `Staying in: looking for ${kinds.map((k) => kindNoun[k]).join(", ")}. No neighbourhood needed.`);
   const known = new Set(all.map((c) => String(c.qloo_id)));
   const seedsFor = (k) => {
     const dom = CARD_DOMAIN[k] || [];
@@ -761,7 +792,9 @@ export async function makeStayIn(env, user, req, log) {
       catch (e) { throw { state: "qloo_down", text: "Plans need the taste catalogue right now and it isn't answering. Your notes and cards are fine." }; }
     }
     const fresh = items.filter((x) => !known.has(String(x.qloo_id)) && !sd.some((s) => s.qloo_id === x.qloo_id));
-    log(`Asked the catalogue for ${k} with ${sd.slice(0, 3).map((s) => s.name).join(", ")}${sd.length > 3 ? "…" : ""}: ${items.length} came back, ${items.length - fresh.length} you already have cards for.`);
+    const seedNames = sd.slice(0, 3).map((s) => s.name);
+    if (lang === "zh") log(`拿${seedNames.map((n) => "《" + n + "》").join("")}${sd.length > 3 ? "等" : ""}去问口味目录要${{ film: "电影", tv: "剧集", music: "音乐", book: "书", podcast: "播客" }[k]}：回来 ${items.length} 个，其中 ${items.length - fresh.length} 个你已经记过。`);
+    else log(`Asked the catalogue for ${k} with ${seedNames.join(", ")}${sd.length > 3 ? "…" : ""}: ${items.length} came back, ${items.length - fresh.length} you already have cards for.`);
     return { kind: k, seeds: sd, items: fresh, returned: items.length };
   }));
   // familiar = Qloo's top matches; a little different = skip the very top; surprise = shuffle the first dozen.
@@ -778,7 +811,7 @@ export async function makeStayIn(env, user, req, log) {
   const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
   const dressed = await dressPicks(env, user, allSeeds, picks, lang);
   if (lang === "zh") await zhReads(env, dressed, 2500); // cap the wait so a cold translator can't stall the plan; the English read stays as fallback
-  log(`Picked ${dressed.length}: ${dressed.map((p) => p.name).join(", ")}.`);
+  log(lang === "zh" ? `选了 ${dressed.length} 个：${dressed.map((p) => "《" + p.name + "》").join("")}。` : `Picked ${dressed.length}: ${dressed.map((p) => p.name).join(", ")}.`);
   const when = req.when || user.whenx || "Saturday afternoon";
   const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[req.mood] || "familiar";
   const left_out = ((await env.DB.prepare("SELECT name FROM cards WHERE user_id=? AND heart=-1 ORDER BY name LIMIT 5").bind(user.id).all().catch(() => null))?.results || []).map((r) => r.name);

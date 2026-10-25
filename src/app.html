@@ -1141,6 +1141,7 @@ a{color:var(--b-sage-ink)}
 .fp-kind{font:500 12px/16px var(--sans);background:var(--b-soft);color:var(--muted);padding:2px 8px}
 .fp-detach{font-size:12px}
 .fp-quote{font:italic 400 17px/24px var(--serif);margin:4px 0 0}
+.fp-hit{background:var(--b-butter);color:var(--b-butter-ink);border-radius:4px;padding:0 3px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
 .fp-thumb{border-radius:10px;border-color:var(--b-line)}
 .viewchanged,.qloo-tags,.detail-actions{border-top-color:var(--b-line);margin-top:24px;padding-top:16px}
 .viewchanged h3{font:400 20px/26px var(--serif);margin:0 0 12px}
@@ -1455,7 +1456,7 @@ dialog.modal::backdrop{background:rgba(42,38,32,.32)}
 .fx-paper .plan-header{padding-right:18%}
 
 /* word / letter reveal */
-.fx-w{display:inline-block;overflow:hidden;vertical-align:top;padding:0 .06em .12em 0;margin:0 -.06em -.12em 0}
+.fx-w{display:inline-block;overflow:hidden;vertical-align:top;padding:0 .06em .28em 0;margin:0 -.06em -.28em 0}
 .fx-wi{display:inline-block;transform:translateY(105%);opacity:0;filter:blur(5px);
   animation:fxRise .8s cubic-bezier(.16,1,.3,1) forwards;animation-delay:calc(var(--i) * 42ms + 60ms)}
 .fx-word{display:inline-block;white-space:nowrap}
@@ -2541,6 +2542,11 @@ Object.assign(ZH, {
   "Search your notes": "搜索你的笔记",
   "Everything you have kept.": "你留下的一切。"
 });
+
+/* threads: an honest fallback label for threads that rest on the most-kept cards, not on the tag */
+Object.assign(ZH, {
+  "Across your most-kept cards": "最常想起的卡片"
+});
 function trZh(s){
   if (s == null) return s;
   const raw = String(s);
@@ -2572,12 +2578,16 @@ function reasonZh(r){
   if (r) r = fixCase(r);
   if (LANG !== "zh" || !r) return r;
   var TY = {show:"剧集", film:"电影", music:"音乐", book:"书", place:"地点", tv:"剧集", artist:"艺人"};
+  var MW = {films:"部电影", shows:"部剧", artists:"位艺人", books:"本书", places:"个地方", things:"样东西"};
   return String(r).replace(/"([^"]+)" is a ([a-z]+)(?: and a ([a-z]+))?\./g, function(_, m, a, b){ return "“" + m + "”既是" + (TY[a]||a) + (b ? "也是" + (TY[b]||b) : "") + "。"; })
-    .replace(/(\d+) (films|shows|artists|books|places|things) are called ([^.]+)\./g, function(_, n, w, nm){ return n + " 个同名条目：" + nm + "。"; })
+    .replace(/(\d+) (films|shows|artists|books|places|things) are called ([^.]+)\./g, function(_, n, w, nm){ return "有 " + n + " " + (MW[w]||"样东西") + "都叫 " + nm + "。"; })
     .replace(/"([^"]+)" could be a few things\./g, "“$1”可能指好几样东西。")
     .replace(/"([^"]+)" is the name of (.+?)\. Pick the one you meant\./g, function(_, m, list){ var NZ = {"a film":"电影","a TV show":"剧集","a musician":"音乐人","a book":"书","a place":"地点","a person":"人物"}; return "“" + m + "”可能是" + list.split(/, | or /).map(function(x){ return NZ[x] || x; }).join("、") + "。选你指的那个。"; })
     .replace(/Not sure "([^"]+)" means ([^.]+?)\./g, "不确定“$1”是不是指 $2。")
-    .replace(/\s*(?:Qloo|The catalogue) puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\./g, function(_, n, a, v){ return " 目录认为 " + n + " 最贴近你的口味（" + a + "）" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。"; });
+    .replace(/\s*(?:Qloo|The catalogue) puts (.+?) closest to your taste(?: \(([\d.]+)\))?(?:, mostly through (.+?))?\./g, function(_, n, a, v){
+      var top = n.replace(/\((\d{4}), ([a-z]+)\)/, function(_, y, k){ return "(" + y + ", " + (TY[k]||k) + ")"; });
+      return "目录认为 " + top + " 最贴近你的口味" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。";
+    });
 }
 function reasonHtml(r){ var h = esc(reasonZh(r)); if (LANG !== "zh") return h; return h.replace(/[A-Za-z][A-Za-z0-9'’&:.\-]*(?: [A-Z][A-Za-z0-9'’&:.\-]*)*/g, function(m){ return '<span translate="no" style="margin:0 .18em">' + m + '</span>'; }); }
 function t(s){ return LANG === "zh" ? trZh(s) : s; }
@@ -4952,6 +4962,7 @@ function renderNotes(){
     if (nres && nres.status === "fulfilled") {
       const data = nres.value || {};
       notes = Array.isArray(data.notes) ? data.notes : [];
+      normalizeMentionCounts(notes);
       baseCount = notes.length;
       greetingNotes = notes;
       initialRetry = false;
@@ -4982,6 +4993,7 @@ function renderNotes(){
       const data = await api("/api/notes?" + params.toString(), { signal: ac.signal });
       if (!isCurrent(token) || seq !== loadSeq) return;
       notes = Array.isArray(data && data.notes) ? data.notes : [];
+      normalizeMentionCounts(notes);
       if (filter === "all" && !query.trim()) baseCount = notes.length;
       paintTimeline();
     } catch (e) {
@@ -5445,6 +5457,41 @@ function syncMentionCounts(list, fresh){
       });
     });
     if (touched) changed.push(note.id);
+  });
+  return changed;
+}
+
+/* The first load can hand back one card with different counts (today's note 4x, an older note 3x). Raise every
+   note of that card to the largest n seen, never lower, and hand back the ids of the notes that changed. */
+function normalizeMentionCounts(list){
+  const changed = [];
+  if (!Array.isArray(list)) return changed;
+  const top = {};
+  const rows = [];
+  list.forEach(function(note){
+    if (!note || typeof note !== "object" || !Array.isArray(note.mentions)) return;
+    note.mentions.forEach(function(m){
+      if (!m || typeof m !== "object" || !m.card || typeof m.card !== "object") return;
+      const cid = (m.card.id !== null && m.card.id !== undefined && m.card.id !== "")
+        ? String(m.card.id)
+        : (m.card_id === null || m.card_id === undefined ? "" : String(m.card_id));
+      if (!cid) return;
+      const n = Number(m.card.n);
+      if (Number.isFinite(n) && (top[cid] === undefined || n > top[cid])) top[cid] = n;
+      rows.push({ note: note, card: m.card, cid: cid });
+    });
+  });
+  const hit = [];
+  rows.forEach(function(r){
+    const wanted = top[r.cid];
+    if (wanted === undefined) return;
+    const cur = Number(r.card.n);
+    if (Number.isFinite(cur) && cur >= wanted) return;
+    r.card.n = wanted;
+    if (hit.indexOf(r.note) < 0) hit.push(r.note);
+  });
+  hit.forEach(function(note){
+    changed.push(note.id);
   });
   return changed;
 }
@@ -6670,7 +6717,14 @@ function renderThreads(){
   function threadHTML(thread, i){
     const cards = Array.isArray(thread.cards) ? thread.cards : [];
     cards.forEach(function(c){ if (c && c.name) (window.SP_NAMES = window.SP_NAMES || {})[c.name] = 1; });
-    const chips = cards.map(function(card){
+    /* Chips must name only the cards that really carry the tag. When no card does, the thread is a
+       fallback over the most-kept cards and its label has to say so. */
+    const carried = cards.filter(function(c){ return c && c.carries_tag === true; });
+    const allCarryFalse = cards.length > 0 && cards.every(function(c){ return c && c.carries_tag === false; });
+    const fallback = !carried.length && thread.carried_by_cards === false && allCarryFalse;
+    const shown = carried.length ? carried : cards;
+    const evidenceLabel = fallback ? (LANG === "zh" ? t("Across your most-kept cards") : "Across your most-kept cards") : "From your notes";
+    const chips = shown.map(function(card){
       const count = Number(card.footprints) || 0;
       const label = card.name + (count ? ", " + count + " " + plural(count, "footprint", "footprints") : "");
       return '<button class="thread-chip type-' + attr(card.type || "other") + '" type="button" data-nav="#/cards/' + encodeURIComponent(card.id) + '" aria-label="' + attr(label) + '">' +
@@ -6680,7 +6734,7 @@ function renderThreads(){
     return '<article class="thread">' +
       '<div class="thread-top"><span class="from-qloo">From the catalogue</span>' + shiftPill(thread.shift) + "</div>" +
       '<h2 class="thread-title" translate="no">' + threadTitleHTML(thread) + "</h2>" +
-      '<span class="thread-evidence-label">From your notes</span>' +
+      '<span class="thread-evidence-label">' + evidenceLabel + "</span>" +
       '<div class="thread-chips">' + chips + "</div>" +
       (thread.read ? '<p class="thread-read"><span class="label">Sparkling’s read</span>' + esc(thread.read) + "</p>" : "") +
       '<button class="why-btn" type="button" data-why="' + i + '">Why this thread?</button>' +

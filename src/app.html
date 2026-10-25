@@ -2208,7 +2208,7 @@ const ZH = {
   "Something a little off my usual track": "稍微偏离我平时的路线", "A quiet bookstore, then somewhere to sit": "一家安静的书店，再找个地方坐坐",
   "A record shop and a slow coffee": "一家唱片店，一杯慢慢喝的咖啡", "An old cinema, then a late bite": "一家老电影院，再吃点夜宵",
   "Anything else?": "还有别的吗？", "Area": "区域", "Budget": "预算", "When": "时间", "Mood": "心情", "Somewhere": "某处",
-  "Saturday afternoon": "周六下午", "Go out": "出门", "Stay in": "在家", "Go out or stay in": "出门还是在家",
+  "Saturday afternoon": "周六下午", "Show less": "收起", "Go out": "出门", "Stay in": "在家", "Go out or stay in": "出门还是在家",
   "Picked from what you wrote": "按你写的自动选了", "Meditators": "冥想者", "Hikers": "徒步爱好者", "Musicians": "音乐人", "Arts & crafts": "手作爱好者", "Photographers": "摄影爱好者", "Lens, optional": "视角（可选）", "Could not load.": "没加载出来。", "Sparkling + Qloo": "Sparkling + 口味目录", "The catalogue returned it for your cards taken together.": "口味目录根据你的卡片整体给出。", "Stay in.": "在家，", "Why this pick?": "为什么推荐这个？", "Plan something else": "换个计划",
   "A film for tonight, from my notes": "今晚看部电影，按我的记录推荐", "An album to put on while I cook": "做饭时放一张专辑", "A book for a slow Sunday": "慢悠悠的周日读本书",
   "Press play.": "按下播放。", "One more episode.": "再看一集。", "Put it on.": "放起来。", "Turn the page.": "翻开第一页。", "Take your time.": "慢慢来。",
@@ -2337,6 +2337,7 @@ const ZH_PATTERNS = [
   [/^(?:Qloo lists|Listed) (.+) \u00b7 not live-checked$/, function(m, x){ return "标注营业时间 " + x + " · 未实时核实"; }],
   [/^Photo (\d+)$/, function(m, n){ return "照片 " + n; }], [/^Show photo (\d+)$/, function(m, n){ return "显示照片 " + n; }],
   [/^under \$(\d+)$/, function(m, n){ return n + " 美元以内"; }],
+  [/^\+ (\d+) more from your notes$/, function(m, n){ return "还有 " + n + " 条来自你的笔记"; }],
 ];
 /* r7i18n:begin */
 /* r7 designer pass strings */
@@ -2374,8 +2375,10 @@ ZH_PATTERNS.unshift([/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 
 /* plain-compare verdict zh (shot 5) */
 ZH_PATTERNS.unshift(
   [/^With Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "用了 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
-  [/^Without Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }]
+  [/^Without Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
+  [/^Without Qloo: (\d+) of (\d+) places checked out\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个地方里只有 " + a + " 个核对得上。"; }]
 );
+Object.assign(ZH, { "Plain LLM": "纯模型对比" });
 Object.assign(ZH, { "In Qloo": "Qloo 里有", "In Qloo, but far": "Qloo 里有，但很远", "Closed for good, per Qloo": "Qloo 标注已永久关闭", "Not in Qloo, so unchecked": "Qloo 里没有，无法核对", "Only found in another city": "只在别的城市找到", "Not checked": "未核对", "Open on arrival": "到达时营业", "May be closed when you arrive": "到达时可能已关门", "on the route": "就在路线上", "Plain model": "纯模型", "Sparkling + Qloo": "Sparkling + Qloo" });
 ZH_PATTERNS.unshift(
   [/^(\d+) min walk$/, function(m, n){ return "步行 " + n + " 分钟"; }],
@@ -2433,13 +2436,13 @@ Object.assign(ZH, {
 });
 (function(){
   var DAYS = { Monday: "周一", Tuesday: "周二", Wednesday: "周三", Thursday: "周四", Friday: "周五", Saturday: "周六", Sunday: "周日" };
-  var who = function(list){ return String(list).replace(/ \((\d+)% of the match\)( and )?/g, function(m, n, a){ return "（占匹配 " + n + "%）" + (a ? "、" : ""); }); };
+  var who = function(list){ return String(list).replace(/ \(\d+% of the match\)/g, "").split(" and ").join("》和《"); };
   var hood = function(s){ return String(s).split(" and ").join("和"); };
   ZH_PATTERNS.unshift(
     [/^[Mm]entioned (\d+)\u00d7$/, function(m, n){ return "提到 " + n + " 次"; }],
     [/^\+ (\d+) more from your notes$/, function(m, n){ return "还有 " + n + " 条来自你的笔记"; }],
-    [/^(?:Qloo matched|Matched) this (.+?) mostly through (.+?)(?:; affinity ([\d.]+))?\.$/, function(m, kind, list, aff){
-      return "主要通过 " + who(list) + " 匹配到这家" + trZh(kind) + (aff ? "；契合度 " + aff : "") + "。"; }],
+    [/^(?:Qloo matched|Matched) this (.+?) mostly through (.+?)(?:; affinity [\d.]+)?\.$/, function(m, kind, list){
+      return "这家" + trZh(kind) + "主要是通过《" + who(list) + "》匹配上的。"; }],
     [/^(?:Qloo ranked|Ranked) this (.+?) near (.+?) in taste(?: \(popularity ([\d.]+)\))?\.$/, function(m, kind, list, pop){
       return "按口味，目录把这家" + trZh(kind) + "排在 " + String(list).split(" and ").join("、") + " 附近" + (pop ? "（热度 " + pop + "）" : "") + "。"; }],
     [/^(?:Qloo lists it closed|Listed as closed) on (\w+)s \u00b7 not live-checked$/, function(m, d){ return "标注" + (DAYS[d] || d) + "不营业 · 未实时核实"; }],
@@ -2471,11 +2474,12 @@ Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味�
     return trZh(s);
   };
   ZH_PATTERNS.unshift(
-    [/^(.+?\.) (?:Qloo|The catalogue) puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\.$/, function(m, l, top, aff, via){
-      return lead(l) + "目录认为 " + top + " 最贴近你的口味（" + aff + "）" + (via ? "，主要因为 " + two(via) : "") + "。"; }],
-    [/^((?:“[^”]+”(?: and )?)+) is how Qloo reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, who, q){
+    [/^(.+?\.) (?:Qloo|The catalogue) puts (.+?) closest to your taste(?: \(([\d.]+)\))?(?:, mostly through (.+?))?\.$/, function(m, l, top, aff, via){
+      return lead(l) + "目录认为 " + top + " 最贴近你的口味" + (via ? "，主要因为 " + two(via) : "") + "。"; }],
+    [/^((?:“[^”]+”(?: and )?)+) is how (?:Qloo|the catalogue) reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, who, q){
       var w = who === "your recent cards" ? "你最近的卡片" : who === "your cards" ? "你的卡片" : two(who);
-      return "Qloo 用 " + tags.split(" and ").join("、") + " 来读 " + w + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
+      var tg = tags.split(" and ").map(function(x){ x = x.replace(/^“|”$/g, ""); return typeof tagZh === "function" ? tagZh(x) : x; });
+      return "口味目录用 " + tg.map(function(x){ return "「" + x + "」"; }).join("、") + " 来读 " + w + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
   );
 })();
 
@@ -3311,7 +3315,7 @@ const TAG_TYPE = { mood: "mood", artist: "trait", theme: "theme", genre: "genre"
 function tagType(id){ const m = String(id || "").match(/^urn:tag:([a-z_]+)/); return m ? (TAG_TYPE[m[1]] || m[1].replace(/_/g, " ")) : ""; }
 function tagPretty(name){ const s = String(name || ""); if (/^urn:tag:/.test(s)) { const tail = s.split(":").pop().replace(/_/g, " "); return tail.charAt(0).toUpperCase() + tail.slice(1); } return s; }
 function scoreText(x){ const n = Number(x); if (!isFinite(n)) return ""; const f = n.toFixed(2); return n >= 0.995 ? "1.00" : f.replace(/^0/, ""); }
-const TAG_ZH={"creative writing":"创意写作","artistic":"艺术感","fine baking":"精致烘焙","patio":"露台","bakery shopping":"逛面包店","bread":"面包","pastry":"点心","community events":"社区活动","live music":"现场音乐","vegan":"纯素","quiet":"安静","cozy atmosphere":"温馨","craft":"手作","rare books":"珍本","used books":"二手书","zines":"独立刊物","art":"艺术","books":"书","music":"音乐","film":"电影","tea":"茶","wine":"葡萄酒","cocktails":"鸡尾酒","brunch":"早午餐","dessert":"甜点","foreground framing":"前景构图","framing":"构图","melancholy":"忧郁","nostalgic":"怀旧","nostalgia":"怀旧","romance":"浪漫","romantic":"浪漫","cozy":"温馨","dreamy":"梦幻","atmospheric":"氛围感","minimalist":"极简","minimalism":"极简","urban":"都市","independent":"独立","indie":"独立","jazz":"爵士","classic":"经典","vintage":"复古","retro":"复古","drama":"剧情","documentary":"纪录片","coming of age":"成长","slow cinema":"慢电影","neon":"霓虹","night":"夜晚","city":"城市","loneliness":"孤独","love":"爱情","art house":"文艺片","arthouse":"文艺片","literary":"文学","poetry":"诗","folk":"民谣","ambient":"氛围乐","electronic":"电子","pop":"流行","rock":"摇滚","hip hop":"嘻哈","soul":"灵魂乐","coffee":"咖啡","bookstore":"书店","book store":"书店","vinyl":"黑胶","record store":"唱片店","cinema":"影院","museum":"博物馆","gallery":"画廊","cafe":"咖啡馆","bar":"酒吧","park":"公园"};
+const TAG_ZH={"creative writing":"创意写作","artistic":"艺术感","fine baking":"精致烘焙","patio":"露台","bakery shopping":"逛面包店","bread":"面包","pastry":"点心","community events":"社区活动","live music":"现场音乐","vegan":"纯素","quiet":"安静","cozy atmosphere":"温馨","craft":"手作","rare books":"珍本","used books":"二手书","zines":"独立刊物","art":"艺术","books":"书","music":"音乐","film":"电影","tea":"茶","wine":"葡萄酒","cocktails":"鸡尾酒","brunch":"早午餐","dessert":"甜点","foreground framing":"前景构图","framing":"构图","melancholy":"忧郁","nostalgic":"怀旧","nostalgia":"怀旧","romance":"浪漫","romantic":"浪漫","cozy":"温馨","dreamy":"梦幻","atmospheric":"氛围感","minimalist":"极简","minimalism":"极简","urban":"都市","independent":"独立","indie":"独立","jazz":"爵士","classic":"经典","vintage":"复古","retro":"复古","drama":"剧情","documentary":"纪录片","coming of age":"成长","slow cinema":"慢电影","neon":"霓虹","night":"夜晚","city":"城市","loneliness":"孤独","love":"爱情","art house":"文艺片","arthouse":"文艺片","literary":"文学","poetry":"诗","folk":"民谣","ambient":"氛围乐","electronic":"电子","pop":"流行","rock":"摇滚","hip hop":"嘻哈","soul":"灵魂乐","coffee":"咖啡","bookstore":"书店","book store":"书店","vinyl":"黑胶","record store":"唱片店","cinema":"影院","museum":"博物馆","gallery":"画廊","cafe":"咖啡馆","bar":"酒吧","park":"公园","adult":"成人","aesthetic minded":"审美取向","ambition":"野心","art versus mundanity":"艺术与世俗","asia":"亚洲","audiobook":"有声书","biography":"传记","biography memoir":"传记回忆录","chillout":"弛放音乐","cinematic":"电影感","classics":"经典","composed":"沉稳","confessional":"自白","contemplative":"沉思","contemporary":"当代","crime":"犯罪","dedicated":"专注","devoted":"虔诚","drama loving":"剧情爱好者","dream pop":"梦幻流行","elegantly":"优雅","emotionally engaged":"情感投入","essays":"随笔","event venue":"活动场地","everyday minimalism":"日常极简","fantasy":"奇幻","fiction":"小说","folk - rock":"民谣摇滚","food":"美食","forbidden desire":"禁忌之恋","fragmentary":"碎片感","friendship":"友情","german literature":"德国文学","germany":"德国","grief":"哀伤","hip - hop":"嘻哈","hipster chic":"潮人时尚","identity":"身份","improvised feel":"即兴感","indie - folk":"独立民谣","indie pop":"独立流行","indie rock":"独立摇滚","intimate":"亲密","introspective":"内省","japanese":"日式","japanese literature":"日本文学","jazz hop":"爵士嘻哈","literature":"文学","live music venue":"现场音乐场地","lounge":"休闲吧","lounge bar":"酒廊酒吧","lyrical":"抒情","mature":"成熟","memoir":"回忆录","memory":"记忆","memory drama":"记忆剧情","moody":"情绪化","movie theater":"电影院","muted":"低饱和","naturalistic":"自然主义","near future":"近未来","novels":"小说","observational":"观察式","obsession":"执念","passionate":"热情","photographic framing":"摄影构图","quiet lyricism":"静谧诗意","repetitive musical motifs":"重复乐句","sci fi romance":"科幻爱情","second chances":"二次机会","sensitive":"敏感","singer & songwriter":"唱作人","soft focus":"柔焦","speculative fiction":"推想小说","stylized":"风格化","sunrise motifs":"日出意象","temporal collage":"时间拼贴","thoughtful":"深思","tourist attraction":"旅游景点","traditional":"传统","travel":"旅行","trip - hop":"神游舞曲","urban alienation":"城市疏离","vulnerability":"脆弱"};
 function tagZh(n){ if (typeof LANG === "undefined" || LANG !== "zh") return n; const k=String(n).toLowerCase().trim(); return TAG_ZH[k] || n; }
 function seedHTML(tag, cls){
   const o = typeof tag === "object" && tag ? tag : { name: tag };
@@ -5009,7 +5013,19 @@ function renderNotes(){
         if (idx >= 0) notes[idx] = fresh;
         if (fresh.status !== "pending") {
           replaceNoteInDom(id, fresh, { draw: true, plus: true });
-          try { if (window.Fx && Fx.grow) { const nn = view.querySelector('[data-note-id="' + id.replace(/"/g, "") + '"]'); if (nn) Fx.grow(nn); } } catch (e) {}
+          try {
+            if (window.Fx && Fx.grow) {
+              const safeId = String(id).replace(/\x22/g, "");
+              const nn = view.querySelector("[data-note-id=\"" + safeId + "\"]");
+              if (nn) Fx.grow(nn);
+            }
+          } catch (e) {}
+          // older notes of the same card still show the old count, so they get a quiet repaint
+          syncMentionCounts(notes, fresh).forEach(function(nid){
+            if (String(nid) === id) return;
+            const older = notes.find(function(n){ return String(n.id) === String(nid); });
+            if (older) replaceNoteInDom(nid, older, {});
+          });
           refreshMe();
           return;
         }
@@ -5395,6 +5411,42 @@ function renderNotes(){
   });
 
   loadInitial();
+}
+
+/* A fresh note can push a card's count up while older notes still show the old one. Raise the same card's
+   mention count on every other note in the feed (never lower it) and hand back the ids that changed. */
+function syncMentionCounts(list, fresh){
+  const changed = [];
+  if (!Array.isArray(list) || !fresh || !Array.isArray(fresh.mentions)) return changed;
+  const raised = [];
+  fresh.mentions.forEach(function(m){
+    if (!m || typeof m !== "object" || !m.card || typeof m.card !== "object") return;
+    if (m.card.id === null || m.card.id === undefined || m.card.id === "") return;
+    if (typeof m.card.n !== "number" || !Number.isFinite(m.card.n)) return;
+    raised.push({ id: String(m.card.id), n: m.card.n });
+  });
+  if (!raised.length) return changed;
+  const freshId = fresh.id === null || fresh.id === undefined ? "" : String(fresh.id);
+  list.forEach(function(note){
+    if (!note || note === fresh) return;
+    if (freshId && note.id !== null && note.id !== undefined && String(note.id) === freshId) return;
+    if (!Array.isArray(note.mentions)) return;
+    let touched = false;
+    note.mentions.forEach(function(m){
+      if (!m || typeof m !== "object" || !m.card || typeof m.card !== "object") return;
+      const cid = (m.card.id !== null && m.card.id !== undefined && m.card.id !== "")
+        ? String(m.card.id)
+        : (m.card_id === null || m.card_id === undefined ? "" : String(m.card_id));
+      if (!cid) return;
+      raised.forEach(function(r){
+        if (r.id !== cid) return;
+        const cur = Number(m.card.n);
+        if (!Number.isFinite(cur) || cur < r.n) { m.card.n = r.n; touched = true; }
+      });
+    });
+    if (touched) changed.push(note.id);
+  });
+  return changed;
 }
 
 /* ---------------------------------------------------------------------------
@@ -7033,7 +7085,7 @@ function renderPlanRequest(){
         '<p class="plan-error-copy">A neighbourhood is enough. GPS is optional.</p>' +
         '<div class="plan-error-actions">' +
           '<input class="inline-input area-input" data-error-area aria-label="Neighbourhood" placeholder="Greenpoint">' +
-          '<button class="btn btn-primary btn-sm" type="button" data-error-area-go>Make a plan</button>' +
+          '<button class="btn btn-primary btn-sm" type="button" data-error-area-go>' + esc(t("Make a plan")) + '</button>' +
         "</div>" +
       "</div>";
     }
@@ -7062,7 +7114,7 @@ function renderPlanRequest(){
       '</div><span class="mode-hint" data-mode-hint' + (mode === "in" && prefill ? "" : " hidden") + '>Picked from what you wrote</span></div>' +
       '<div class="plan-sentence">' +
         "<span>On</span>" +
-        '<input class="inline-input when-input" data-when aria-label="When" placeholder="Saturday afternoon" value="' + attr(whenVal) + '">' +
+        '<input class="inline-input when-input" data-when aria-label="' + attr(t("When")) + '" placeholder="' + attr(t("Saturday afternoon")) + '" value="' + attr(whenVal) + '">' +
         '<span class="out-only" data-out-only' + (mode === "in" ? " hidden" : "") + '>' +
         '<span class="sep" aria-hidden="true">&middot;</span>' +
         "<span>around</span>" +
@@ -7085,7 +7137,7 @@ function renderPlanRequest(){
       '<div class="free-line">' +
         '<input class="free-input" data-free aria-label="Anything else?" placeholder="A quiet bookstore, then somewhere to sit" value="' + attr(prefill) + '">' +
       "</div>" +
-      '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>Make a plan</button></div>' +
+      '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>' + esc(t("Make a plan")) + '</button></div>' +
       '<div class="duo-box" data-out-only' + (mode === "in" ? " hidden" : "") + '><button class="btn btn-sm" type="button" data-duo-go>' + esc(t("Plan for two · try with a sample friend")) + '</button><div data-duo-out></div></div>' +
       '<div data-plan-progress></div>' +
       '<div data-plan-error></div>' +
@@ -7131,7 +7183,7 @@ function renderPlanRequest(){
     if (!p) return;
     modeLocked = true;
     setMode(p.mode, false);
-    if (p.when && whenInput) whenInput.value = p.when;
+    if (p.when && whenInput) whenInput.value = t(p.when);
     if (p.area && areaInput) areaInput.value = p.area;
     if (p.budget != null && budgetInput) budgetInput.value = String(p.budget);
     if (p.text && freeInput) freeInput.value = t(p.text);
@@ -7173,7 +7225,7 @@ function renderPlanRequest(){
     busy = false;
     if (isCurrent(token)) {
       planBtn.disabled = false;
-      planBtn.textContent = "Make a plan";
+      planBtn.textContent = t("Make a plan");
     }
   }
   async function submitPlan(){
@@ -7186,7 +7238,7 @@ function renderPlanRequest(){
     errSlot.innerHTML = "";
     progressSlot.innerHTML = logPanelHTML();
     planBtn.disabled = true;
-    planBtn.textContent = "Making a plan";
+    planBtn.textContent = t("Making a plan");
     const body = { mood: mood, period: period, mode: mode };
     if (lens) body.audience = lens;
     if (LANG === "zh") body.lang = "zh";
@@ -7242,7 +7294,7 @@ function renderPlanRequest(){
       }
       showPlanError(null, t("The plan stream ended before a plan arrived."));
     } catch (e) {
-      if (!isAbort(e) && isCurrent(token)) showPlanError(null, (e && e.message) || "That did not work. Try again.");
+      if (!isAbort(e) && isCurrent(token)) showPlanError(null, (e && e.message) || t("That did not work. Try again."));
     } finally {
       finishSubmit();
     }
@@ -7325,6 +7377,16 @@ function renderPlanRequest(){
 /* ---------------------------------------------------------------------------
    Plan result (screen 9)
    --------------------------------------------------------------------------- */
+/* one POST per plan id for the "Same notes, no Qloo" comparison, started as soon as the plan is painted */
+function prefetchPlain(planId){
+  const cache = prefetchPlain.cache || (prefetchPlain.cache = Object.create(null));
+  const id = planId == null ? "" : String(planId);
+  if (cache[id]) return cache[id];
+  const p = api("/api/plan/" + encodeURIComponent(id) + "/plain", { method: "POST", body: "{}" });
+  cache[id] = p;
+  p.catch(function(){ if (cache[id] === p) delete cache[id]; });
+  return p;
+}
 function renderPlanResult(id){
   const token = beginView();
   setShell({ title: "Plan", tabs: true, active: "plan" });
@@ -7375,13 +7437,13 @@ function renderPlanResult(id){
     if (!src.length) return stopEvidenceHTML("notes", "From your notes", stop && stop.from_notes, false);
     return '<div class="ev-row"><span class="ev-label notes">From your notes</span>' +
       '<div class="trace-list">' + src.map(function(x, i){
-        const when = x.at ? new Date(Number(x.at)).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+        const when = x.at ? new Date(Number(x.at)).toLocaleDateString(LANG === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric" }) : "";
         return '<button type="button" class="trace' + (i > 0 ? ' trace-extra' : '') + ' ' + typeClass(x.type) + '" data-nav="#/cards/' + attr(x.card_id) + '">' +
           (x.image ? '<img class="trace-img" src="' + attr(x.image) + '" alt="" loading="lazy" onerror="this.remove()">' : '<span class="trace-img ph"></span>') +
           '<span class="trace-body"><span class="trace-name">' + esc(x.name) + (x.n > 1 ? ' <i>×' + esc(String(x.n)) + "</i>" : "") + "</span>" +
           (x.quote ? '<span class="trace-quote">&ldquo;' + esc(x.quote) + "&rdquo;</span>" : "") +
           (when ? '<span class="trace-at">' + esc(when) + "</span>" : "") + "</span></button>";
-      }).join("") + (src.length > 1 ? '<button type="button" class="trace-more" onclick="var l=this.parentNode;l.classList.toggle(\'open\');this.textContent=l.classList.contains(\'open\')?\'Show less\':\'+ ' + (src.length - 1) + ' more from your notes\'">+ ' + (src.length - 1) + ' more from your notes</button>' : '') + "</div></div>";
+      }).join("") + (src.length > 1 ? '<button type="button" class="trace-more" data-less="' + attr(t("Show less")) + '" data-more="' + attr(t("+ " + (src.length - 1) + " more from your notes")) + '" onclick="var l=this.parentNode;l.classList.toggle(\'open\');this.textContent=l.classList.contains(\'open\')?this.getAttribute(\'data-less\'):this.getAttribute(\'data-more\')">' + esc(t("+ " + (src.length - 1) + " more from your notes")) + '</button>' : '') + "</div></div>";
   }
   function whyStopHTML(stop, plan){
     const w = stop && stop.why || {};
@@ -7449,24 +7511,41 @@ function renderPlanResult(id){
     const seeds = verdictSeeds(plan, pl);
     let withN = mine.filter(function(x){ return verdictKeptLink(x); }).length, withT = mine.length;
     let withoutN = plain.filter(function(x){ return verdictNamesSeed(x.why, seeds); }).length, withoutT = plain.length;
+    let checked = null;
     /* a server-sent verdict, when present, is authoritative */
     const v = pl && pl.verdict;
     if (v && typeof v === "object") {
-      const a = verdictPair(v.with_qloo || v.withQloo || v["with"] || v.sparkling);
-      const b = verdictPair(v.without_qloo || v.withoutQloo || v.without || v.plain);
-      if (a) { withN = a.tied; withT = a.total; }
-      if (b) { withoutN = b.tied; withoutT = b.total; }
+      /* the keys POST /api/plan/:id/plain really sends */
+      if (v.mine_linked != null || v.mine_total != null) {
+        if (v.mine_linked != null) withN = Number(v.mine_linked) || 0;
+        if (v.mine_total != null) withT = Number(v.mine_total) || 0;
+      } else {
+        const a = verdictPair(v.with_qloo || v.withQloo || v["with"] || v.sparkling);
+        if (a) { withN = a.tied; withT = a.total; }
+      }
+      if (v.plain_linked != null || v.plain_total != null) {
+        if (v.plain_linked != null) withoutN = Number(v.plain_linked) || 0;
+        if (v.plain_total != null) withoutT = Number(v.plain_total) || 0;
+      } else {
+        const b = verdictPair(v.without_qloo || v.withoutQloo || v.without || v.plain);
+        if (b) { withoutN = b.tied; withoutT = b.total; }
+      }
+      if (typeof v.plain_pass === "number" && isFinite(v.plain_pass)) checked = v.plain_pass;
     }
     return '<div class="plain-verdict" role="note" style="margin:2px 0 14px;padding:12px 14px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-soft)">' +
       '<p class="pv-with" style="margin:0;font-family:var(--sans);font-size:13px;font-weight:600;line-height:1.5;color:var(--b-ink)">' + esc(t("With Qloo: " + withN + " of " + withT + " tied to a card you kept.")) + "</p>" +
       '<p class="pv-without" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + withoutN + " of " + withoutT + " tied to a card you kept.")) + "</p>" +
+      (checked != null ? '<p class="pv-check" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + checked + " of " + withoutT + " places checked out.")) + "</p>" : "") +
     "</div>";
   }
   async function openPlain(){
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" aria-busy="true"><p class="muted">' + esc(t("Asking a plain model, no Qloo… usually 5–15 seconds.")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
     let d = null;
-    try { d = await api("/api/plan/" + encodeURIComponent(planId) + "/plain", { method: "POST", body: "{}" }); } catch (e) {}
+    try { d = await prefetchPlain(planId); } catch (e) {}
     const pl = d && d.plain;
+    /* the raw model id stays out of the sheet; it is only a hover title for provenance */
+    const modelSlug = pl && pl.model ? String(pl.model).split("/").pop() : "";
+    const modelLabel = modelSlug ? esc(modelSlug) : "";
     if (currentPlan && currentPlan.mode === "in") {
       /* stayin: compare the picks side by side — Sparkling's carry a kept-card link, the plain model's carry none */
       const picks = (Array.isArray(currentPlan.picks) ? currentPlan.picks : []).filter(function(p){ return p && p.name; });
@@ -7483,7 +7562,7 @@ function renderPlanResult(id){
       };
       const minePicks = picks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + keptLine(p) + "</li>"; }).join("");
       const theirPicks = plainPicks.length ? plainPicks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + (p.why ? '<small class="muted" translate="no">' + esc(p.why) + "</small>" : "") + "</li>"; }).join("") : '<li><small class="muted">' + esc((pl && pl.note) || t("Could not load.")) + "</small></li>";
-      const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted">' + esc(t("Same cards, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + "</small>" : "") + "</p>" +
+      const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same model. The only change: no Qloo.")) + "</p>" +
         '<div class="why-feed">' +
           '<section><h3 class="r7-eyebrow">' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + minePicks + "</ol></section>" +
           '<section><h3 class="r7-eyebrow">' + esc(t("Plain model")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
@@ -7502,7 +7581,7 @@ function renderPlanResult(id){
     const ckLine = function(c){ if (!c) return '<span class="pc pc-muted">' + esc(t("Not checked")) + "</span>"; const k = CK[c.status] || CK.unchecked; const dist = c.mi != null ? " · " + esc(t(c.mi < 0.1 ? "on the route" : c.mi + " mi from the route")) : ""; return '<span class="pc pc-' + k[0] + '">' + esc(t(k[1])) + "</span>" + (c.status !== "not_found" && c.status !== "unchecked" && c.status !== "elsewhere" ? '<small class="muted">' + dist + (c.hood ? " · " + esc(c.hood) : "") + "</small>" : ""); };
     const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
     const ok = pl && pl.stops ? pl.stops.filter(function(s){ return s.check && (s.check.status === "found"); }).length : 0;
-    const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + '</small>' : '') + '</p>' +
+    const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + '</p>' +
       '<h3>' + esc(t("Plain model")) + '</h3><ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p>' +
       '<h3>' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list">' + mine + '</ol><p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p>';
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: body });
@@ -7547,7 +7626,7 @@ function renderPlanResult(id){
     } catch (e) {
       busyAction = false;
       if (isAbort(e)) return;
-      toast((e && e.message) || (LANG === "zh" ? "没成功，再试一次。" : "That did not work. Try again."));
+      toast((e && e.message) || t("That did not work. Try again."));
       if (currentPlan) paint(currentPlan);
     }
   }
@@ -7719,6 +7798,7 @@ function renderPlanResult(id){
         '<details class="how"><summary>How this was made</summary>' + traceHeadHTML(plan) + '<ol class="trace">' +
           (Array.isArray(plan.trace) && plan.trace.length === plan.log.length ? plan.trace : plan.log.map(function(l){ return { text: l }; })).map(function(l, i){ return '<li><span class="trace-n num">' + (i + 1) + '</span><span class="trace-t">' + esc(l.text) + '</span>' + (l.ms != null ? '<span class="trace-ms num">+' + (l.ms / 1000).toFixed(1) + 's</span>' : "") + "</li>"; }).join("") +
         "</ol>" + receiptHTML(plan.receipt) + "</details>" : "");
+    if (plan && plan.id) prefetchPlain(plan.id);
   }
   function paint(plan){
     if (!isCurrent(token)) return;
@@ -7748,13 +7828,14 @@ function renderPlanResult(id){
       '<div class="plan-actions">' +
         '<button class="btn" type="button" data-action="shorten"' + (stops.length <= 1 || busyAction ? " disabled" : "") + ">Shorten</button>" +
         '<button class="btn" type="button" data-action="budget"' + (busyAction ? " disabled" : "") + ">Lower budget</button>" +
-        '<button class="btn" type="button" data-plain="1">Plain LLM</button>' +
+        '<button class="btn" type="button" data-plain="1">' + esc(t("Plain LLM")) + "</button>" +
         '<button class="btn btn-primary" type="button" data-action="save"' + (saved || busyAction ? " disabled" : "") + ">" + (saved ? "Saved" : "Save") + "</button>" +
       "</div>" +
       (Array.isArray(plan.log) && plan.log.length ?
         '<details class="how"><summary>How this was made</summary>' + traceHeadHTML(plan) + '<ol class="trace">' +
           (Array.isArray(plan.trace) && plan.trace.length === plan.log.length ? plan.trace : plan.log.map(function(l){ return { text: l }; })).map(function(l, i){ return '<li><span class="trace-n num">' + (i + 1) + '</span><span class="trace-t">' + esc(l.text) + '</span>' + (l.ms != null ? '<span class="trace-ms num">+' + (l.ms / 1000).toFixed(1) + 's</span>' : "") + "</li>"; }).join("") +
         "</ol>" + receiptHTML(plan.receipt) + "</details>" : "");
+    if (plan && plan.id) prefetchPlain(plan.id);
   }
   function traceHeadHTML(plan){
     const q = plan.receipt && Array.isArray(plan.receipt.queries) ? plan.receipt.queries.length : 0;
@@ -7810,7 +7891,7 @@ function renderPlanResult(id){
       } else if (action === "shorten") toast("Shortened.");
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
-      toast((e && e.message) || "That did not work. Try again.");
+      toast((e && e.message) || t("That did not work. Try again."));
     } finally {
       busyAction = false;
       if (isCurrent(token)) setActionBusy(false);
@@ -7850,7 +7931,7 @@ function renderPlanResult(id){
         if (fresh && fresh.id) { cachePlan(fresh); paint(fresh); }
         if (data && data.notice) toast(data.notice);
       } catch (e2) {
-        err.textContent = (e2 && e2.message) || "That did not work. Try again.";
+        err.textContent = (e2 && e2.message) || t("That did not work. Try again.");
         err.hidden = false;
         submitBtn.disabled = false;
       }

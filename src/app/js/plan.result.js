@@ -26,6 +26,42 @@ function zhClock(s){
   if (one) return T[one[2].toUpperCase()] + " " + one[1];
   return s;
 }
+/* the "Sparkling + Qloo" half of the compare sheet: the plan's own stops (go-out) or picks (stay-in).
+   Built in one place so the first paint can show it while the plain request is still in flight. */
+function mineHalfHTML(plan, eyebrow){
+  const p = plan || {};
+  const head = '<h3' + (eyebrow ? ' class="' + attr(eyebrow) + '"' : "") + ">" + esc(t("Sparkling + Qloo")) + "</h3>";
+  const listOpen = '<ol class="plain-list"' + (eyebrow ? ' style="margin:0;padding-left:18px"' : "") + ">";
+  let items = "";
+  if (p.mode === "in") {
+    const picks = (Array.isArray(p.picks) ? p.picks : []).filter(function(x){ return x && x.name; });
+    items = picks.map(function(x){
+      const kind = x.kind ? ' <small>(' + esc(t(String(x.kind).toLowerCase())) + ")</small>" : "";
+      const src = (Array.isArray(x.sources) ? x.sources : []).filter(function(y){ return y && y.name; }).slice(0, 2);
+      let kept = "";
+      if (src.length) {
+        const names = src.map(function(y){
+          const label = LANG === "zh" ? "《" + y.name + "》" : y.name;
+          return y.card_id ? '<a class="df-link" href="#/cards/' + attr(y.card_id) + '" data-close-nav="#/cards/' + attr(y.card_id) + '" translate="no">' + esc(label) + "</a>" : '<span translate="no">' + esc(label) + "</span>";
+        });
+        kept = '<small class="muted">' + esc(t("because you kept")) + (LANG === "zh" ? "" : " ") + names.join(LANG === "zh" ? "、" : " and ") + "</small>";
+      } else if (x.why_line) {
+        kept = '<small class="muted">' + esc(x.why_line) + "</small>";
+      }
+      return '<li><b translate="no">' + esc(x.name) + "</b>" + kind + "<br>" + kept + "</li>";
+    }).join("");
+  } else {
+    const stops = Array.isArray(p.stops) ? p.stops : [];
+    items = stops.map(function(s, i){
+      const hood = s.neighborhood || s.address || "";
+      const dst = i > 0 && s.distance ? String(s.distance).replace(/ from stop \d+/, "") : "";
+      const op = s.open_on_arrival === true ? t("Open on arrival") : s.open_on_arrival === false ? t("May be closed when you arrive") : "";
+      const bits = [dst ? esc(t(dst)) : "", hood ? esc(hood) : "", op ? esc(op) : ""].filter(Boolean).join(" · ");
+      return '<li><b translate="no">' + esc(s.name) + '</b><br><span class="pc pc-ok">' + esc(t("In Qloo")) + "</span>" + (bits ? '<small class="muted"> · ' + bits + "</small>" : "") + "<br><small>" + esc(stopRead(s)) + "</small></li>";
+    }).join("");
+  }
+  return head + listOpen + items + "</ol>";
+}
 function renderPlanResult(id){
   const token = beginView();
   setShell({ title: "Plan", tabs: true, active: "plan" });
@@ -183,7 +219,9 @@ function renderPlanResult(id){
     "</div>";
   }
   async function openPlain(){
-    openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" role="status" aria-busy="true"><p class="muted">' + esc(t("Checking the same notes without the catalogue…")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
+    /* the Sparkling + Qloo half is already known: paint it next to the plain skeleton, before the request */
+    const known = mineHalfHTML(currentPlan, currentPlan && currentPlan.mode === "in" ? "r7-eyebrow" : "");
+    openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" role="status" aria-busy="true"><p class="muted">' + esc(t("Checking the same notes without the catalogue…")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' + known });
     let d = null;
     try { d = await prefetchPlain(planId); } catch (e) {}
     if (!d) {
@@ -204,21 +242,11 @@ function renderPlanResult(id){
       const picks = (Array.isArray(currentPlan.picks) ? currentPlan.picks : []).filter(function(p){ return p && p.name; });
       const plainPicks = pl && Array.isArray(pl.picks) ? pl.picks.filter(function(p){ return p && p.name; }) : [];
       const kindTag = function(k){ return k ? ' <small>(' + esc(t(String(k).toLowerCase())) + ")</small>" : ""; };
-      const keptLine = function(p){
-        const src = (Array.isArray(p.sources) ? p.sources : []).filter(function(x){ return x && x.name; }).slice(0, 2);
-        if (!src.length) return p.why_line ? '<small class="muted">' + esc(p.why_line) + "</small>" : "";
-        const names = src.map(function(x){
-          const label = LANG === "zh" ? "《" + x.name + "》" : x.name;
-          return x.card_id ? '<a class="df-link" href="#/cards/' + attr(x.card_id) + '" data-close-nav="#/cards/' + attr(x.card_id) + '" translate="no">' + esc(label) + "</a>" : '<span translate="no">' + esc(label) + "</span>";
-        });
-        return '<small class="muted">' + esc(t("because you kept")) + (LANG === "zh" ? "" : " ") + names.join(LANG === "zh" ? "、" : " and ") + "</small>";
-      };
-      const minePicks = picks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + keptLine(p) + "</li>"; }).join("");
       const theirPicks = plainPicks.length ? plainPicks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + (p.why ? '<small class="muted" translate="no">' + esc(p.why) + "</small>" : "") + "</li>"; }).join("") : '<li><small class="muted">' + esc((pl && pl.note) || t("Could not load.")) + "</small></li>";
       const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same model. The only change: no Qloo.")) + "</p>" +
-        '<div class="why-feed">' +
-          '<section><h3 class="r7-eyebrow">' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + minePicks + "</ol></section>" +
-          '<section><h3 class="r7-eyebrow">' + esc(t("Plain model")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
+        '<div class="pc-cols">' +
+          '<section class="pc-plain"><h3 class="r7-eyebrow">' + esc(t("Plain model")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
+          '<section class="pc-mine">' + mineHalfHTML(currentPlan, "r7-eyebrow") + "</section>" +
         "</div>" +
         '<p class="why-line">' + esc(t("What is lost: the card behind each pick, and any check that it exists.")) + "</p>" +
         '<p class="muted"><small>' + esc(t("The model named these from memory. Sparkling did not look them up.")) + "</small></p>";
@@ -229,14 +257,15 @@ function renderPlanResult(id){
       }});
       return;
     }
-    const mine = (currentPlan.stops || []).map(function(s, i){ const hood = s.neighborhood || s.address || ""; const dst = i > 0 && s.distance ? String(s.distance).replace(/ from stop \d+/, "") : ""; const op = s.open_on_arrival === true ? t("Open on arrival") : s.open_on_arrival === false ? t("May be closed when you arrive") : ""; const bits = [dst ? esc(t(dst)) : "", hood ? esc(hood) : "", op ? esc(op) : ""].filter(Boolean).join(" · "); return '<li><b translate="no">' + esc(s.name) + '</b><br><span class="pc pc-ok">' + esc(t("In Qloo")) + '</span>' + (bits ? '<small class="muted"> · ' + bits + '</small>' : "") + '<br><small>' + esc(stopRead(s)) + '</small></li>'; }).join("");
     const CK = { found: ["ok", "In Qloo"], far: ["warn", "In Qloo, but far"], closed: ["bad", "Closed for good, per Qloo"], not_found: ["warn", "Not in Qloo, so unchecked"], elsewhere: ["bad", "Only found in another city"], unchecked: ["muted", "Not checked"] };
     const ckLine = function(c){ if (!c) return '<span class="pc pc-muted">' + esc(t("Not checked")) + "</span>"; const k = CK[c.status] || CK.unchecked; const dist = c.mi != null ? " · " + esc(t(c.mi < 0.1 ? "on the route" : c.mi + " mi from the route")) : ""; return '<span class="pc pc-' + k[0] + '">' + esc(t(k[1])) + "</span>" + (c.status !== "not_found" && c.status !== "unchecked" && c.status !== "elsewhere" ? '<small class="muted">' + dist + (c.hood ? " · " + esc(c.hood) : "") + "</small>" : ""); };
     const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
     const ok = pl && pl.stops ? pl.stops.filter(function(s){ return s.check && (s.check.status === "found"); }).length : 0;
     const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + '</p>' +
-      '<h3>' + esc(t("Plain model")) + '</h3><ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p>' +
-      '<h3>' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list">' + mine + '</ol><p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p>';
+      '<div class="pc-cols">' +
+        '<section class="pc-plain"><h3>' + esc(t("Plain model")) + '</h3><ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p></section>' +
+        '<section class="pc-mine">' + mineHalfHTML(currentPlan) + '<p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p></section>' +
+      '</div>';
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: body });
   }
   function openWhyStop(i, pick){

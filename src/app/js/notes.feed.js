@@ -91,7 +91,7 @@ function renderNotes(){
     const now = Date.now();
     slot.innerHTML = '<p class="r7-eyebrow r7-notes-eyebrow"><span>Notebook</span><span class="r7-sep" aria-hidden="true"></span><span>' + esc(weekdayShort(now)) + '</span><span>' + esc(formatDate(now)) + '</span></p>' +
       (cut > 0
-        ? '<h2 class="greeting r7-greeting"><span>' + esc(text.slice(0, cut + 1)) + '</span> <em>' + esc(text.slice(cut + 2)) + "</em></h2>"
+        ? '<h2 class="greeting r7-greeting"><span>' + esc(text.slice(0, cut + 1)) + "</span>" + (LANG === "zh" ? "" : " ") + "<em>" + esc(text.slice(cut + 2)) + "</em></h2>"
         : '<h2 class="greeting r7-greeting">' + esc(text) + "</h2>");
   }
   function emptyStateHTML(){

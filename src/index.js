@@ -2,7 +2,7 @@
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImageFull, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason, qsearch, CARD_URNS, TYPE_URNS, pickerMerge, cleanTags } from "./recognize.js";
-import { makePlan, makeStayIn, stayIntent, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds } from "./plan.js";
+import { makePlan, makeStayIn, stayIntent, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds, groundedRead } from "./plan.js";
 import { llmJSON } from "./llm.js";
 import { qlooTagInsights, getEntities, compareTastes } from "./qloo.js";
 import { duoPlan } from "./duo.js";
@@ -33,6 +33,19 @@ async function readJSON(req) {
 }
 const BAD_BODY = () => ERR("That request was not readable.", 400);
 const IMAGE_TYPES = /^image\/(jpeg|png|webp|gif|heic|heif|avif)$/;
+// FP-33: the plain model sometimes writes an odd, romantic or over-long why. Keep calm, short sentences only.
+const PLAIN_WHY_BAD = /情欲|性感|诱惑|sensual|erotic|seductive/i;
+export function plainWhyOk(why, name) {
+  const w = String(why == null ? "" : why).trim();
+  if (!w || w.length > 160) return false;
+  if (/[!！]/.test(w)) return false;
+  return !PLAIN_WHY_BAD.test(w);
+}
+/** Neutral stand-in for a rejected why: the plan's own template, in the plan's language. */
+function plainWhyFallback(kind, lang) {
+  const k = String(kind || "place").toLowerCase();
+  return lang === "zh" ? `一家和你的口味相近的${k}。` : groundedRead("", { kind: k }, "");
+}
 // Shot 5: how much of each side is tied to a kept card. Computed per response so cached plain blocks get it too.
 function plainVerdict(plan, plain) {
   const p = plan || {}, q = plain || {}, isIn = p.mode === "in";
@@ -595,6 +608,8 @@ async function api(req, env, ctx, url) {
       // The plain comparison is cached on the plan row: only reuse an answer written in the same language.
       const cachedFor = (pl) => !!pl && (pl.lang ? pl.lang === lang : lang === "en");
       const whyZh = lang === "zh" ? " Write every why in Simplified Chinese (keep names as they are)." : "";
+      // FP-36: the why speaks to the reader, not about them.
+      const youVoice = ' Write each why addressed to the reader as "you" (never "they" or "their").';
       const answer = (pl) => J({ plain: { ...pl, verdict: plainVerdict(plan, pl) } });
       if (plan.mode === "in") {
         if (cachedFor(plan.plain) && plan.plain.checked === 3) return answer(plan.plain);
@@ -603,9 +618,13 @@ async function api(req, env, ctx, url) {
         let picksOut = [], note = null;
         try {
           const out = await llmJSON(env, "You suggest things to watch, listen to or read at home. Suggest real titles from your own memory only. Return {\"picks\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
-            `Things this person loves: ${seeds.join(", ")}. Suggest ${want} things${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.`,
+            `Things this person loves: ${seeds.join(", ")}. Suggest ${want} things${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.` + youVoice,
             { name: "plain", schema: { type: "object", properties: { picks: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["picks"] } }, 600);
-          picksOut = (out.picks || []).slice(0, 4).map((x) => ({ name: String(x.name || "").slice(0, 80), kind: String(x.kind || "").slice(0, 30), why: String(x.why || "").slice(0, 240) })).filter((x) => x.name);
+          picksOut = (out.picks || []).slice(0, 4).map((x) => {
+            const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
+            const why = String(x.why || "").slice(0, 240);
+            return { name, kind, why: plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang) };
+          }).filter((x) => x.name);
         } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
         const plain = { model: MODEL, lang, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
         if (picksOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
@@ -624,9 +643,13 @@ async function api(req, env, ctx, url) {
       let stopsOut = [], note = null;
       try {
         const out = await llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
-          `Things this person loves: ${seeds.join(", ")}. Area: ${area}. Plan ${(kinds.length || 3)} stops${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.`,
+          `Things this person loves: ${seeds.join(", ")}. Area: ${area}. Plan ${(kinds.length || 3)} stops${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.` + youVoice,
           { name: "plain", schema: { type: "object", properties: { stops: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["stops"] } }, 600);
-        stopsOut = (out.stops || []).slice(0, 4).map((x) => ({ name: String(x.name || "").slice(0, 80), kind: String(x.kind || "").slice(0, 30), why: String(x.why || "").slice(0, 240) })).filter((x) => x.name);
+        stopsOut = (out.stops || []).slice(0, 4).map((x) => {
+          const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
+          const why = String(x.why || "").slice(0, 240);
+          return { name, kind, why: plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang) };
+        }).filter((x) => x.name);
       } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
       if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }
       const plain = { model: MODEL, lang, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };

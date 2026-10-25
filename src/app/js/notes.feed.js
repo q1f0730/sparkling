@@ -459,12 +459,23 @@ function renderNotes(){
   }
   const composer = view.querySelector("[data-composer]");
   if (composer) composer.addEventListener("submit", function(e){ e.preventDefault(); saveNote(); });
+  /* A live jot can carry the card's fresh footprint count (4×) while older notes of that card still show 3×.
+     Raise the count on every sibling in the feed and quietly repaint the ones on screen. */
+  function syncSiblingCounts(note){
+    const changed = syncMentionCounts(notes, note);
+    changed.forEach(function(nid){
+      const older = notes.find(function(n){ return String(n.id) === String(nid); });
+      if (older) replaceNoteInDom(nid, older, {});
+    });
+    return changed;
+  }
   /* capture: the + composer adds notes here (FLIP), replaces temp notes, polls recognition */
   Capture.attach({
     add: function(note){
       if (filter !== "all" || query) applyFilterReset();
       notes = [note].concat(notes.filter(function(n){ return String(n.id) !== String(note.id); }));
       baseCount = baseCount === null ? 1 : baseCount + 1;
+      syncSiblingCounts(note);
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (_) {}
       if (listEl) Capture.flip(listEl, function(){ paintTimeline(); }, note.id); else paintTimeline();
     },

@@ -87,8 +87,9 @@
       var b = e.target.closest("[data-pf-go]"); if (!b) return;
       var k = b.getAttribute("data-pf-go");
       if (k === "new") {
+        // the + composer (capture): opens on Notes from anywhere
+        if (window.Capture) { window.Capture.open(); return; }
         go("#/notes");
-        var tries = 0; (function focus() { var ta = document.querySelector("#view [data-compose-text]"); if (ta) { ta.focus(); ta.scrollIntoView({ block: "center" }); } else if (tries++ < 20) setTimeout(focus, 100); })();
         return;
       }
       go(k === "settings" ? "#/settings" : "#/" + k);
@@ -114,6 +115,8 @@
     if (vw) new MutationObserver(onViewMut).observe(vw, { childList: true, subtree: true });
     document.addEventListener("click", onDocClick, true);
     document.addEventListener("mouseover", onHover, true);
+    document.addEventListener("mouseover", onPrefetch, true);
+    document.addEventListener("focusin", onPrefetch, true);
     sync(); onRoute();
   }
 
@@ -177,6 +180,15 @@
 
   /* ---------- inspector ---------- */
   var selKey = "", selTok = 0, cache = {};
+  /* one cache with the phone detail screen: window.SpCards (app.html). Fallback keeps the old local map. */
+  function SC() { return window.SpCards || null; }
+  function cachedCard(id) { var s = SC(); return s ? s.cached(id) : cache[id] || null; }
+  function loadCard(id) {
+    var s = SC();
+    if (s) return s.get(id).then(function (x) { cache[id] = x; return x; });
+    return cache[id] ? Promise.resolve(cache[id]) : getJSON("/api/cards/" + encodeURIComponent(id)).then(function (x) { cache[id] = x; return x; });
+  }
+  function summaryCard(id) { var s = SC(); return s ? s.summary(id) : null; }
   function desk() { return MQ.matches && !d.classList.contains("dk-out"); }
   function setBodyRoute() {
     var r = routeName();
@@ -238,6 +250,16 @@
         selKey = selKey === k ? "home" : k; refreshInsp();
       }
     }
+  }
+  var pfT = 0, pfId = "";
+  function onPrefetch(e) {
+    if (!desk() || !SC()) return;
+    var el = e.target.closest && e.target.closest('#view [data-nav^="#/cards/"], #dkInsp .dk-mini[data-nav]');
+    if (!el) return;
+    var m = /^#\/cards\/([^/]+)$/.exec(el.getAttribute("data-nav") || ""); if (!m) return;
+    var id = decodeURIComponent(m[1]); if (id === pfId) return;
+    pfId = id; clearTimeout(pfT);
+    pfT = setTimeout(function () { SC().prefetch(id); }, e.type === "focusin" ? 0 : 70);
   }
   function onHover(e) {
     if (!desk() || routeName() !== "planResult") return;
@@ -313,7 +335,7 @@
       wireHomeBtn(); return;
     }
     insp.innerHTML = head(eyebrow, esc(ids.length === 1 ? tr("1 card from this note") : T(ids.length + " cards from this note", "这条笔记长出 " + ids.length + " 张卡片"))) + skeleton();
-    Promise.all(ids.map(function (id) { return cache[id] ? Promise.resolve(cache[id]) : getJSON("/api/cards/" + encodeURIComponent(id)).then(function (x) { cache[id] = x; return x; }).catch(function () { return null; }); })).then(function (list) {
+    Promise.all(ids.map(function (id) { return loadCard(id).catch(function () { return null; }); })).then(function (list) {
       if (tok !== selTok) return;
       var order = list.filter(Boolean);
       if (focusCard) order.sort(function (a, b) { return (b.card.id === focusCard) - (a.card.id === focusCard); });
@@ -327,24 +349,47 @@
 
   /* Cards: the selected card */
   function renderCard(tok, id) {
-    if (!cache[id]) insp.innerHTML = skeleton();
-    var p = cache[id] ? Promise.resolve(cache[id]) : getJSON("/api/cards/" + encodeURIComponent(id)).then(function (x) { cache[id] = x; return x; });
+    var hit = cachedCard(id), sum = !hit && summaryCard(id);
+    if (hit) { insp.innerHTML = cardBlock(hit, "full"); wireReact(); }
+    else if (sum && sum.name) { insp.innerHTML = cardBlock({ card: sum, footprints: null }, "full"); wireReact(); }
+    else insp.innerHTML = skeleton();
+    if (hit && (!SC() || SC().fresh(id))) return;
+    var p = hit ? SC().load(id) : loadCard(id);
     p.then(function (x) {
       if (tok !== selTok) return;
-      insp.innerHTML = cardBlock(x, "full");
+      if (hit && JSON.stringify(x) === JSON.stringify(hit)) return;
+      fillCard(x);
       wireReact();
     }).catch(function () {
+      if (hit) return;
       if (tok !== selTok) return;
       insp.innerHTML = head("", esc(tr("This card did not load.")), '<p class="dk-copy">' + esc(tr("Check your connection, then try again.")) + "</p>");
     });
   }
+  function fillCard(x) {
+    var old = insp.querySelector('[data-dk-card="' + (window.CSS && CSS.escape ? CSS.escape(x.card.id) : x.card.id) + '"]');
+    var t = document.createElement("div"); t.innerHTML = cardBlock(x, "full");
+    var nu = t.firstElementChild;
+    if (!old || !nu) { insp.innerHTML = t.innerHTML; return; }
+    var oh = old.querySelector(".dk-ch"), nh = nu.querySelector(".dk-ch");
+    if (oh && nh) {
+      var or = oh.querySelector(".dk-react"), nr = nh.querySelector(".dk-react");
+      if (or && nr && or.innerHTML !== nr.innerHTML) or.innerHTML = nr.innerHTML;
+      var on = oh.querySelector(".dk-cname"), nn = nh.querySelector(".dk-cname");
+      if (on && nn && on.textContent !== nn.textContent) on.textContent = nn.textContent;
+    }
+    var wasLoading = old.classList.contains("is-loading");
+    Array.prototype.slice.call(old.children).forEach(function (el) { if (!el.classList.contains("dk-ch")) el.remove(); });
+    Array.prototype.slice.call(nu.children).forEach(function (el) { if (!el.classList.contains("dk-ch")) { if (wasLoading && el.matches(".dk-fpw")) el.classList.add("dk-in"); old.appendChild(el); } });
+    old.classList.remove("is-loading"); old.removeAttribute("aria-busy");
+  }
   var KIND = { note: "Note", rewatch: "Rewatch", first_watch: "First watch", listen: "Listen", read: "Read", visit: "Visit", quote: "Quote", screenshot: "Screenshot", link: "Link" };
   function cardBlock(x, mode) {
-    var c = x.card || {}, fps = (x.footprints || []).slice().sort(function (a, b) { return (b.created_at || 0) - (a.created_at || 0); });
+    var c = x.card || {}, loading = x.footprints === null, fps = (x.footprints || []).slice().sort(function (a, b) { return (b.created_at || 0) - (a.created_at || 0); });
     var im = img(c.image), heart = Number(c.heart) || 0, full = mode === "full";
-    var tags = (x.qloo_tags && x.qloo_tags.length ? x.qloo_tags : (c.tags || [])).slice(0, full ? 6 : 3);
+    var tags = (x.qloo_tags && x.qloo_tags.length ? x.qloo_tags : (c.tags || [])).slice(0, full && !loading ? 6 : 3);
     var tones = ["sage", "clay", "butter"];
-    var h = '<article class="dk-card ' + tcls(c.type) + (full ? "" : " compact") + '" data-dk-card="' + esc(c.id) + '">' +
+    var h = '<article class="dk-card ' + tcls(c.type) + (full ? "" : " compact") + (loading ? " is-loading" : "") + '" data-dk-card="' + esc(c.id) + '"' + (loading ? ' aria-busy="true"' : "") + '>' +
       '<div class="dk-ch">' + (im ? '<span class="dk-cover"><img src="' + esc(im) + '" alt="" onerror="this.parentNode.classList.add(\'none\');this.remove()"></span>' : '<span class="dk-cover none"><span translate="no">' + esc(String(c.name || "").slice(0, 1)) + "</span></span>") +
       '<div class="dk-cht"><p class="dk-eyebrow">' + esc(ctxOf(c)) + '</p><h2 class="dk-cname" translate="no">' + esc(c.name || "") + "</h2>" +
       '<div class="dk-react"><button type="button" class="dk-pill' + (heart === 1 ? " on" : "") + '" data-dk-heart="1" aria-pressed="' + (heart === 1) + '">' + IC.heart + "<span>" + esc(tr(heart === 1 ? "Loved" : "Love this")) + "</span></button>" +
@@ -356,13 +401,17 @@
         (c.last_at ? "<div><dt>" + esc(tr("last seen")) + "</dt><dd>" + esc(seen(c.last_at) || fdate(c.last_at)) + "</dd></div>" : "") + "</dl>";
     }
     var show = fps.slice(0, full ? 4 : 2);
-    if (show.length) {
-      h += '<p class="dk-eyebrow dk-gap">' + esc(tr("Footprints")) + '</p><ol class="dk-fps">' + show.map(function (f) {
+    if (loading) {
+      var k = Math.max(1, Math.min(full ? 4 : 2, Number(c.footprints) || 1)), rows = "";
+      for (var i = 0; i < k; i++) rows += '<li class="dk-skr"><span class="dk-fd"><i class="dk-b w1"></i><i class="dk-b w2"></i></span><span class="dk-sq"><i class="dk-b w3"></i><i class="dk-b w4"></i></span></li>';
+      h += '<div class="dk-fpw" aria-hidden="true"><p class="dk-eyebrow dk-gap">' + esc(tr("Footprints")) + '</p><ol class="dk-fps">' + rows + "</ol></div>";
+    } else if (show.length) {
+      h += '<div class="dk-fpw"><p class="dk-eyebrow dk-gap">' + esc(tr("Footprints")) + '</p><ol class="dk-fps">' + show.map(function (f) {
         return '<li><span class="dk-fd">' + esc(fdate(f.created_at)) + "<br>" + esc(tr(KIND[f.kind] || "Note")) + '</span><q translate="no">' + esc(f.quote || "") + "</q></li>";
-      }).join("") + "</ol>" + (fps.length > show.length ? '<p class="dk-more">' + esc(T("+ " + (fps.length - show.length) + " more on the card", "卡片上还有 " + (fps.length - show.length) + " 条")) + "</p>" : "");
+      }).join("") + "</ol>" + (fps.length > show.length ? '<p class="dk-more">' + esc(T("+ " + (fps.length - show.length) + " more on the card", "卡片上还有 " + (fps.length - show.length) + " 条")) + "</p>" : "") + "</div>";
     }
     if (tags.length) {
-      h += '<p class="dk-eyebrow dk-gap">' + esc(tr("From Qloo")) + '</p><div class="dk-tags" translate="no">' + tags.map(function (t, i) { return '<span class="dk-tag ' + tones[i % 3] + '">' + esc(t) + "</span>"; }).join("") + "</div>";
+      h += '<p class="dk-eyebrow dk-gap">' + esc(tr("From the catalogue")) + '</p><div class="dk-tags" translate="no">' + tags.map(function (t, i) { return '<span class="dk-tag ' + tones[i % 3] + '">' + esc(t) + "</span>"; }).join("") + "</div>";
     }
     h += '<div class="dk-actions dk-open"><button class="btn btn-sm" type="button" data-nav="#/cards/' + encodeURIComponent(c.id) + '">' + esc(tr("Open full card")) + "</button></div>";
     return h + "</article>";
@@ -374,7 +423,7 @@
   function wireReact() {
     Array.prototype.forEach.call(insp.querySelectorAll("[data-dk-heart]"), function (b) {
       b.addEventListener("click", function () {
-        var art = b.closest("[data-dk-card]"), id = art.getAttribute("data-dk-card"), x = cache[id]; if (!x) return;
+        var art = b.closest("[data-dk-card]"), id = art.getAttribute("data-dk-card"), x = cachedCard(id) || cache[id]; if (!x) return;
         var v = Number(b.getAttribute("data-dk-heart")), now = Number(x.card.heart) || 0, next = now === v ? 0 : v;
         x.card.heart = next; syncTile(id, next); refreshInsp();
         getJSON("/api/cards/" + encodeURIComponent(id), { method: "PATCH", body: { heart: next } }).catch(function () { x.card.heart = now; syncTile(id, now); refreshInsp(); });

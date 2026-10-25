@@ -23,7 +23,7 @@
 .fx-paper .plan-header{padding-right:18%}
 
 /* word / letter reveal */
-.fx-w{display:inline-block;overflow:hidden;vertical-align:top;padding:0 .06em .12em 0;margin:0 -.06em -.12em 0}
+.fx-w{display:inline-block;overflow:hidden;vertical-align:top;padding:0 .06em .28em 0;margin:0 -.06em -.28em 0}
 .fx-wi{display:inline-block;transform:translateY(105%);opacity:0;filter:blur(5px);
   animation:fxRise .8s cubic-bezier(.16,1,.3,1) forwards;animation-delay:calc(var(--i) * 42ms + 60ms)}
 .fx-word{display:inline-block;white-space:nowrap}

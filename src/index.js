@@ -63,6 +63,12 @@ function plainVerdict(plan, plain) {
     if (!c || typeof c !== "object" || c.closed === true) return false;
     return c.ok === true || c.pass === true || c.found === true || c.status === "found";
   }).length;
+  // Shot 5: the other side of the place check — our own stops the catalogue can vouch for. Only meaningful
+  // when at least one stop really came from Qloo; with no catalogue ids there is no "With Qloo" side at all.
+  if (!isIn) {
+    const catalogued = mine.filter((x) => x && typeof x === "object" && String(x.qloo_id == null ? "" : x.qloo_id).trim());
+    if (catalogued.length) verdict.mine_pass = catalogued.filter((x) => !x.is_closed).length;
+  }
   return verdict;
 }
 const strField = (v, n) => (typeof v === "string" ? v.trim().slice(0, n) : undefined);

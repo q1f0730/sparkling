@@ -499,16 +499,27 @@ export function hoursLine(hours, when) {
   return `Listed ${cap} ${h.filter(Boolean).map((x) => `${t(x.opens)}–${t(x.closes)}`).join(", ")} · not live-checked`;
 }
 
+/** One "from your notes" line for a go-out stop. rows: [{name, n}], at most 2 used; empty -> null. */
+export function notesLineFor(rows, lang) {
+  const use = (Array.isArray(rows) ? rows : []).filter((r) => r && r.name != null).slice(0, 2);
+  if (!use.length) return null;
+  if (lang === "zh") {
+    const part = (r) => (r.n > 1 ? `回看过《${r.name}》${r.n} 次` : `写过《${r.name}》`);
+    return `你${use.map(part).join("，也")}。`;
+  }
+  return "You " + use.map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + ".";
+}
+
 /** Labelled reasons for each stop. */
 export async function dressPlan(env, user, seeds, stops, meta) {
   const seedNames = seeds.map((s) => s.name);
   const fps = (await env.DB.prepare(`SELECT c.id card_id, c.qloo_id, c.image, c.name, c.type, COUNT(f.id) n, (SELECT f2.quote FROM footprints f2 WHERE f2.card_id=c.id AND f2.quote IS NOT NULL AND LENGTH(f2.quote)>8 ORDER BY f2.created_at DESC LIMIT 1) quote, (SELECT f2.created_at FROM footprints f2 WHERE f2.card_id=c.id AND f2.quote IS NOT NULL AND LENGTH(f2.quote)>8 ORDER BY f2.created_at DESC LIMIT 1) quote_at FROM cards c JOIN footprints f ON f.card_id=c.id WHERE c.user_id=? AND c.qloo_id IN (${seeds.map(() => "?").join(",")}) GROUP BY c.id ORDER BY n DESC`).bind(user.id, ...seeds.map((s) => s.qloo_id)).all()).results || [];
-  const notesLine = fps.length
-    ? "You " + fps.slice(0, 2).map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + "."
-    : `You kept ${seedNames.slice(0, 2).join(" and ")}.`;
+  const lang = meta.lang === "zh" ? "zh" : "en";
+  const notesLine = notesLineFor(fps, lang) ?? (lang === "zh"
+    ? `你记过${seedNames.slice(0, 2).map((n) => `《${n}》`).join("和")}。`
+    : `You kept ${seedNames.slice(0, 2).join(" and ")}.`);
   let reads = [];
   const venues = stops.map((s) => ({ name: s.name, kind: s.kind, vibes: s.vibes, description: s.description }));
-  const lang = meta.lang === "zh" ? "zh" : "en";
   const rkey = await readCacheKey(lang, seedNames, venues);
   const cached = await cacheGet(env, rkey, 7 * 86400000);
   if (cached) reads = cached;
@@ -528,7 +539,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     const rel = want ? fps.filter((r) => want.includes(r.type)) : [];
     const use = rel.length ? rel : fps;
     if (!use.length) return notesLine;
-    return "You " + [...use.slice(i % use.length), ...use.slice(0, i % use.length)].slice(0, 2).map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + ".";
+    return notesLineFor([...use.slice(i % use.length), ...use.slice(0, i % use.length)].slice(0, 2), lang);
   };
   const usedSrc = new Set();
   const byQ = new Map(fps.map((r) => [String(r.qloo_id).toLowerCase(), r]));
@@ -684,6 +695,10 @@ export function stayIntent(text) {
 const MEDIA_URN = { film: "urn:entity:movie", tv: "urn:entity:tv_show", music: "urn:entity:artist", book: "urn:entity:book", podcast: "urn:entity:podcast" };
 const CARD_DOMAIN = { film: ["film", "tv"], tv: ["tv", "film"], music: ["music"], book: ["book"], podcast: ["other", "music"] };
 const TAG_OK = /genre:media|theme|plot|style|character|mood|subgenre/;
+// The client's zh tag table (src/app/js/core.js TAG_ZH), mirrored so the server-side why line can speak zh
+// without a model call. Unknown tags keep their catalogue name.
+const ZH_TAGS = {"creative writing":"创意写作","artistic":"艺术感","fine baking":"精致烘焙","patio":"露台","bakery shopping":"逛面包店","bread":"面包","pastry":"点心","community events":"社区活动","live music":"现场音乐","vegan":"纯素","quiet":"安静","cozy atmosphere":"温馨","craft":"手作","rare books":"珍本","used books":"二手书","zines":"独立刊物","art":"艺术","books":"书","music":"音乐","film":"电影","tea":"茶","wine":"葡萄酒","cocktails":"鸡尾酒","brunch":"早午餐","dessert":"甜点","foreground framing":"前景构图","framing":"构图","melancholy":"忧郁","nostalgic":"怀旧","nostalgia":"怀旧","romance":"浪漫","romantic":"浪漫","cozy":"温馨","dreamy":"梦幻","atmospheric":"氛围感","minimalist":"极简","minimalism":"极简","urban":"都市","independent":"独立","indie":"独立","jazz":"爵士","classic":"经典","vintage":"复古","retro":"复古","drama":"剧情","documentary":"纪录片","coming of age":"成长","slow cinema":"慢电影","neon":"霓虹","night":"夜晚","city":"城市","loneliness":"孤独","love":"爱情","art house":"文艺片","arthouse":"文艺片","literary":"文学","poetry":"诗","folk":"民谣","ambient":"氛围乐","electronic":"电子","pop":"流行","rock":"摇滚","hip hop":"嘻哈","soul":"灵魂乐","coffee":"咖啡","bookstore":"书店","book store":"书店","vinyl":"黑胶","record store":"唱片店","cinema":"影院","museum":"博物馆","gallery":"画廊","cafe":"咖啡馆","bar":"酒吧","park":"公园"};
+export const zhTag = (t) => ZH_TAGS[lc(t)] || String(t || "");
 export function slimMedia(e, kind) {
   if (!e || typeof e !== "object" || !e.entity_id || !e.name) return null;
   const p = e.properties || {};
@@ -756,7 +771,7 @@ export async function makeStayIn(env, user, req, log) {
   if (!picks.length) throw { state: "weak", text: "Nothing new came back for that this time. Try a different mood, or ask for another kind of thing." };
   const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
   const dressed = await dressPicks(env, user, allSeeds, picks, lang);
-  if (lang === "zh") await zhReads(env, dressed, 9000); // nothing else to wait on in a night in, so the summary gets longer to translate
+  if (lang === "zh") await zhReads(env, dressed, 2500); // cap the wait so a cold translator can't stall the plan; the English read stays as fallback
   log(`Picked ${dressed.length}: ${dressed.map((p) => p.name).join(", ")}.`);
   const when = req.when || user.whenx || "Saturday afternoon";
   const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[req.mood] || "familiar";
@@ -798,7 +813,7 @@ export async function dressPicks(env, user, seeds, picks, lang) {
     ord.forEach((r) => used.add(r.card_id || r.qloo_id));
     const names = ord.map((r) => r.name).filter(Boolean);
     const why = names.length
-      ? (lang === "zh" ? `因为你记过 ${names.map((n) => "《" + n + "》").join("和")}` : `Because you kept ${names.join(" and ")}`) + (p.tags.length ? (lang === "zh" ? `；Qloo 给它的标签：${p.tags.slice(0, 2).join("、")}。` : `; Qloo files it with ${p.tags.slice(0, 2).join(" and ").toLowerCase()}.`) : (lang === "zh" ? "。" : "."))
+      ? (lang === "zh" ? `因为你记过${names.map((n) => "《" + n + "》").join("和")}` : `Because you kept ${names.join(" and ")}`) + (p.tags.length ? (lang === "zh" ? `；口味目录把它归在 ${p.tags.slice(0, 2).map(zhTag).join("、")}。` : `; the catalogue files it under ${p.tags.slice(0, 2).join(", ").toLowerCase()}.`) : (lang === "zh" ? "。" : "."))
       : (lang === "zh" ? "口味目录根据你的卡片整体给出。" : "The catalogue returned it for your cards taken together.");
     return {
       qloo_id: p.qloo_id, name: p.name, kind: p.kind, year: p.year, by: p.by, image: p.image, description: p.description, tags: p.tags,

@@ -84,7 +84,7 @@ test("no raw model id in the sheet and Plain LLM goes through t()", () => {
   assert.ok(op, "openPlain exists");
   assert.ok(!/esc\(\s*String\(\s*pl\.model\s*\)/.test(op), "openPlain must not print the raw model id");
   assert.ok(!/>Plain LLM</.test(src), "button text must go through t()");
-  assert.ok(/t\("Plain LLM"\)/.test(src), 'button uses t("Plain LLM")');
+  assert.ok(/t\("Same notes, no Qloo"\)/.test(src), 'footer button uses t("Same notes, no Qloo")');
 });
 
 test("zh: place-check line and button", () => {

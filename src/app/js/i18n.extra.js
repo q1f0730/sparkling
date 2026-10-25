@@ -34,8 +34,10 @@ ZH_PATTERNS.unshift([/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 
 /* plain-compare verdict zh (shot 5) */
 ZH_PATTERNS.unshift(
   [/^With Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "用了 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
-  [/^Without Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }]
+  [/^Without Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
+  [/^Without Qloo: (\d+) of (\d+) places checked out\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个地方里只有 " + a + " 个核对得上。"; }]
 );
+Object.assign(ZH, { "Plain LLM": "纯模型对比" });
 Object.assign(ZH, { "In Qloo": "Qloo 里有", "In Qloo, but far": "Qloo 里有，但很远", "Closed for good, per Qloo": "Qloo 标注已永久关闭", "Not in Qloo, so unchecked": "Qloo 里没有，无法核对", "Only found in another city": "只在别的城市找到", "Not checked": "未核对", "Open on arrival": "到达时营业", "May be closed when you arrive": "到达时可能已关门", "on the route": "就在路线上", "Plain model": "纯模型", "Sparkling + Qloo": "Sparkling + Qloo" });
 ZH_PATTERNS.unshift(
   [/^(\d+) min walk$/, function(m, n){ return "步行 " + n + " 分钟"; }],
@@ -93,13 +95,13 @@ Object.assign(ZH, {
 });
 (function(){
   var DAYS = { Monday: "周一", Tuesday: "周二", Wednesday: "周三", Thursday: "周四", Friday: "周五", Saturday: "周六", Sunday: "周日" };
-  var who = function(list){ return String(list).replace(/ \((\d+)% of the match\)( and )?/g, function(m, n, a){ return "（占匹配 " + n + "%）" + (a ? "、" : ""); }); };
+  var who = function(list){ return String(list).replace(/ \(\d+% of the match\)/g, "").split(" and ").join("》和《"); };
   var hood = function(s){ return String(s).split(" and ").join("和"); };
   ZH_PATTERNS.unshift(
     [/^[Mm]entioned (\d+)\u00d7$/, function(m, n){ return "提到 " + n + " 次"; }],
     [/^\+ (\d+) more from your notes$/, function(m, n){ return "还有 " + n + " 条来自你的笔记"; }],
-    [/^(?:Qloo matched|Matched) this (.+?) mostly through (.+?)(?:; affinity ([\d.]+))?\.$/, function(m, kind, list, aff){
-      return "主要通过 " + who(list) + " 匹配到这家" + trZh(kind) + (aff ? "；契合度 " + aff : "") + "。"; }],
+    [/^(?:Qloo matched|Matched) this (.+?) mostly through (.+?)(?:; affinity [\d.]+)?\.$/, function(m, kind, list){
+      return "这家" + trZh(kind) + "主要是通过《" + who(list) + "》匹配上的。"; }],
     [/^(?:Qloo ranked|Ranked) this (.+?) near (.+?) in taste(?: \(popularity ([\d.]+)\))?\.$/, function(m, kind, list, pop){
       return "按口味，目录把这家" + trZh(kind) + "排在 " + String(list).split(" and ").join("、") + " 附近" + (pop ? "（热度 " + pop + "）" : "") + "。"; }],
     [/^(?:Qloo lists it closed|Listed as closed) on (\w+)s \u00b7 not live-checked$/, function(m, d){ return "标注" + (DAYS[d] || d) + "不营业 · 未实时核实"; }],
@@ -131,11 +133,12 @@ Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味�
     return trZh(s);
   };
   ZH_PATTERNS.unshift(
-    [/^(.+?\.) (?:Qloo|The catalogue) puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\.$/, function(m, l, top, aff, via){
-      return lead(l) + "目录认为 " + top + " 最贴近你的口味（" + aff + "）" + (via ? "，主要因为 " + two(via) : "") + "。"; }],
-    [/^((?:“[^”]+”(?: and )?)+) is how Qloo reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, who, q){
+    [/^(.+?\.) (?:Qloo|The catalogue) puts (.+?) closest to your taste(?: \(([\d.]+)\))?(?:, mostly through (.+?))?\.$/, function(m, l, top, aff, via){
+      return lead(l) + "目录认为 " + top + " 最贴近你的口味" + (via ? "，主要因为 " + two(via) : "") + "。"; }],
+    [/^((?:“[^”]+”(?: and )?)+) is how (?:Qloo|the catalogue) reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, who, q){
       var w = who === "your recent cards" ? "你最近的卡片" : who === "your cards" ? "你的卡片" : two(who);
-      return "Qloo 用 " + tags.split(" and ").join("、") + " 来读 " + w + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
+      var tg = tags.split(" and ").map(function(x){ x = x.replace(/^“|”$/g, ""); return typeof tagZh === "function" ? tagZh(x) : x; });
+      return "口味目录用 " + tg.map(function(x){ return "「" + x + "」"; }).join("、") + " 来读 " + w + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
   );
 })();
 
@@ -188,3 +191,12 @@ Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味�
 });
 
 /* picker:i18n:end */
+/* zh-onboarding-core: import block, shared retry copy, search field, threads note (t() call sites) */
+Object.assign(ZH, {
+  "No file chosen": "未选择文件",
+  "Reading your file. You can leave this screen while it works.": "正在读取文件，你可以先离开这个页面。",
+  "Trying again": "正在重试",
+  "That did not work. Try again.": "没成功，再试一次。",
+  "Search your notes": "搜索你的笔记",
+  "Everything you have kept.": "你留下的一切。"
+});

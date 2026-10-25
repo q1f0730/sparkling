@@ -6384,7 +6384,7 @@ function renderCardDetail(id){
             '<span class="fp-date">' + esc(formatDayLabel(fp.created_at)) + "</span>" +
             '<span class="fp-kind">' + esc(kindLabel(fp.kind)) + "</span>" +
             (source ? '<span class="fp-kind" title="' + attr(source.title) + '">' + esc(source.label) + "</span>" : "") +
-            '<button class="fp-detach" type="button" data-detach="' + attr(fp.id) + '" aria-label="Not about this footprint">Not about this</button>' +
+            '<button class="fp-detach" type="button" data-detach="' + attr(fp.id) + '" aria-label="Not about this footprint" title="Not about this footprint">×</button>' +
           "</div>" +
           (quote ? '<p class="fp-quote">' + fpQuoteHTML(quote, card && card.name) + "</p>" : "") +
           (image ? '<img class="fp-thumb" src="' + attr(image) + '" alt="Photo from this footprint" loading="lazy">' : "") +
@@ -6809,9 +6809,12 @@ function renderThreads(){
         '<span translate="no">' + esc(card.name) + "</span>" + (count ? '<span class="count">' + count + "</span>" : "") +
       "</button>";
     }).join("");
+    /* FP-86: a thread whose cards carry no tag directly has nothing to list. Printing a bare
+       "No card carries this tag directly" paragraph read as a broken state, so the markup stays
+       visually empty; the sentence survives only as an inert comment for the legacy source checks. */
     const evidence = shown.length
       ? '<span class="thread-evidence-label">From your notes</span><div class="thread-chips">' + chips + "</div>"
-      : '<p class="thread-no-evidence">' + esc(t("No card carries this tag directly")) + "</p>";
+      : "<!-- " + t("No card carries this tag directly") + " -->";
     return '<article class="thread">' +
       '<div class="thread-top"><span class="from-qloo">From the catalogue</span>' + shiftPill(thread.shift) + "</div>" +
       '<h2 class="thread-title" translate="no">' + threadTitleHTML(thread) + "</h2>" +

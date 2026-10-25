@@ -46,7 +46,8 @@ test("go-out adds the place-check line from plain_pass", () => {
   const txt = stripTags(html);
   assert.ok(/Without Qloo: 1 of 3 places checked out\./.test(txt), txt);
   assert.ok(/class="pv-check"/.test(html), "the line has its own pv-check class");
-  assert.ok(/class="pv-without"/.test(html), "the two kept-link lines are still there");
+  // FP-38 (10-25 17:55): equal tied counts (3/3 vs 3/3) next to a place check drop both tied lines; places lead.
+  assert.ok(!/class="pv-without"/.test(html) && !/class="pv-with"/.test(html), "equal tied lines are dropped when places are checked");
 });
 
 test("plain_pass zero still renders, plain_pass null does not", () => {

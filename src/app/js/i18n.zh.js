@@ -193,6 +193,7 @@ const ZH = {
   "A neighbourhood is enough. GPS is optional.": "填一个街区就够了，不需要 GPS。", "Neighbourhood": "街区",
   "That plan did not come together.": "这个计划没能拼出来。", "The plan stream ended before a plan arrived.": "计划还没生成完，连接就断了。",
   "A few more things would help.": "再多几样会更好。", "A number above zero is all it needs.": "填一个大于零的数字就行。",
+  "Weighing both notebooks…": "正在权衡两本笔记本…", "Could not plan for two just now.": "暂时没能为你们俩做计划。",
   // plan result
   "Your plan": "你的计划", "your plan": "你的计划", "Untitled plan": "未命名计划", "Swap": "换一个", "Shorten": "缩短", "Swapped stop": "已换掉这一站",
   "Lower budget": "降低预算", "Lower the budget": "降低预算", "New budget cap": "新的预算上限", "Plan saved.": "计划已保存。",
@@ -281,6 +282,7 @@ const ZH_PATTERNS = [
   [/^(\d+) cards?$/, function(m, n){ return n + " 张卡片"; }],
   [/^(\d+) footprints?$/, function(m, n){ return n + " 条足迹"; }],
   [/^(\d+) photos?$/, function(m, n){ return n + " 张照片"; }],
+  [/^Save (\d+) photos$/, function(m, n){ return "保存 " + n + " 张照片"; }],
   [/^(\d+) notes?$/, function(m, n){ return n + " 条笔记"; }],
   [/^(\d+) stops?$/, function(m, n){ return n + " 站"; }],
   [/^(\d+) stops? · Saved$/, function(m, n){ return n + " 站 · 已保存"; }],

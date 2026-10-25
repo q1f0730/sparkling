@@ -3236,6 +3236,19 @@ function parseRoute(){
   if (parts[0] === "onboarding") return { name: "onboarding" };
   return { name: "notes" };
 }
+function openCameraWhenReady(tries){
+  let left = tries == null ? 30 : tries;
+  function attempt(){
+    const capFabEl = document.querySelector(".cap-fab");
+    const cap = window.Capture;
+    if (cap && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true")) { cap.open({}); return; }
+    if (cap) return;
+    if (left <= 0) return;
+    left = left - 1;
+    setTimeout(attempt, 100);
+  }
+  attempt();
+}
 function go(hash){
   if (!hash) return;
   if (location.hash === hash) { route(); return; }
@@ -3266,7 +3279,7 @@ function route(){
     case "plan": renderPlanRequest(); break;
     case "planResult": renderPlanResult(r.id); break;
     case "settings": renderSettings(r.page); break;
-    case "camera": { state.capOpen = null; history.replaceState(null, "", "#/notes"); renderNotes(); const capFabEl = document.querySelector(".cap-fab"); if (window.Capture && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true")) Capture.open({}); break; }
+    case "camera": { state.capOpen = null; history.replaceState(null, "", "#/notes"); renderNotes(); const capFabEl = document.querySelector(".cap-fab"); if (window.Capture && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true")) Capture.open({}); else if (!window.Capture) openCameraWhenReady(); break; }
     default: renderNotes();
   }
 }

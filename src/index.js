@@ -488,7 +488,7 @@ async function api(req, env, ctx, url) {
     let mi = 0;
     for (const m of merged) {
       const { key, tags, ...rest } = m; const idx = mi++;
-      threads.push({ ...rest, tag: tags.slice(0, 2).join(" · "), read: m.carried_by_cards ? m.read : (() => { const top = [...(m.cards || [])].sort((a, b) => (b.footprints || 0) - (a.footprints || 0)); top.push(...top.splice(0, idx % Math.max(1, top.length))); top.length = Math.min(top.length, 2); const names = top.map((c) => c.name); const lead = names.length > 1 ? `${names[0]} and ${names[1]}` : names[0]; const w = (m.your_words || [])[idx % Math.max(1, (m.your_words || []).length)]; const q = w ? (w.text || w.quote || (typeof w === "string" ? w : "")) : ""; return `${tags.map((x) => "“" + x + "”").join(" and ")} is how Qloo reads the pull of ${lead || (period === "now" ? "your recent cards" : "your cards")}${q ? ` — you wrote “${String(q).replace(/[.\s]+$/, "").slice(0, 70)}”` : ""}.`; })(),
+      threads.push({ ...rest, tag: tags.slice(0, 2).join(" · "), read: m.carried_by_cards ? m.read : (() => { const top = [...(m.cards || [])].sort((a, b) => (b.footprints || 0) - (a.footprints || 0)); top.push(...top.splice(0, idx % Math.max(1, top.length))); top.length = Math.min(top.length, 2); const names = top.map((c) => c.name); const lead = names.length > 1 ? `${names[0]} and ${names[1]}` : names[0]; const w = (m.your_words || [])[idx % Math.max(1, (m.your_words || []).length)]; const q = w ? (w.text || w.quote || (typeof w === "string" ? w : "")) : ""; return `${tags.map((x) => "“" + x + "”").join(" and ")} is how the catalogue reads the pull of ${lead || (period === "now" ? "your recent cards" : "your cards")}${q ? ` — you wrote “${String(q).replace(/[.\s]+$/, "").slice(0, 70)}”` : ""}.`; })(),
         receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": input, tag_ids: m.qloo_tags.map((q) => q.id) } });
     }
     threads.splice(5);
@@ -574,25 +574,30 @@ async function api(req, env, ctx, url) {
     if (act === "plain") {
       const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"; // same first model llm.js uses for Sparkling's own sentences
       const seeds = ((plan.receipt || {}).seeds || []).map((x) => x.name);
+      let reqLang = ""; try { reqLang = JSON.parse(row.request || "{}").lang; } catch (_) {}
+      const lang = plan.lang === "zh" || plan.meta?.lang === "zh" || reqLang === "zh" ? "zh" : "en";
+      // The plain comparison is cached on the plan row: only reuse an answer written in the same language.
+      const cachedFor = (pl) => !!pl && (pl.lang ? pl.lang === lang : lang === "en");
+      const whyZh = lang === "zh" ? " Write every why in Simplified Chinese (keep names as they are)." : "";
       const answer = (pl) => J({ plain: { ...pl, verdict: plainVerdict(plan, pl) } });
       if (plan.mode === "in") {
-        if (plan.plain && plan.plain.checked === 3) return answer(plan.plain);
+        if (cachedFor(plan.plain) && plan.plain.checked === 3) return answer(plan.plain);
         const kinds = (plan.picks || []).map((x) => x.kind).filter(Boolean);
         const want = (plan.picks || []).length || 3;
         let picksOut = [], note = null;
         try {
-          const out = await llmJSON(env, "You suggest things to watch, listen to or read at home. Suggest real titles from your own memory only. Return {\"picks\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence.",
+          const out = await llmJSON(env, "You suggest things to watch, listen to or read at home. Suggest real titles from your own memory only. Return {\"picks\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
             `Things this person loves: ${seeds.join(", ")}. Suggest ${want} things${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.`,
             { name: "plain", schema: { type: "object", properties: { picks: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["picks"] } }, 600);
           picksOut = (out.picks || []).slice(0, 4).map((x) => ({ name: String(x.name || "").slice(0, 80), kind: String(x.kind || "").slice(0, 30), why: String(x.why || "").slice(0, 240) })).filter((x) => x.name);
         } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
-        const plain = { model: MODEL, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
+        const plain = { model: MODEL, lang, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
         if (picksOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
         return answer(plain);
       }
       const centreOf = (st) => { const c = (st || []).map((x) => x.coords).filter((c) => c && isFinite(c.lat) && isFinite(c.lon)); return c.length ? { lat: c.reduce((a, x) => a + x.lat, 0) / c.length, lon: c.reduce((a, x) => a + x.lon, 0) / c.length } : null; };
-      if (plan.plain && plan.plain.checked === 3) return answer(plan.plain);
-      if (plan.plain && plan.plain.stops && plan.plain.stops.length) {
+      if (cachedFor(plan.plain) && plan.plain.checked === 3) return answer(plan.plain);
+      if (cachedFor(plan.plain) && plan.plain.stops && plan.plain.stops.length) {
         const ck = await checkPlainPlaces(env, plan.plain.stops.map((x) => x.name), centreOf(plan.stops), plan.plain.area);
         plan.plain = { ...plan.plain, stops: plan.plain.stops.map((x, i) => ({ ...x, check: ck[i] })), checked: 3 };
         await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run();
@@ -602,13 +607,13 @@ async function api(req, env, ctx, url) {
       const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
       let stopsOut = [], note = null;
       try {
-        const out = await llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence.",
+        const out = await llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
           `Things this person loves: ${seeds.join(", ")}. Area: ${area}. Plan ${(kinds.length || 3)} stops${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.`,
           { name: "plain", schema: { type: "object", properties: { stops: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["stops"] } }, 600);
         stopsOut = (out.stops || []).slice(0, 4).map((x) => ({ name: String(x.name || "").slice(0, 80), kind: String(x.kind || "").slice(0, 30), why: String(x.why || "").slice(0, 240) })).filter((x) => x.name);
       } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
       if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }
-      const plain = { model: MODEL, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };
+      const plain = { model: MODEL, lang, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };
       if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
       return answer(plain);
     }

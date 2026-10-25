@@ -485,7 +485,7 @@ function renderPlanResult(id){
       '<div class="plan-actions">' +
         '<button class="btn" type="button" data-action="shorten"' + (stops.length <= 1 || busyAction ? " disabled" : "") + ">Shorten</button>" +
         '<button class="btn" type="button" data-action="budget"' + (busyAction ? " disabled" : "") + ">Lower budget</button>" +
-        '<button class="btn" type="button" data-plain="1">' + esc(t("Plain LLM")) + "</button>" +
+        '<button class="btn" type="button" data-plain="1">' + esc(t("Same notes, no Qloo")) + "</button>" +
         '<button class="btn btn-primary" type="button" data-action="save"' + (saved || busyAction ? " disabled" : "") + ">" + (saved ? "Saved" : "Save") + "</button>" +
       "</div>" +
       (Array.isArray(plan.log) && plan.log.length ?

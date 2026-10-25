@@ -1,6 +1,8 @@
 /* ---------------------------------------------------------------------------
    Plan request (screen 8)
    --------------------------------------------------------------------------- */
+/* Outage copy: the catch must never surface a raw server/network message (e.g. "upstream unavailable"). */
+Object.assign(ZH, { "Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment.": "Sparkling 暂时连不上口味目录。你的笔记都在，稍后再试一次。" });
 /* Plan presets: one tap fills the composer. The chips themselves live under the form. */
 function planPreset(name){
   if (name === "out") return { mode: "out", when: "Saturday afternoon", area: "Greenpoint", budget: 40, text: "" };
@@ -250,7 +252,7 @@ function renderPlanRequest(){
       }
       showPlanError(null, t("The plan stream ended before a plan arrived."));
     } catch (e) {
-      if (!isAbort(e) && isCurrent(token)) showPlanError(null, (e && e.message) || t("That did not work. Try again."));
+      if (!isAbort(e) && isCurrent(token)) showPlanError(null, t("Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment."));
     } finally {
       finishSubmit();
     }

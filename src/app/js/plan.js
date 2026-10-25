@@ -41,7 +41,7 @@ function renderPlanRequest(){
         '<p class="plan-error-copy">A neighbourhood is enough. GPS is optional.</p>' +
         '<div class="plan-error-actions">' +
           '<input class="inline-input area-input" data-error-area aria-label="Neighbourhood" placeholder="Greenpoint">' +
-          '<button class="btn btn-primary btn-sm" type="button" data-error-area-go>Make a plan</button>' +
+          '<button class="btn btn-primary btn-sm" type="button" data-error-area-go>' + esc(t("Make a plan")) + '</button>' +
         "</div>" +
       "</div>";
     }
@@ -70,7 +70,7 @@ function renderPlanRequest(){
       '</div><span class="mode-hint" data-mode-hint' + (mode === "in" && prefill ? "" : " hidden") + '>Picked from what you wrote</span></div>' +
       '<div class="plan-sentence">' +
         "<span>On</span>" +
-        '<input class="inline-input when-input" data-when aria-label="When" placeholder="Saturday afternoon" value="' + attr(whenVal) + '">' +
+        '<input class="inline-input when-input" data-when aria-label="' + attr(t("When")) + '" placeholder="' + attr(t("Saturday afternoon")) + '" value="' + attr(whenVal) + '">' +
         '<span class="out-only" data-out-only' + (mode === "in" ? " hidden" : "") + '>' +
         '<span class="sep" aria-hidden="true">&middot;</span>' +
         "<span>around</span>" +
@@ -93,7 +93,7 @@ function renderPlanRequest(){
       '<div class="free-line">' +
         '<input class="free-input" data-free aria-label="Anything else?" placeholder="A quiet bookstore, then somewhere to sit" value="' + attr(prefill) + '">' +
       "</div>" +
-      '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>Make a plan</button></div>' +
+      '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>' + esc(t("Make a plan")) + '</button></div>' +
       '<div class="duo-box" data-out-only' + (mode === "in" ? " hidden" : "") + '><button class="btn btn-sm" type="button" data-duo-go>' + esc(t("Plan for two · try with a sample friend")) + '</button><div data-duo-out></div></div>' +
       '<div data-plan-progress></div>' +
       '<div data-plan-error></div>' +
@@ -139,7 +139,7 @@ function renderPlanRequest(){
     if (!p) return;
     modeLocked = true;
     setMode(p.mode, false);
-    if (p.when && whenInput) whenInput.value = p.when;
+    if (p.when && whenInput) whenInput.value = t(p.when);
     if (p.area && areaInput) areaInput.value = p.area;
     if (p.budget != null && budgetInput) budgetInput.value = String(p.budget);
     if (p.text && freeInput) freeInput.value = t(p.text);
@@ -181,7 +181,7 @@ function renderPlanRequest(){
     busy = false;
     if (isCurrent(token)) {
       planBtn.disabled = false;
-      planBtn.textContent = "Make a plan";
+      planBtn.textContent = t("Make a plan");
     }
   }
   async function submitPlan(){
@@ -194,7 +194,7 @@ function renderPlanRequest(){
     errSlot.innerHTML = "";
     progressSlot.innerHTML = logPanelHTML();
     planBtn.disabled = true;
-    planBtn.textContent = "Making a plan";
+    planBtn.textContent = t("Making a plan");
     const body = { mood: mood, period: period, mode: mode };
     if (lens) body.audience = lens;
     if (LANG === "zh") body.lang = "zh";
@@ -250,7 +250,7 @@ function renderPlanRequest(){
       }
       showPlanError(null, t("The plan stream ended before a plan arrived."));
     } catch (e) {
-      if (!isAbort(e) && isCurrent(token)) showPlanError(null, (e && e.message) || "That did not work. Try again.");
+      if (!isAbort(e) && isCurrent(token)) showPlanError(null, (e && e.message) || t("That did not work. Try again."));
     } finally {
       finishSubmit();
     }

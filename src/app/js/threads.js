@@ -198,7 +198,7 @@ function renderThreads(){
   function setNote(data){
     if (!noteEl) return;
     const sh = data && data.shift;
-    if (period === "all" || !sh || !sh.based_on) { noteEl.textContent = period === "all" ? "Everything you have kept." : ""; return; }
+    if (period === "all" || !sh || !sh.based_on) { noteEl.textContent = period === "all" ? t("Everything you have kept.") : ""; return; }
     const names = period === "now" ? sh.now_cards : sh.then_cards;
     noteEl.textContent = (period === "now" ? "Your " + sh.based_on + " most recent cards: " : "The " + sh.based_on + " cards before your recent ones: ") + (names || []).join(", ") + ".";
   }

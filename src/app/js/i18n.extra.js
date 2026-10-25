@@ -139,7 +139,8 @@ Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味�
     [/^((?:“[^”]+”(?: and )?)+) is how (?:Qloo|the catalogue) reads the pull of (.+?)(?: — you wrote “(.+)”)?\.$/, function(m, tags, who, q){
       var w = who === "your recent cards" ? "你最近的卡片" : who === "your cards" ? "你的卡片" : two(who);
       var tg = tags.split(" and ").map(function(x){ x = x.replace(/^“|”$/g, ""); return typeof tagZh === "function" ? tagZh(x) : x; });
-      return "口味目录用 " + tg.map(function(x){ return "「" + x + "」"; }).join("、") + " 来读 " + w + " 对你的吸引" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
+      var sp = /^[A-Za-z]/.test(w) || /[A-Za-z]$/.test(w) ? " " : "";
+      return w + sp + "在口味目录里都带着" + tg.map(function(x){ return "「" + x + "」"; }).join("") + "这个标签" + (q ? "——你写过“" + q + "”" : "") + "。"; }]
   );
 })();
 

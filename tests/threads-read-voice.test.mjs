@@ -76,19 +76,19 @@ test("zh: catalogue wording, 「」 tags, the quote kept, no Qloo", () => {
   const zh = trZh(en);
   assert.notEqual(zh, en);
   assert.match(zh, /[\u4e00-\u9fff]/);
-  assert.match(zh, /^口味目录用 「Sensitive」 来读 Her 和 Paterson 对你的吸引——你写过“soft light, low rooms”。$/);
+  assert.match(zh, /^Her 和 Paterson 在口味目录里都带着「Sensitive」这个标签——你写过“soft light, low rooms”。$/);
   assert.ok(!/Qloo/.test(zh), "zh still says Qloo: " + zh);
 });
 
 test("zh: the legacy Qloo sentence is accepted too (both inputs)", () => {
   const trZh = loadZh();
   const zh = trZh("“Steady” and “Moody” is how Qloo reads the pull of your recent cards.");
-  assert.match(zh, /^口味目录用 「Steady」、「Moody」 来读 你最近的卡片 对你的吸引。$/);
+  assert.match(zh, /^你最近的卡片在口味目录里都带着「Steady」「Moody」这个标签。$/);
   assert.ok(!/Qloo/.test(zh), "zh still says Qloo: " + zh);
 });
 
 test("zh: tags go through the global tagZh when one exists", () => {
   const trZh = loadZhWithTagZh((n) => "译:" + String(n));
   const zh = trZh("“Sensitive” is how the catalogue reads the pull of Her — you wrote “soft light”.");
-  assert.match(zh, /^口味目录用 「译:Sensitive」 来读 Her 对你的吸引——你写过“soft light”。$/);
+  assert.match(zh, /^Her 在口味目录里都带着「译:Sensitive」这个标签——你写过“soft light”。$/);
 });

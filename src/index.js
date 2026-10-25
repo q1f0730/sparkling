@@ -159,6 +159,79 @@ async function recognizePending(env, userId, limit = 6) {
   return rows.length;
 }
 
+// FP-83: the first "Same notes, no Qloo" tap used to wait 5-6 s for the model. Build (and cache) the plain
+// comparison as soon as a plan is saved; the /plain handler calls this same function and gets the cache.
+// `row` is a plans row (or just {id, plan, request}); the write is the same plan.plain the handler stores.
+async function warmPlain(env, user, planRow, lang) {
+  const plan = JSON.parse(planRow.plan);
+  const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"; // same first model llm.js uses for Sparkling's own sentences
+  const seeds = ((plan.receipt || {}).seeds || []).map((x) => x.name);
+  // The plain comparison is cached on the plan row: only reuse an answer written in the same language.
+  const cachedFor = (pl) => !!pl && (pl.lang ? pl.lang === lang : lang === "en");
+  const whyZh = lang === "zh" ? " Write every why in Simplified Chinese (keep names as they are)." : "";
+  // FP-36: the why speaks to the reader, not about them.
+  const youVoice = ' Write each why addressed to the reader as "you" (never "they" or "their").';
+  // The model chain inside llmJSON retries without a deadline, so one stalled model holds the whole
+  // comparison. Bound each plain call: on timeout answer at once, write nothing, cache nothing.
+  const plainTimeout = Number(env.PLAIN_TIMEOUT_MS) || 9000;
+  const inTime = (pr) => new Promise((resolve, reject) => {
+    let done = false;
+    const timer = setTimeout(() => { if (!done) { done = true; const e = new Error("plain model timeout"); e.plainTimeout = true; reject(e); } }, plainTimeout);
+    pr.then((v) => { if (!done) { done = true; clearTimeout(timer); resolve(v); } },
+      (e) => { if (!done) { done = true; clearTimeout(timer); reject(e); } });
+  });
+  const modelNote = (e) => e && e.plainTimeout
+    ? (lang === "zh" ? "纯模型太久没回应，再试一次。" : "The plain model took too long to answer. Try again.")
+    : "The plain model is unavailable right now (daily AI quota). Try again later.";
+  const block = (pl) => ({ ...pl, verdict: plainVerdict(plan, pl) });
+  if (plan.mode === "in") {
+    if (cachedFor(plan.plain) && plan.plain.checked === 3) return block(plan.plain);
+    const kinds = (plan.picks || []).map((x) => x.kind).filter(Boolean);
+    const want = (plan.picks || []).length || 3;
+    let picksOut = [], note = null;
+    try {
+      const out = await inTime(llmJSON(env, "You suggest things to watch, listen to or read at home. Suggest real titles from your own memory only. Return {\"picks\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
+        `Things this person loves: ${seeds.join(", ")}. Suggest ${want} things${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.` + youVoice,
+        { name: "plain", schema: { type: "object", properties: { picks: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["picks"] } }, 600));
+      picksOut = (out.picks || []).slice(0, 4).map((x) => {
+        const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
+        const why = String(x.why || "").slice(0, 240);
+        const whyOut = plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang);
+        return { name, kind, why: lang === "zh" ? zhSpace(whyOut) : whyOut };
+      }).filter((x) => x.name);
+    } catch (e) { note = modelNote(e); }
+    const plain = { model: MODEL, lang, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
+    if (picksOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run(); }
+    return block(plain);
+  }
+  const centreOf = (st) => { const c = (st || []).map((x) => x.coords).filter((c) => c && isFinite(c.lat) && isFinite(c.lon)); return c.length ? { lat: c.reduce((a, x) => a + x.lat, 0) / c.length, lon: c.reduce((a, x) => a + x.lon, 0) / c.length } : null; };
+  if (cachedFor(plan.plain) && plan.plain.checked === 3) return block(plan.plain);
+  if (cachedFor(plan.plain) && plan.plain.stops && plan.plain.stops.length) {
+    const ck = await checkPlainPlaces(env, plan.plain.stops.map((x) => x.name), centreOf(plan.stops), plan.plain.area);
+    plan.plain = { ...plan.plain, stops: plan.plain.stops.map((x, i) => ({ ...x, check: ck[i] })), checked: 3 };
+    await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run();
+    return block(plan.plain);
+  }
+  const area = (JSON.parse(planRow.request || "{}").area || user.area || "").slice(0, 120);
+  const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
+  let stopsOut = [], note = null;
+  try {
+    const out = await inTime(llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
+      `Things this person loves: ${seeds.join(", ")}. Area: ${area}. Plan ${(kinds.length || 3)} stops${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.` + youVoice,
+      { name: "plain", schema: { type: "object", properties: { stops: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["stops"] } }, 600));
+    stopsOut = (out.stops || []).slice(0, 4).map((x) => {
+      const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
+      const why = String(x.why || "").slice(0, 240);
+      const whyOut = plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang);
+      return { name, kind, why: lang === "zh" ? zhSpace(whyOut) : whyOut };
+    }).filter((x) => x.name);
+  } catch (e) { note = modelNote(e); }
+  if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }
+  const plain = { model: MODEL, lang, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };
+  if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run(); }
+  return block(plain);
+}
+
 async function api(req, env, ctx, url) {
   const p = url.pathname, m = req.method;
 
@@ -583,6 +656,10 @@ async function api(req, env, ctx, url) {
         const { pool, ...rest } = plan;
         await env.DB.prepare("INSERT INTO plans (id,user_id,request,plan,pool,saved,created_at) VALUES (?,?,?,?,?,0,?)").bind(plan.id, U, JSON.stringify(b), JSON.stringify(rest), JSON.stringify(pool), Date.now()).run();
         await send({ type: "plan", plan: rest });
+        // FP-83: warm the no-Qloo comparison in the background so the first tap is instant. The warm write
+        // is the same plan.plain the /plain handler serves; any failure is swallowed (the stream is already done).
+        const lang = rest.lang === "zh" || rest.meta?.lang === "zh" || b.lang === "zh" ? "zh" : "en";
+        ctx.waitUntil(warmPlain(env, user, { id: plan.id, plan: JSON.stringify(rest), request: JSON.stringify(b) }, lang).catch(() => {}));
       } catch (e) {
         await send({ type: "error", state: e.state || "error", text: e.text || "Something went wrong making the plan. Your notes and cards are fine." });
         if (!e.state) console.log("plan error", e.message, e.stack);
@@ -614,74 +691,9 @@ async function api(req, env, ctx, url) {
     if (!act && m === "GET") return J({ plan: { ...plan, saved: !!row.saved } });
     if (plan.mode === "in" && ["swap", "shorten", "budget"].includes(act)) return J({ plan, notice: "That only applies to a plan out." });
     if (act === "plain") {
-      const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"; // same first model llm.js uses for Sparkling's own sentences
-      const seeds = ((plan.receipt || {}).seeds || []).map((x) => x.name);
       let reqLang = ""; try { reqLang = JSON.parse(row.request || "{}").lang; } catch (_) {}
       const lang = plan.lang === "zh" || plan.meta?.lang === "zh" || reqLang === "zh" ? "zh" : "en";
-      // The plain comparison is cached on the plan row: only reuse an answer written in the same language.
-      const cachedFor = (pl) => !!pl && (pl.lang ? pl.lang === lang : lang === "en");
-      const whyZh = lang === "zh" ? " Write every why in Simplified Chinese (keep names as they are)." : "";
-      // FP-36: the why speaks to the reader, not about them.
-      const youVoice = ' Write each why addressed to the reader as "you" (never "they" or "their").';
-      // The model chain inside llmJSON retries without a deadline, so one stalled model holds the whole
-      // comparison. Bound each plain call: on timeout answer at once, write nothing, cache nothing.
-      const plainTimeout = Number(env.PLAIN_TIMEOUT_MS) || 9000;
-      const inTime = (p) => new Promise((resolve, reject) => {
-        let done = false;
-        const timer = setTimeout(() => { if (!done) { done = true; const e = new Error("plain model timeout"); e.plainTimeout = true; reject(e); } }, plainTimeout);
-        p.then((v) => { if (!done) { done = true; clearTimeout(timer); resolve(v); } },
-          (e) => { if (!done) { done = true; clearTimeout(timer); reject(e); } });
-      });
-      const modelNote = (e) => e && e.plainTimeout
-        ? (lang === "zh" ? "纯模型太久没回应，再试一次。" : "The plain model took too long to answer. Try again.")
-        : "The plain model is unavailable right now (daily AI quota). Try again later.";
-      const answer = (pl) => J({ plain: { ...pl, verdict: plainVerdict(plan, pl) } });
-      if (plan.mode === "in") {
-        if (cachedFor(plan.plain) && plan.plain.checked === 3) return answer(plan.plain);
-        const kinds = (plan.picks || []).map((x) => x.kind).filter(Boolean);
-        const want = (plan.picks || []).length || 3;
-        let picksOut = [], note = null;
-        try {
-          const out = await inTime(llmJSON(env, "You suggest things to watch, listen to or read at home. Suggest real titles from your own memory only. Return {\"picks\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
-            `Things this person loves: ${seeds.join(", ")}. Suggest ${want} things${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.` + youVoice,
-            { name: "plain", schema: { type: "object", properties: { picks: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["picks"] } }, 600));
-          picksOut = (out.picks || []).slice(0, 4).map((x) => {
-            const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
-            const why = String(x.why || "").slice(0, 240);
-            const whyOut = plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang);
-            return { name, kind, why: lang === "zh" ? zhSpace(whyOut) : whyOut };
-          }).filter((x) => x.name);
-        } catch (e) { note = modelNote(e); }
-        const plain = { model: MODEL, lang, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
-        if (picksOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
-        return answer(plain);
-      }
-      const centreOf = (st) => { const c = (st || []).map((x) => x.coords).filter((c) => c && isFinite(c.lat) && isFinite(c.lon)); return c.length ? { lat: c.reduce((a, x) => a + x.lat, 0) / c.length, lon: c.reduce((a, x) => a + x.lon, 0) / c.length } : null; };
-      if (cachedFor(plan.plain) && plan.plain.checked === 3) return answer(plan.plain);
-      if (cachedFor(plan.plain) && plan.plain.stops && plan.plain.stops.length) {
-        const ck = await checkPlainPlaces(env, plan.plain.stops.map((x) => x.name), centreOf(plan.stops), plan.plain.area);
-        plan.plain = { ...plan.plain, stops: plan.plain.stops.map((x, i) => ({ ...x, check: ck[i] })), checked: 3 };
-        await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run();
-        return answer(plan.plain);
-      }
-      const area = (JSON.parse(row.request || "{}").area || user.area || "").slice(0, 120);
-      const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
-      let stopsOut = [], note = null;
-      try {
-        const out = await inTime(llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence." + whyZh,
-          `Things this person loves: ${seeds.join(", ")}. Area: ${area}. Plan ${(kinds.length || 3)} stops${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.` + youVoice,
-          { name: "plain", schema: { type: "object", properties: { stops: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["stops"] } }, 600));
-        stopsOut = (out.stops || []).slice(0, 4).map((x) => {
-          const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
-          const why = String(x.why || "").slice(0, 240);
-          const whyOut = plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang);
-          return { name, kind, why: lang === "zh" ? zhSpace(whyOut) : whyOut };
-        }).filter((x) => x.name);
-      } catch (e) { note = modelNote(e); }
-      if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }
-      const plain = { model: MODEL, lang, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };
-      if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
-      return answer(plain);
+      return J({ plain: await warmPlain(env, user, row, lang) });
     }
     if (act === "save") { await env.DB.prepare("UPDATE plans SET saved=1 WHERE id=?").bind(row.id).run(); return J({ plan: { ...plan, saved: true } }); }
     if (act === "went") {

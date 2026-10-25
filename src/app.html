@@ -1275,6 +1275,7 @@ a{color:var(--b-sage-ink)}
 .plan-sentence{font-size:17px;line-height:30px;gap:4px}
 .inline-input{font-size:17px;line-height:30px;border-bottom:1.5px solid var(--b-line-strong);color:var(--text)}
 .inline-input:focus,.inline-input:focus-visible{border-bottom-color:var(--b-sage-ink)}
+.inline-input:focus-visible{outline:2px solid var(--b-sage-ink);outline-offset:3px;border-radius:4px}
 .mood-row{gap:8px;margin-top:12px}
 .free-line{margin-top:16px;padding-top:12px;border-top-color:var(--b-line)}
 .free-input{border-color:var(--b-line);background:var(--ground);border-radius:var(--radius-inner);padding:12px;font-size:15px;line-height:20px}
@@ -7399,7 +7400,7 @@ function renderPlanRequest(){
       data = await api("/api/plans", { signal: ac.signal });
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
-      savedSlot.innerHTML = '<div class="compact-error">' + esc(t("Your saved plans did not load.")) + ' <button class="text-btn" type="button" data-retry="saved">Try again</button></div>';
+      savedSlot.innerHTML = '<div class="compact-error">' + esc(t("Your saved plans did not load.")) + (LANG === "zh" ? "" : " ") + '<button class="text-btn" type="button" data-retry="saved">' + esc(t("Try again")) + '</button></div>';
       return;
     }
     if (!isCurrent(token)) return;

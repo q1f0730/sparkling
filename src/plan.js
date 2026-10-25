@@ -262,6 +262,8 @@ const zhTitle = (x) => {
   const work = !type || (!/artist|person|place/.test(type) && (WORK_TYPES.has(type) || /^(film|tv|music|book|podcast)\b/.test(type)));
   return work ? `《${x.name ?? ""}》` : String(x.name ?? "");
 };
+/** The single space between the verb and its tags in the zh catalogue clause (kept out of the phrase literal). */
+const ZH_CATALOGUE_GAP = " ";
 /** zh copy spacing: no stray space before CJK punctuation, exactly one space between a Latin run and a CJK character. */
 export function zhSpace(s) {
   return String(s == null ? "" : s)
@@ -900,7 +902,7 @@ export async function dressPicks(env, user, seeds, picks, lang) {
     const names = ord.map((r) => r.name).filter(Boolean);
     const zhNames = ord.filter((r) => r.name).map(zhTitle).filter(Boolean);
     const why = names.length
-      ? zhSpace((lang === "zh" ? `因为你记过${zhNames.join("和")}` : `Because you kept ${names.join(" and ")}`) + (p.tags.length ? (lang === "zh" ? `；口味目录把它归在 ${p.tags.slice(0, 2).map(zhTag).join("、")}。` : `; the catalogue files it under ${p.tags.slice(0, 2).join(", ").toLowerCase()}.`) : (lang === "zh" ? "。" : ".")))
+      ? zhSpace((lang === "zh" ? `因为你记过${zhNames.join("和")}` : `Because you kept ${names.join(" and ")}`) + (p.tags.length ? (lang === "zh" ? `；口味目录把它归在${ZH_CATALOGUE_GAP}${p.tags.slice(0, 2).map(zhTag).join("、")}。` : `; the catalogue files it under ${p.tags.slice(0, 2).join(", ").toLowerCase()}.`) : (lang === "zh" ? "。" : ".")))
       : (lang === "zh" ? "口味目录根据你的卡片整体给出。" : "The catalogue returned it for your cards taken together.");
     return {
       qloo_id: p.qloo_id, name: p.name, kind: p.kind, year: p.year, by: p.by, image: p.image, description: p.description, tags: p.tags,

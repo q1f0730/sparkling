@@ -315,7 +315,7 @@ export async function zhReads(env, stops, ms) {
       if (out.length === src.length) await cachePut(env, key, out);
     } catch (_) { out = []; }
   }
-  if (out.length === src.length) stops.forEach((s, i) => { if (out[i] && /[\u4e00-\u9fff]/.test(out[i])) s.read_zh = String(out[i]).slice(0, 200); });
+  if (out.length === src.length) stops.forEach((s, i) => { if (out[i] && /[\u4e00-\u9fff]/.test(out[i])) s.read_zh = zhSpace(String(out[i]).slice(0, 200)); });
 }
 const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", items: { type: "string" } } }, required: ["reads"] };
 const READ_BASE = "For each venue write ONE plain sentence addressed to the reader as \"you\" (12-20 words) on why it suits this person's afternoon, connecting a concrete fact about the venue (its kind, vibes or description) to the feel of what they keep returning to (given as seeds). Do not name the seeds as if the venue is about them; no hype, no exclamation marks, use ONLY facts present in the given kind, vibes or description (never invent atmosphere, decor, lighting or style words not listed), no claims about hours, prices or being open. Return {\"reads\":[...]} in order.";

@@ -135,7 +135,7 @@ function renderPlanResult(id){
     const seeds = verdictSeeds(plan, pl);
     let withN = mine.filter(function(x){ return verdictKeptLink(x); }).length, withT = mine.length;
     let withoutN = plain.filter(function(x){ return verdictNamesSeed(x.why, seeds); }).length, withoutT = plain.length;
-    let checked = null;
+    let checked = null, mineChecked = null;
     /* a server-sent verdict, when present, is authoritative */
     const v = pl && pl.verdict;
     if (v && typeof v === "object") {
@@ -155,17 +155,28 @@ function renderPlanResult(id){
         if (b) { withoutN = b.tied; withoutT = b.total; }
       }
       if (typeof v.plain_pass === "number" && isFinite(v.plain_pass)) checked = v.plain_pass;
+      if (typeof v.mine_pass === "number" && isFinite(v.mine_pass)) mineChecked = v.mine_pass;
     }
     return '<div class="plain-verdict" role="note" style="margin:2px 0 14px;padding:12px 14px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-soft)">' +
       '<p class="pv-with" style="margin:0;font-family:var(--sans);font-size:13px;font-weight:600;line-height:1.5;color:var(--b-ink)">' + esc(t("With Qloo: " + withN + " of " + withT + " tied to a card you kept.")) + "</p>" +
       '<p class="pv-without" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + withoutN + " of " + withoutT + " tied to a card you kept.")) + "</p>" +
+      (mineChecked != null ? '<p class="pv-checkmine" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("With Qloo: " + mineChecked + " of " + withT + " places checked out.")) + "</p>" : "") +
       (checked != null ? '<p class="pv-check" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + checked + " of " + withoutT + " places checked out.")) + "</p>" : "") +
     "</div>";
   }
   async function openPlain(){
-    openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" aria-busy="true"><p class="muted">' + esc(t("Asking a plain model, no Qloo… usually 5–15 seconds.")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
+    openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" role="status" aria-busy="true"><p class="muted">' + esc(t("Checking the same notes without the catalogue…")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
     let d = null;
     try { d = await prefetchPlain(planId); } catch (e) {}
+    if (!d) {
+      /* the comparison failed: say so and offer the one tap that asks again (the cache drops the failure) */
+      openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" role="alert"><p class="muted">' + esc(t("The comparison did not load. Check your connection, then try again.")) + '</p><button class="btn btn-sm" type="button" data-plain-retry="1">' + esc(t("Try again")) + "</button></div>", onMount: function(m){
+        m.querySelectorAll("[data-plain-retry]").forEach(function(btn){
+          btn.addEventListener("click", function(){ if (prefetchPlain.cache) delete prefetchPlain.cache[planId]; openPlain(); });
+        });
+      }});
+      return;
+    }
     const pl = d && d.plain;
     /* the raw model id stays out of the sheet; it is only a hover title for provenance */
     const modelSlug = pl && pl.model ? String(pl.model).split("/").pop() : "";

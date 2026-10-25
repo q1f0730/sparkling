@@ -255,7 +255,13 @@ const KIND_ZH = { bookstore: "书店", "book store": "书店", bookshop: "书店
 const KIND_ZH_OF = (k) => KIND_ZH[k] || k;
 const DAY_ZH = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const WORK_TYPES = new Set(["film", "tv", "music", "book", "podcast"]);
-const zhTitle = (x) => (WORK_TYPES.has(String((x && x.type) || "")) ? `《${x.name}》` : String((x && x.name) ?? ""));
+/** 《》 only for works; artists, people and places stay bare, and rows with no type keep the old title treatment. */
+const zhTitle = (x) => {
+  if (!x) return "";
+  const type = String(x.type || "").toLowerCase();
+  const work = !type || (!/artist|person|place/.test(type) && (WORK_TYPES.has(type) || /^(film|tv|music|book|podcast)\b/.test(type)));
+  return work ? `《${x.name ?? ""}》` : String(x.name ?? "");
+};
 /** zh copy spacing: no stray space before CJK punctuation, exactly one space between a Latin run and a CJK character. */
 export function zhSpace(s) {
   return String(s == null ? "" : s)
@@ -540,8 +546,11 @@ export function notesLineFor(rows, lang) {
   const use = (Array.isArray(rows) ? rows : []).filter((r) => r && r.name != null).slice(0, 2);
   if (!use.length) return null;
   if (lang === "zh") {
-    const part = (r) => (r.n > 1 ? `回看过《${r.name}》${r.n} 次` : `写过《${r.name}》`);
-    return `你${use.map(part).join("，也")}。`;
+    const part = (r) => {
+      const title = zhTitle(r);
+      return r.n > 1 ? `回看过${title}${/》$/.test(title) ? "" : " "}${r.n} 次` : `写过${title}`;
+    };
+    return zhSpace(`你${use.map(part).join("，也")}。`);
   }
   return "You " + use.map((r) => (r.n > 1 ? `came back to ${r.name} ${r.n} times` : `wrote about ${r.name}`)).join(" and ") + ".";
 }
@@ -552,7 +561,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
   const fps = (await env.DB.prepare(`SELECT c.id card_id, c.qloo_id, c.image, c.name, c.type, COUNT(f.id) n, (SELECT f2.quote FROM footprints f2 WHERE f2.card_id=c.id AND f2.quote IS NOT NULL AND LENGTH(f2.quote)>8 ORDER BY f2.created_at DESC LIMIT 1) quote, (SELECT f2.created_at FROM footprints f2 WHERE f2.card_id=c.id AND f2.quote IS NOT NULL AND LENGTH(f2.quote)>8 ORDER BY f2.created_at DESC LIMIT 1) quote_at FROM cards c JOIN footprints f ON f.card_id=c.id WHERE c.user_id=? AND c.qloo_id IN (${seeds.map(() => "?").join(",")}) GROUP BY c.id ORDER BY n DESC`).bind(user.id, ...seeds.map((s) => s.qloo_id)).all()).results || [];
   const lang = meta.lang === "zh" ? "zh" : "en";
   const notesLine = notesLineFor(fps, lang) ?? (lang === "zh"
-    ? `你记过${seedNames.slice(0, 2).map((n) => `《${n}》`).join("和")}。`
+    ? zhSpace(`你记过${seeds.slice(0, 2).map(zhTitle).join("和")}。`)
     : `You kept ${seedNames.slice(0, 2).join(" and ")}.`);
   let reads = [];
   const venues = stops.map((s) => ({ name: s.name, kind: s.kind, vibes: s.vibes, description: s.description }));
@@ -884,11 +893,14 @@ export async function dressPicks(env, user, seeds, picks, lang) {
       const sd = (p.seeds_used || []).map((s) => row(byQ.get(String(s.qloo_id).toLowerCase()), s, null));
       cf = [...sd.filter((r) => dom.includes(r.type)), ...sd.filter((r) => !dom.includes(r.type))];
     }
-    const ord = [...cf.filter((r) => !used.has(r.card_id || r.qloo_id)), ...cf.filter((r) => used.has(r.card_id || r.qloo_id))].slice(0, 2);
+    const reordered = [...cf.filter((r) => !used.has(r.card_id || r.qloo_id)), ...cf.filter((r) => used.has(r.card_id || r.qloo_id))];
+    const dom = CARD_DOMAIN[p.kind] || [];
+    const ord = [...reordered.filter((r) => dom.includes(r.type)), ...reordered.filter((r) => !dom.includes(r.type))].slice(0, 2);
     ord.forEach((r) => used.add(r.card_id || r.qloo_id));
     const names = ord.map((r) => r.name).filter(Boolean);
+    const zhNames = ord.filter((r) => r.name).map(zhTitle).filter(Boolean);
     const why = names.length
-      ? (lang === "zh" ? `因为你记过${names.map((n) => "《" + n + "》").join("和")}` : `Because you kept ${names.join(" and ")}`) + (p.tags.length ? (lang === "zh" ? `；口味目录把它归在 ${p.tags.slice(0, 2).map(zhTag).join("、")}。` : `; the catalogue files it under ${p.tags.slice(0, 2).join(", ").toLowerCase()}.`) : (lang === "zh" ? "。" : "."))
+      ? zhSpace((lang === "zh" ? `因为你记过${zhNames.join("和")}` : `Because you kept ${names.join(" and ")}`) + (p.tags.length ? (lang === "zh" ? `；口味目录把它归在 ${p.tags.slice(0, 2).map(zhTag).join("、")}。` : `; the catalogue files it under ${p.tags.slice(0, 2).join(", ").toLowerCase()}.`) : (lang === "zh" ? "。" : ".")))
       : (lang === "zh" ? "口味目录根据你的卡片整体给出。" : "The catalogue returned it for your cards taken together.");
     return {
       qloo_id: p.qloo_id, name: p.name, kind: p.kind, year: p.year, by: p.by, image: p.image, description: p.description, tags: p.tags,

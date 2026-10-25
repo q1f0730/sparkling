@@ -94,7 +94,7 @@ function renderPlanRequest(){
         '<input class="free-input" data-free aria-label="Anything else?" placeholder="A quiet bookstore, then somewhere to sit" value="' + attr(prefill) + '">' +
       "</div>" +
       '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>Make a plan</button></div>' +
-      '<div class="duo-box" data-out-only' + (mode === "in" ? " hidden" : "") + '><button class="btn btn-sm" type="button" data-duo-go>Plan for two &middot; try with a sample friend</button><div data-duo-out></div></div>' +
+      '<div class="duo-box" data-out-only' + (mode === "in" ? " hidden" : "") + '><button class="btn btn-sm" type="button" data-duo-go>' + esc(t("Plan for two · try with a sample friend")) + '</button><div data-duo-out></div></div>' +
       '<div data-plan-progress></div>' +
       '<div data-plan-error></div>' +
     "</form>" +
@@ -149,13 +149,13 @@ function renderPlanRequest(){
   }
   if (duoBtn) duoBtn.addEventListener("click", async function(){
     const out = view.querySelector("[data-duo-out]");
-    duoBtn.disabled = true; out.innerHTML = '<p class="duo-note">Weighing both notebooks&hellip;</p>';
+    duoBtn.disabled = true; out.innerHTML = '<p class="duo-note">' + esc(t("Weighing both notebooks…")) + "</p>";
     try {
       const r = await api("/api/duo", { method: "POST", body: { area: (areaInput.value || "").trim(), partner_ids: ["0F920838-D245-440D-B52E-2C045BEEFEE9","19DF9974-2931-42F7-AF6F-DC29B9E17974","28D688C4-0760-4042-BEC1-F6EE75E71CC7"] } });
       const bar = function(v){ return '<span class="duo-bar"><i style="width:' + Math.round(Math.min(1, v || 0) * 100) + '%"></i></span>'; };
       out.innerHTML = '<p class="duo-note">Chosen by our fairness rule: best for whoever likes it least.</p><ol class="duo-list">' +
         (r.picks || []).map(function(p){ return '<li><b>' + esc(p.name) + '</b><span>You ' + bar(p.scoreA) + '</span><span>Them ' + bar(p.scoreB) + '</span></li>'; }).join("") + '</ol>';
-    } catch (e) { out.innerHTML = '<p class="duo-note">Could not plan for two just now.</p>'; }
+    } catch (e) { out.innerHTML = '<p class="duo-note">' + esc(t("Could not plan for two just now.")) + "</p>"; }
     duoBtn.disabled = false;
   });
 
@@ -248,7 +248,7 @@ function renderPlanRequest(){
           }
         }
       }
-      showPlanError(null, "The plan stream ended before a plan arrived.");
+      showPlanError(null, t("The plan stream ended before a plan arrived."));
     } catch (e) {
       if (!isAbort(e) && isCurrent(token)) showPlanError(null, (e && e.message) || "That did not work. Try again.");
     } finally {
@@ -264,7 +264,7 @@ function renderPlanRequest(){
       data = await api("/api/plans", { signal: ac.signal });
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
-      savedSlot.innerHTML = '<div class="compact-error">Your saved plans did not load. <button class="text-btn" type="button" data-retry="saved">Try again</button></div>';
+      savedSlot.innerHTML = '<div class="compact-error">' + esc(t("Your saved plans did not load.")) + ' <button class="text-btn" type="button" data-retry="saved">Try again</button></div>';
       return;
     }
     if (!isCurrent(token)) return;

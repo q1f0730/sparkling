@@ -509,7 +509,7 @@ function go(hash){
   if (location.hash === hash) { route(); return; }
   location.hash = hash;
 }
-function route(){
+function route(deferCamera){
   if (!state.booted) return;
   const r = parseRoute();
   if (!state.user) {
@@ -534,14 +534,14 @@ function route(){
     case "plan": renderPlanRequest(); break;
     case "planResult": renderPlanResult(r.id); break;
     case "settings": renderSettings(r.page); break;
-    case "camera": { state.capOpen = null; history.replaceState(null, "", "#/notes"); renderNotes(); const capFabEl = document.querySelector(".cap-fab"); if (window.Capture && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true")) Capture.open({}); else if (!window.Capture) openCameraWhenReady(); break; }
+    case "camera": { state.capOpen = null; history.replaceState(null, "", "#/notes"); renderNotes(); const cameraReady = function(){ const capFabEl = document.querySelector(".cap-fab"); return window.Capture && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true"); }; if (deferCamera) setTimeout(function(){ if (cameraReady()) Capture.open({}); else if (!window.Capture) openCameraWhenReady(); }, 0); else if (cameraReady()) Capture.open({}); else if (!window.Capture) openCameraWhenReady(); break; }
     default: renderNotes();
   }
 }
 window.addEventListener("hashchange", function(){
   dismissToast();
   if (modal.open) closeModal();
-  route();
+  route(true);
 });
 tabsEl.addEventListener("click", function(e){
   const tab = e.target.closest(".tab");

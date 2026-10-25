@@ -131,6 +131,33 @@ function renderCardDetail(id){
       return '<img class="strip-img" src="' + attr(url) + '" alt="Photo from your notes" loading="lazy">';
     }).join("") + "</div>";
   }
+  /* the context of a mention rather than the whole note: a ~200 char window around the card's name,
+     the name marked, an ellipsis on whichever side was trimmed. Always escaped. */
+  function fpQuoteHTML(quote, name){
+    const text = String(quote || "").trim();
+    if (!text) return "";
+    const limit = 200;
+    const label = String(name || "");
+    const at = label ? text.toLowerCase().indexOf(label.toLowerCase()) : -1;
+    if (at < 0) return esc(text.slice(0, limit)) + (text.length > limit ? "…" : "");
+    const end = at + label.length;
+    if (text.length <= limit) {
+      return esc(text.slice(0, at)) + '<mark class="fp-hit">' + esc(text.slice(at, end)) + "</mark>" + esc(text.slice(end));
+    }
+    let start = Math.max(0, at - Math.floor((limit - label.length) / 2));
+    let stop = Math.min(text.length, start + limit);
+    if (start > 0) {
+      const sp = text.indexOf(" ", start);
+      if (sp > -1 && sp < at) start = sp + 1;
+    }
+    if (stop < text.length) {
+      const sp = text.lastIndexOf(" ", stop);
+      if (sp > end) stop = sp;
+    }
+    return (start > 0 ? "…" : "") + esc(text.slice(start, at)) +
+      '<mark class="fp-hit">' + esc(text.slice(at, end)) + "</mark>" +
+      esc(text.slice(end, stop)) + (stop < text.length ? "…" : "");
+  }
   function timelineHTML(){
     if (!footprints.length) {
       return '<p class="compact-empty">No footprints yet. Write about this again and it will gather here.</p>';
@@ -147,7 +174,7 @@ function renderCardDetail(id){
             (source ? '<span class="fp-kind" title="' + attr(source.title) + '">' + esc(source.label) + "</span>" : "") +
             '<button class="fp-detach" type="button" data-detach="' + attr(fp.id) + '" aria-label="Not about this footprint">Not about this</button>' +
           "</div>" +
-          (quote ? '<p class="fp-quote">' + esc(quote) + "</p>" : "") +
+          (quote ? '<p class="fp-quote">' + fpQuoteHTML(quote, card && card.name) + "</p>" : "") +
           (image ? '<img class="fp-thumb" src="' + attr(image) + '" alt="Photo from this footprint" loading="lazy">' : "") +
         "</div>";
       }).join("") + "</div>";

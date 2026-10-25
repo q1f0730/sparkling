@@ -2554,6 +2554,8 @@ Object.assign(ZH, {
   "Checking the same notes without the catalogue…": "正在核对同样的笔记，这次不用口味目录……",
   "The comparison did not load. Check your connection, then try again.": "对比没有加载出来。检查一下网络，再试一次。"
 });
+/* 10-25 plan-error-friendly: outage copy (kept here too so the zh parity test sees it) */
+Object.assign(ZH, { "Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment.": "Sparkling 暂时连不上口味目录。你的笔记都在，稍后再试一次。" });
 function trZh(s){
   if (s == null) return s;
   const raw = String(s);
@@ -3254,7 +3256,7 @@ function go(hash){
   if (location.hash === hash) { route(); return; }
   location.hash = hash;
 }
-function route(){
+function route(deferCamera){
   if (!state.booted) return;
   const r = parseRoute();
   if (!state.user) {
@@ -3279,14 +3281,14 @@ function route(){
     case "plan": renderPlanRequest(); break;
     case "planResult": renderPlanResult(r.id); break;
     case "settings": renderSettings(r.page); break;
-    case "camera": { state.capOpen = null; history.replaceState(null, "", "#/notes"); renderNotes(); const capFabEl = document.querySelector(".cap-fab"); if (window.Capture && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true")) Capture.open({}); else if (!window.Capture) openCameraWhenReady(); break; }
+    case "camera": { state.capOpen = null; history.replaceState(null, "", "#/notes"); renderNotes(); const cameraReady = function(){ const capFabEl = document.querySelector(".cap-fab"); return window.Capture && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true"); }; if (deferCamera) setTimeout(function(){ if (cameraReady()) Capture.open({}); else if (!window.Capture) openCameraWhenReady(); }, 0); else if (cameraReady()) Capture.open({}); else if (!window.Capture) openCameraWhenReady(); break; }
     default: renderNotes();
   }
 }
 window.addEventListener("hashchange", function(){
   dismissToast();
   if (modal.open) closeModal();
-  route();
+  route(true);
 });
 tabsEl.addEventListener("click", function(e){
   const tab = e.target.closest(".tab");
@@ -7132,6 +7134,8 @@ function renderInbox(){
 /* ---------------------------------------------------------------------------
    Plan request (screen 8)
    --------------------------------------------------------------------------- */
+/* Outage copy: the catch must never surface a raw server/network message (e.g. "upstream unavailable"). */
+Object.assign(ZH, { "Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment.": "Sparkling 暂时连不上口味目录。你的笔记都在，稍后再试一次。" });
 /* Plan presets: one tap fills the composer. The chips themselves live under the form. */
 function planPreset(name){
   if (name === "out") return { mode: "out", when: "Saturday afternoon", area: "Greenpoint", budget: 40, text: "" };
@@ -7381,7 +7385,7 @@ function renderPlanRequest(){
       }
       showPlanError(null, t("The plan stream ended before a plan arrived."));
     } catch (e) {
-      if (!isAbort(e) && isCurrent(token)) showPlanError(null, (e && e.message) || t("That did not work. Try again."));
+      if (!isAbort(e) && isCurrent(token)) showPlanError(null, t("Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment."));
     } finally {
       finishSubmit();
     }
@@ -7473,6 +7477,21 @@ function prefetchPlain(planId){
   cache[id] = p;
   p.catch(function(){ if (cache[id] === p) delete cache[id]; });
   return p;
+}
+/* the server sends English clock times ("2:00 PM", "2:00–4:37 PM"); zh reads "下午 2:00", "下午 2:00–4:37" */
+function zhClock(s){
+  if (LANG !== "zh" || typeof s !== "string") return s;
+  const T = { AM: "上午", PM: "下午" };
+  const both = s.match(/^(\d{1,2}:\d{2})\s*(AM|PM)\s*[\u2013\u2014-]\s*(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+  if (both) {
+    const a = T[both[2].toUpperCase()] + " " + both[1], b = T[both[4].toUpperCase()] + " " + both[3];
+    return both[2].toUpperCase() === both[4].toUpperCase() ? a + "\u2013" + both[3] : a + "\u2013" + b;
+  }
+  const range = s.match(/^(\d{1,2}:\d{2})\s*[\u2013\u2014-]\s*(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+  if (range) return T[range[3].toUpperCase()] + " " + range[1] + "\u2013" + range[2];
+  const one = s.match(/^(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+  if (one) return T[one[2].toUpperCase()] + " " + one[1];
+  return s;
 }
 function renderPlanResult(id){
   const token = beginView();
@@ -7761,7 +7780,7 @@ function renderPlanResult(id){
         '<span class="stop-index num">' + (i + 1) + "</span>" +
         '<div class="stop-main">' +
           '<p class="r7-stop-eyebrow num">' + esc("Stop " + String(i + 1).padStart(2, "0")) + '</p>' +
-          (stop && stop.arrive ? '<p class="stop-time">' + esc(stop.arrive) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + (LANG === "zh" ? " 分钟" : " min") : "") + "</p>" : "") +
+          (stop && stop.arrive ? '<p class="stop-time">' + esc(zhClock(stop.arrive)) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + (LANG === "zh" ? " 分钟" : " min") : "") + "</p>" : "") +
           '<h3 class="stop-name">' + esc((stop && stop.name) || "Somewhere") + "</h3>" +
           '<p class="stop-where">' + esc([stop && stop.kind && t(String(stop.kind).toLowerCase()), place].filter(Boolean).join(" · ")) + "</p>" +
           (stop && stop.open_on_arrival === true ? '<p class="stop-open">' + esc(t("Open when you arrive, per listed hours")) + "</p>" : stop && stop.open_on_arrival === false ? '<p class="stop-open stop-open-warn">' + esc(t("May be closed when you arrive")) + "</p>" : "") +
@@ -7825,7 +7844,7 @@ function renderPlanResult(id){
           return '<g class="rm-pin" data-why-stop="' + i + '"><circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="13"/>' +
             '<text x="' + q[0].toFixed(1) + '" y="' + (q[1] + 4.5).toFixed(1) + '" text-anchor="middle">' + (i + 1) + "</text>" +
             '<text class="rm-label" translate="no" x="' + lx.toFixed(1) + '" y="' + (q[1] - 1).toFixed(1) + '" text-anchor="' + anchor + '">' + esc(short(st.name)) + "</text>" +
-            '<text class="rm-sub" x="' + lx.toFixed(1) + '" y="' + (q[1] + 13).toFixed(1) + '" text-anchor="' + anchor + '">' + esc(String(st.arrive || "")) + "</text></g>";
+            '<text class="rm-sub" x="' + lx.toFixed(1) + '" y="' + (q[1] + 13).toFixed(1) + '" text-anchor="' + anchor + '">' + esc(zhClock(String(st.arrive || ""))) + "</text></g>";
         }).join("") +
         "</svg><figcaption>" + t("Schematic route") + " &middot; " + t("not to scale") + "</figcaption></figure>";
     }
@@ -7887,7 +7906,7 @@ function renderPlanResult(id){
     view.innerHTML =
       '<header class="r7-plan-mast pick-mast">' +
         '<p class="r7-eyebrow"><span>' + esc(LANG === "zh" ? trZh(when) : when) + '</span><span class="r7-sep" aria-hidden="true"></span><span>' + esc(t("Stay in")) + "</span>" + (saved ? '<span class="r7-saved">Saved</span>' : "") + "</p>" +
-        '<h2 class="plan-header r7-display"><span>' + esc(t("Stay in")) + (LANG === "zh" ? "，" : ".") + '</span> <em>' + esc(t(em)) + "</em></h2>" +
+        '<h2 class="plan-header r7-display"><span>' + esc(t("Stay in")) + (LANG === "zh" ? "，" : ".") + '</span>' + (LANG === "zh" ? "" : " ") + '<em>' + esc(t(em)) + "</em></h2>" +
         '<div class="plan-chips">' + (moodC ? '<span class="plan-chip">' + esc(LANG === "zh" ? trZh(moodC) : moodC) + "</span>" : "") + '<span class="plan-chip">' + esc(picks.length + " " + (LANG === "zh" ? "个推荐" : plural(picks.length, "pick", "picks"))) + '</span><span class="plan-chip">' + esc(t(one || "mixed")) + "</span></div>" +
         '<button class="plain-cta" type="button" data-plain="1"><span>' + esc(t("Same notes, no Qloo")) + '</span><span class="plain-cta-go">' + esc(t("Compare →")) + "</span></button>" +
       "</header>" +
@@ -7918,11 +7937,11 @@ function renderPlanResult(id){
         var first=stops[0]&&stops[0].arrive, last=stops.length&&stops[stops.length-1].leave;
         return '<header class="r7-plan-mast">' +
           '<p class="r7-eyebrow">' + t.map(function(x, k){ return (k ? '<span class="r7-sep" aria-hidden="true"></span>' : "") + '<span>' + esc(x) + '</span>'; }).join("") + (saved ? '<span class="r7-saved">Saved</span>' : "") + '</p>' +
-          '<h2 class="plan-header r7-display"><span>Go</span> <em>live it.</em></h2>' +
+          '<h2 class="plan-header r7-display"><span>Go</span>' + (LANG === "zh" ? "" : " ") + '<em>live it.</em></h2>' +
           (ch.length?'<div class="plan-chips">'+ch.map(function(c){return '<span class="plan-chip">'+esc(LANG === "zh" ? trZh(c) : c)+"</span>";}).join("")+"</div>":"") +
           '<dl class="r7-stats">' +
             '<div><dt>' + esc(plural(stops.length, "stop", "stops")) + '</dt><dd class="num">' + stops.length + '</dd></div>' +
-            '<div><dt>window</dt><dd class="num r7-small">' + esc(first && last ? String(first).replace(/ ?[AP]M$/,"") + "\u2013" + last : "\u2014") + '</dd></div>' +
+            '<div><dt>window</dt><dd class="num r7-small">' + esc(first && last ? (LANG === "zh" ? zhClock(String(first) + "\u2013" + last) : String(first).replace(/ ?[AP]M$/,"") + "\u2013" + last) : "\u2014") + '</dd></div>' +
             '<div><dt>walking</dt><dd class="num">' + (walk ? walk + '<small>' + (LANG === "zh" ? "分钟" : "min") + '</small>' : "\u2014") + '</dd></div>' +
           '</dl>' + '<button class="plain-cta" type="button" data-plain="1"><span>Same notes, no Qloo</span><span class="plain-cta-go">Compare &rarr;</span></button>' + '</header>'; })() +
       (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +
@@ -8163,6 +8182,7 @@ function renderSettings(page){
   view.innerHTML = '<div class="st">' + html + "</div>";
   translateNode(view);
 
+  if (page === "qloo") wireQlooLive(view);
   if (page === "import") wireImport(view.querySelector("[data-import-block]"), {});
   if (page === "planning") wirePlanning(view);
 
@@ -8209,6 +8229,7 @@ function settingsRootHTML(u){
       stRow({ icon: STI.film, label: t("Import from Letterboxd"), nav: "#/settings/import" }),
       stRow({ icon: STI.down, label: t("Export notes"), action: "export" }),
       u.sample ? stRow({ label: t("Leave the sample"), danger: true, center: true, action: "leave-sample" }) : "",
+      u.sample ? stRow({ label: t("Start the sample over"), center: true, action: "restart-sample" }) : "",
       stRow({ label: t("Delete all data"), danger: true, center: true, action: "delete-all" }),
     ].filter(Boolean), esc(t("Exports include every note and card. Deleting removes your notebook from the server."))) +
     stGroup(t("About"), [
@@ -8303,7 +8324,7 @@ function aboutHTML(){
 }
 function qlooHTML(){
   const para = function(s){ return '<div class="st-row st-explain"><span class="st-row-main"><span class="st-sub st-body">' + esc(t(s)) + "</span></span></div>"; };
-  return stGroup(t("What goes to Qloo"), [
+  return '<div data-qloo-live class="st-live-slot"></div>' + stGroup(t("What goes to Qloo"), [
       para("The few words that name a film, book, album or place, so Qloo search can match them to a catalogue entity."),
       para("When you plan: the IDs of a few cards and the area you typed."),
     ]) +
@@ -8311,6 +8332,33 @@ function qlooHTML(){
     stGroup(t("What comes back"), [
       para("Catalogue entities with their tags, Insights for Threads (tags shared across your cards) and venues near your area for Plan. Sparkling shows Qloo data as it is and marks its own read."),
     ], esc(t("Every thread and plan has a receipt with the exact Qloo calls behind it.")));
+}
+function qlooLiveHTML(cards, plans){
+  const list = Array.isArray(cards) ? cards : [];
+  const total = list.length;
+  const matched = list.filter(function(c){ return c && c.qloo_id; }).length;
+  const line = LANG === "zh"
+    ? "这本笔记里：" + total + " 张卡片中有 " + matched + " 张对上了 Qloo 目录条目。"
+    : t("In this notebook: " + matched + " of " + total + " cards are matched to a Qloo catalogue entry.");
+  const latest = Array.isArray(plans) ? plans[0] : null;
+  const link = latest && latest.id
+    ? '<a class="st-live-link" href="#/plan/' + esc(latest.id) + '">' + esc(t("See the Qloo calls behind your latest plan")) + "</a>"
+    : "";
+  return '<div class="st-live"><p class="st-live-line">' + esc(line) + "</p>" + link + "</div>";
+}
+function wireQlooLive(root){
+  const slot = root.querySelector("[data-qloo-live]");
+  if (!slot) return;
+  Promise.all([
+    api("/api/cards").catch(function(){ return null; }),
+    api("/api/plans").catch(function(){ return null; }),
+  ]).then(function(res){
+    const cards = res[0] && Array.isArray(res[0].cards) ? res[0].cards : null;
+    if (!cards) return;
+    const plans = res[1] && Array.isArray(res[1].plans) ? res[1].plans : [];
+    slot.innerHTML = qlooLiveHTML(cards, plans);
+    translateNode(slot);
+  }).catch(function(){});
 }
 
 function settingsPick(kind, value, page){
@@ -8369,6 +8417,23 @@ function settingsAction(action){
     });
     return;
   }
+  if (action === "restart-sample") {
+    confirmSheet({
+      title: t("Start the sample over?"),
+      copy: t("The sample notebook goes back to how it started. Your own notes are not touched."),
+      confirmLabel: t("Start over"),
+      cancelLabel: t("Cancel"),
+      busyLabel: t("Working"),
+      onConfirm: async function(){
+        await api("/api/delete", { method: "POST", body: { confirm: "DELETE" } });
+        await api("/api/session", { method: "POST", body: { mode: "sample" } });
+        clearPlanStorage(); clearDidYouGo(); clearDraft();
+        location.hash = "#/notes";
+        location.reload();
+      },
+    });
+    return;
+  }
   if (action === "sign-out") {
     confirmSheet({
       title: t("Sign out?"),
@@ -8407,6 +8472,14 @@ function wireSwipeBack(parent){
   });
 }
 
+
+Object.assign(ZH, {
+  "See the Qloo calls behind your latest plan": "查看最近一次计划背后的 Qloo 调用",
+  "Start the sample over": "重新开始示例",
+  "Start the sample over?": "重新开始示例？",
+  "The sample notebook goes back to how it started. Your own notes are not touched.": "示例笔记本会回到最初的样子。你自己的笔记不受影响。",
+  "Start over": "重新开始",
+});
 
 if (LANG === "zh") setLang("zh", true);
 boot();

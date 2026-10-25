@@ -18,6 +18,11 @@ function trZh(s){
   if (out == null) return raw;
   return raw.replace(key, out);
 }
+/* plan presets: quick-start chip labels (this file loads after i18n.zh.js, so ZH already exists) */
+Object.assign(ZH, {
+  "I want to watch a film": "\u6211\u60f3\u770b\u4e00\u90e8\u7535\u5f71",
+  "Saturday afternoon in Greenpoint, $40": "\u5468\u516d\u4e0b\u5348\uff0cGreenpoint\uff0c$40",
+});
 function fixCase(x){ return String(x).replace(/\b([A-Z][a-z]{2,})([A-Z])([a-z]+)\b/g, function(_, a, b, c){ return a + b.toLowerCase() + c; }); }
 function reasonZh(r){
   if (r) r = fixCase(r);

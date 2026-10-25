@@ -4,6 +4,14 @@
 
 Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。", "No card carries this tag directly": "还没有卡片直接带着这个标签" });
 
+/* Display name for the taste card: the made-up sample notebook belongs to Juno Park,
+   everyone else stays a plain "You" — never the author handle. */
+function tasteProfileName(){
+  const u = (typeof state !== "undefined" && state && state.user) || null;
+  const sample = !!(u && u.sample) || !!(typeof document !== "undefined" && document && document.body && document.body.classList && document.body.classList.contains("is-sample"));
+  return sample ? "Juno Park" : (LANG === "zh" ? "你" : "You");
+}
+
 /* ---- monthly taste letter ---- */
 function renderLetter(){
   const token = beginView();
@@ -22,13 +30,13 @@ function renderLetter(){
     const thumbs = function(list){ return list.map(function(c){ return '<button class="letter-thumb" type="button" data-nav="#/cards/' + encodeURIComponent(c.id) + '">' + (c.image ? '<img alt="" src="' + attr(c.image) + '">' : '<span class="ph"></span>') + '<span translate="no">' + esc(c.name) + "</span></button>"; }).join(""); };
     el.innerHTML =
       '<article class="letter">' +
-        '<section class="tcard" aria-label="Taste card"><p class="tcard-k">Q1f730 · Sparkling · ' + esc(L.month) + '</p><div class="tcard-posters">' + ((function(a){var seen={};return a.filter(function(c){var k=c.id,m=c.image||'';if(seen[k]||(m&&seen['i'+m]))return false;seen[k]=1;if(m)seen['i'+m]=1;return true;});})(L.returns.length ? L.returns.concat(L.new) : L.new).slice(0,4).map(function(c){ return c.image ? '<img alt="" src="' + attr(c.image) + '">' : '<span class="ph"></span>'; }).join("")) + '</div><p class="tcard-t">' + (L.themes.length ? L.themes.map(function(t){ return esc(t.name); }).join(" · ") : esc(L.touched + " things touched")) + '</p><p class="tcard-f">' + L.touched + ' cards touched · built on Qloo taste data</p><button class="btn" type="button" data-tshare>Share taste card</button></section>' +
+        '<section class="tcard" aria-label="Taste card"><p class="tcard-k">' + esc(tasteProfileName()) + ' · Sparkling · ' + esc(L.month) + '</p><div class="tcard-posters">' + ((function(a){var seen={};return a.filter(function(c){var k=c.id,m=c.image||'';if(seen[k]||(m&&seen['i'+m]))return false;seen[k]=1;if(m)seen['i'+m]=1;return true;});})(L.returns.length ? L.returns.concat(L.new) : L.new).slice(0,4).map(function(c){ return c.image ? '<img alt="" src="' + attr(c.image) + '">' : '<span class="ph"></span>'; }).join("")) + '</div><p class="tcard-t">' + (L.themes.length ? L.themes.map(function(t){ return esc(t.name); }).join(" · ") : esc(L.touched + " things touched")) + '</p><p class="tcard-f">' + L.touched + (LANG === "zh" ? ' 张卡片 · 基于口味目录数据' : ' cards touched · built on Qloo taste data') + '</p><button class="btn" type="button" data-tshare>Share taste card</button></section>' +
         '<p class="letter-kicker">Your taste letter</p><h1 class="letter-title">' + esc(L.month) + '</h1>' +
-        '<p class="letter-stats"><b>' + L.new_cards + '</b> new cards · <b>' + L.touched + '</b> touched</p>' +
+        (LANG === "zh" ? '<p class="letter-stats"><b>' + L.new_cards + '</b> 新卡片 · <b>' + L.touched + '</b> 张卡片</p>' : '<p class="letter-stats"><b>' + L.new_cards + '</b> new cards · <b>' + L.touched + '</b> touched</p>') +
         L.paragraphs.map(function(t){ return '<p class="letter-p">' + esc(t) + "</p>"; }).join("") +
         (L.returns.length ? '<h3 class="letter-h">You kept going back to</h3><div class="letter-row">' + thumbs(L.returns) + "</div>" : "") +
         ((L.places||[]).length ? '<h3 class="letter-h">' + (LANG === "zh" ? "你地图上的地点" : "Places on your map") + '</h3><div class="letter-row">' + thumbs(L.places) + "</div>" : "") +
-        (L.drift ? '<h3 class="letter-h">' + (LANG === "zh" ? "口味漂移" : "Taste drift") + '</h3><p class="letter-p">' + (LANG === "zh" ? "本月新卡片偏向：" : "This month's new cards lean toward: ") + esc((L.drift.now||[]).join(", ") || "—") + (LANG === "zh" ? "。之前的卡片偏向：" : ". Your earlier cards leaned toward: ") + esc((L.drift.before||[]).join(", ") || "—") + '.</p><p class="letter-receipt">' + (LANG === "zh" ? "以本月初为界（Sparkling 自己的划分），由目录对两组卡片的比较得出。" : "Split at the start of the month (Sparkling's own cut), compared by the taste catalogue.") + '</p>' : "") +
+        (L.drift ? '<h3 class="letter-h">' + (LANG === "zh" ? "口味漂移" : "Taste drift") + '</h3><p class="letter-p">' + (LANG === "zh" ? "本月新卡片偏向：" : "This month's new cards lean toward: ") + esc((L.drift.now||[]).join(LANG === "zh" ? "、" : ", ") || "—") + (LANG === "zh" ? "。之前的卡片偏向：" : ". Your earlier cards leaned toward: ") + esc((L.drift.before||[]).join(LANG === "zh" ? "、" : ", ") || "—") + (LANG === "zh" ? "。" : ".") + '</p><p class="letter-receipt">' + (LANG === "zh" ? "以本月初为界（Sparkling 自己的划分），由目录对两组卡片的比较得出。" : "Split at the start of the month (Sparkling's own cut), compared by the taste catalogue.") + '</p>' : "") +
         (L.new.length ? '<h3 class="letter-h">New this month</h3><div class="letter-row">' + thumbs(L.new) + "</div>" : "") +
         (L.your_words.length ? '<h3 class="letter-h">In your own words</h3>' + L.your_words.map(function(w){ return '<blockquote class="letter-q">' + esc(w.text) + '<cite translate="no">' + (LANG === "zh" ? "关于 " : "about ") + esc(w.card) + "</cite></blockquote>"; }).join("") : "") +
         '<p class="letter-receipt">' + esc(L.receipt) + "</p>" +
@@ -41,7 +49,7 @@ function renderLetter(){
       Promise.all(list.map(function(c){ return loadImg(c.image); })).then(function(imgs){
         var W=1080,H=1350,cv=document.createElement("canvas"); cv.width=W; cv.height=H; var g=cv.getContext("2d");
         g.fillStyle="#efe7d6"; g.fillRect(0,0,W,H);
-        g.fillStyle="#3a3126"; g.font="500 34px 'DM Mono', monospace"; g.fillText("Q1f730 \u00b7 Sparkling \u00b7 "+L.month,70,110);
+        g.fillStyle="#3a3126"; g.font="500 34px 'DM Mono', monospace"; g.fillText(tasteProfileName()+" \u00b7 Sparkling \u00b7 "+L.month,70,110);
         var pw=222,gap=14,x0=70;
         list.forEach(function(c,i){ var x=x0+i*(pw+gap),y=170,h=333; g.fillStyle="#d9cdb4"; g.fillRect(x,y,pw,h); if(imgs[i]){ try{ g.drawImage(imgs[i],x,y,pw,h);}catch(e){} } else { g.fillStyle="#3a3126"; g.font="600 26px Figtree, sans-serif"; var w=c.name.split(" "),ly=y+60,ln=""; w.forEach(function(wd){ if(g.measureText(ln+wd).width>pw-30){g.fillText(ln,x+16,ly);ly+=32;ln="";} ln+=wd+" "; }); g.fillText(ln,x+16,ly);} });
         var themes=(L.themes.length?L.themes.map(function(x){return x.name;}):[L.touched+" things touched"]).join(" \u00b7 ");
@@ -49,9 +57,9 @@ function renderLetter(){
         var words=themes.split(" "),ly=640,ln="";
         words.forEach(function(wd){ if(g.measureText(ln+wd).width>940){g.fillText(ln,70,ly);ly+=92;ln="";} ln+=wd+" "; }); g.fillText(ln,70,ly);
         g.font="400 36px Figtree, sans-serif"; g.fillStyle="#6b5d49";
-        g.fillText(L.touched+" cards touched \u00b7 "+L.new_cards+" new",70,ly+90);
+        g.fillText(L.touched+(LANG === "zh" ? " 张卡片 \u00b7 " : " cards touched \u00b7 ")+L.new_cards+(LANG === "zh" ? " 新卡片" : " new"),70,ly+90);
         g.fillText(list.map(function(c){return c.name;}).join(" \u00b7 ").slice(0,60),70,ly+150);
-        g.font="400 28px 'DM Mono', monospace"; g.fillText("Built on Qloo taste data \u00b7 sparkling",70,H-80);
+        g.font="400 28px 'DM Mono', monospace"; g.fillText(LANG === "zh" ? "基于口味目录数据 \u00b7 sparkling" : "Built on Qloo taste data \u00b7 sparkling",70,H-80);
         cv.toBlob(function(b){
           if(!b){ if(navigator.clipboard) navigator.clipboard.writeText(t); return; }
           var f=new File([b],"sparkling-taste-card.png",{type:"image/png"});

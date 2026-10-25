@@ -123,7 +123,7 @@ function renderInbox(){
   function showActionError(message){
     const err = bodyEl.querySelector("[data-inbox-error]");
     if (err) {
-      err.textContent = message || "That did not go through. Try again.";
+      err.textContent = message || t("That did not go through. Try again.");
       err.hidden = false;
     }
     const cardEl = bodyEl.querySelector(".inbox-card");
@@ -157,7 +157,7 @@ function renderInbox(){
       busy = false;
       showActionError(e && e.message === "not found"
         ? "That item is no longer here. It may have been handled already."
-        : "That did not go through. Try again.");
+        : t("That did not go through. Try again."));
     }
   }
 
@@ -179,7 +179,7 @@ function renderInbox(){
     } catch (e) {
       if (!isCurrent(token)) return;
       busy = false;
-      showActionError("That did not go through. Try again.");
+      showActionError(t("That did not go through. Try again."));
     }
   }
 

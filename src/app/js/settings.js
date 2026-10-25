@@ -123,7 +123,7 @@ function settingsRootHTML(u){
       stRow({ icon: STI.bell, label: t("Notifications"), value: notifValue, valueNoTr: true, nav: "#/settings/notifications" }),
       stRow({ icon: STI.globe, label: t("Language"), value: langName, valueNoTr: true, nav: "#/settings/language" }),
       stRow({ icon: STI.sun, label: t("Appearance"), value: appName + " · " + sizeName, nav: "#/settings/appearance" }),
-      stRow({ icon: STI.map, label: t("Planning defaults"), nav: "#/settings/planning" }),
+      stRow({ icon: STI.map, label: t("Edit planning defaults"), nav: "#/settings/planning" }),
     ]) +
     stGroup(t("Data"), [
       stRow({ icon: STI.film, label: t("Import from Letterboxd"), nav: "#/settings/import" }),
@@ -374,6 +374,7 @@ function wireSwipeBack(parent){
 
 
 Object.assign(ZH, {
+  "Edit planning defaults": "修改规划默认值",
   "See the Qloo calls behind your latest plan": "查看最近一次计划背后的 Qloo 调用",
   "Start the sample over": "重新开始示例",
   "Start the sample over?": "重新开始示例？",

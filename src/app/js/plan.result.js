@@ -157,9 +157,12 @@ function renderPlanResult(id){
       if (typeof v.plain_pass === "number" && isFinite(v.plain_pass)) checked = v.plain_pass;
       if (typeof v.mine_pass === "number" && isFinite(v.mine_pass)) mineChecked = v.mine_pass;
     }
+    /* FP-38: "3 of 3" over "3 of 3" reads as "no difference" first. When the tied counts are equal and the place
+       check is shown (go-out), drop BOTH tied lines so the place lines (the real difference) lead; otherwise keep both. */
+    const sameTied = withN === withoutN && withT === withoutT && checked != null;
     return '<div class="plain-verdict" role="note" style="margin:2px 0 14px;padding:12px 14px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-soft)">' +
-      '<p class="pv-with" style="margin:0;font-family:var(--sans);font-size:13px;font-weight:600;line-height:1.5;color:var(--b-ink)">' + esc(t("With Qloo: " + withN + " of " + withT + " tied to a card you kept.")) + "</p>" +
-      '<p class="pv-without" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + withoutN + " of " + withoutT + " tied to a card you kept.")) + "</p>" +
+      (sameTied ? "" : '<p class="pv-with" style="margin:0;font-family:var(--sans);font-size:13px;font-weight:600;line-height:1.5;color:var(--b-ink)">' + esc(t("With Qloo: " + withN + " of " + withT + " tied to a card you kept.")) + "</p>") +
+      (sameTied ? "" : '<p class="pv-without" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + withoutN + " of " + withoutT + " tied to a card you kept.")) + "</p>") +
       (mineChecked != null ? '<p class="pv-checkmine" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("With Qloo: " + mineChecked + " of " + withT + " places checked out.")) + "</p>" : "") +
       (checked != null ? '<p class="pv-check" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + checked + " of " + withoutT + " places checked out.")) + "</p>" : "") +
     "</div>";

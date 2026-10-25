@@ -572,6 +572,11 @@ async function api(req, env, ctx, url) {
     const nowNames = new Set(nowT.map((t) => t.name)), thenNames = new Set(thenT.map((t) => t.name));
     const shiftOf = (name) => (co.size < 3 ? null : nowNames.has(name) && !thenNames.has(name) ? "New in recent notes" : thenNames.has(name) && !nowNames.has(name) ? "Fading from recent notes" : nowNames.has(name) ? "Steady" : null);
     const kindWord = { film: "a film", tv: "a show", music: "an artist", book: "a book", place: "a place" };
+    // carried-first: tags backed by >=2 of the user's cards lead; stable inside each group
+    main = main
+      .map((t, i) => ({ t, i, group: evidence(t.name, liked).length >= 2 ? 0 : 1 }))
+      .sort((a, b) => a.group - b.group || a.i - b.i)
+      .map((x) => x.t);
     const threads = [];
     for (const t of main.slice(0, 8)) {
       const ev = evidence(t.name, heavy.length ? liked : liked);

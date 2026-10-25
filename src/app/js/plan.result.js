@@ -26,6 +26,14 @@ function zhClock(s){
   if (one) return T[one[2].toUpperCase()] + " " + one[1];
   return s;
 }
+/* contribution dates in the why sheet: zh reads "10月24日", en keeps formatDate ("24 Oct") */
+function whyZhDate(ms){
+  const n = Number(ms);
+  if (!Number.isFinite(n)) return "";
+  const d = new Date(n);
+  const year = d.getFullYear() === new Date().getFullYear() ? "" : d.getFullYear() + "年";
+  return year + (d.getMonth() + 1) + "月" + d.getDate() + "日";
+}
 /* the "Sparkling + Qloo" half of the compare sheet: the plan's own stops (go-out) or picks (stay-in).
    Built in one place so the first paint can show it while the plain request is still in flight. */
 function mineHalfHTML(plan, eyebrow){
@@ -61,6 +69,30 @@ function mineHalfHTML(plan, eyebrow){
     }).join("");
   }
   return head + listOpen + items + "</ol>";
+}
+/* FP-50: when every plain-model row carries the same reason, the compare sheet says it once above the rows
+   instead of repeating it on each. Differing or missing reasons (or a lone row) keep the per-row line. */
+function plainReasonOnce(items){
+  const rows = (Array.isArray(items) ? items : []).filter(function(x){ return x && x.name; });
+  if (rows.length < 2) return null;
+  const first = typeof rows[0].why === "string" ? rows[0].why.trim() : "";
+  if (!first) return null;
+  for (let i = 1; i < rows.length; i++) {
+    if ((typeof rows[i].why === "string" ? rows[i].why.trim() : "") !== first) return null;
+  }
+  return first;
+}
+/* the one shared reason line, above the plain rows */
+function plainReasonOnceHTML(text){
+  return text ? '<p class="plain-reason-once" data-plain-reason-once="1"><small class="muted">' + esc(text) + "</small></p>" : "";
+}
+/* one row of the plain pick column; hideWhy is true when plainReasonOnce already said the reason above */
+function plainPickRow(p, kindTag, hideWhy){
+  return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + (hideWhy ? "" : "<br>" + (p.why ? '<small class="muted" translate="no">' + esc(p.why) + "</small>" : "")) + "</li>";
+}
+/* one row of the plain stop column; the Qloo check line stays per row even when the reason is shared */
+function plainStopRow(s, ckLine, hideWhy){
+  return '<li><b translate="no">' + esc(s.name) + "</b>" + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ")</small>" : "") + "<br>" + ckLine(s.check) + (hideWhy ? "" : "<br><small>" + esc(s.why) + "</small>") + "</li>";
 }
 function renderPlanResult(id){
   const token = beginView();
@@ -122,25 +154,33 @@ function renderPlanResult(id){
   }
   function whyStopHTML(stop, plan){
     const w = stop && stop.why || {};
+    const zh = LANG === "zh";
     const cf = Array.isArray(w.contributions) ? w.contributions : [];
     const max = cf.reduce(function(m, r){ return Math.max(m, r.score || 0); }, 0) || 1;
-    const notesCard = '<section class="bcard"><div class="blabel"><i class="clay"></i><span>Your notes</span><small>' + esc(cf.length + " " + plural(cf.length, "card", "cards")) + "</small></div>" +
+    const notesCard = '<section class="bcard"><div class="blabel"><i class="clay"></i><span>' + (zh ? "你的笔记" : "Your notes") + '</span><small>' + esc(zh ? cf.length + " 张卡片" : cf.length + " " + plural(cf.length, "card", "cards")) + "</small></div>" +
       (cf.length ? cf.slice(0, 4).map(function(r){
         const pct = Math.round((r.score || 0) * 100);
         return '<button type="button" class="ws-row type-' + attr(r.type || "other") + '" data-close-nav="#/cards/' + attr(r.card_id) + '">' +
           '<span class="ws-top"><b translate="no">' + esc(r.name) + '</b>' + (r.band ? '<span class="ws-band">' + esc(LANG === "zh" ? ({near:"熟悉",mid:"邻近",far:"远一步"})[r.band] : ({near:"familiar",mid:"nearby",far:"a step out"})[r.band]) + '</span>' : '') + '<span class="ws-pct num">' + pct + "%</span></span>" +
           '<span class="ws-bar"><i style="width:' + Math.max(4, Math.round((r.score || 0) / max * 100)) + '%"></i></span>' +
-          (r.quote ? '<span class="ws-quote" translate="no">&ldquo;' + esc(r.quote) + "&rdquo;" + (r.at ? " &middot; " + esc(formatDate(r.at)) : "") + "</span>" : "") +
+          (r.quote ? '<span class="ws-quote" translate="no">&ldquo;' + esc(r.quote) + "&rdquo;" + (r.at ? " &middot; " + esc(zh ? whyZhDate(r.at) : formatDate(r.at)) : "") + "</span>" : "") +
         "</button>" + (r.card_id ? '<button type="button" class="ws-no" data-redo="' + attr(r.card_id) + '">' + esc(LANG === "zh" ? "这张不适合我，重新计划" : "Not for me, re-plan without it") + "</button>" : "");
-      }).join("") : '<p class="why-line">Per-input attribution unavailable for this stop. Qloo returned it for your cards taken together.</p>') +
+      }).join("") : '<p class="why-line">' + (zh ? "这一站没有逐项归因。Qloo 是根据你的卡片整体返回的。" : "Per-input attribution unavailable for this stop. Qloo returned it for your cards taken together.") + '</p>') +
     "</section>";
     const vibes = Array.isArray(w.vibes) ? w.vibes : [];
-    const qlooCard = '<section class="bcard"><div class="blabel"><i></i><span>Qloo evidence</span><small>' + (w.affinity != null ? "affinity " + Number(w.affinity).toFixed(2) : "") + "</small></div>" +
-      (cf.length ? '<p class="why-line">Qloo reports how much each of your cards contributed to this match. The shares add up to 100%; they describe the match, not why you would enjoy it.</p>' : "") +
+    const qlooCard = '<section class="bcard"><div class="blabel"><i></i><span>' + (zh ? "Qloo 的依据" : "Qloo evidence") + '</span><small>' + (w.affinity != null ? (zh ? "贴近度 " : "affinity ") + Number(w.affinity).toFixed(2) : "") + "</small></div>" +
+      (cf.length ? '<p class="why-line">' + (zh ? "Qloo 给出每张卡片对这次匹配的贡献度，各项加起来是 100%；它描述的是匹配本身，不是你会不会喜欢。" : "Qloo reports how much each of your cards contributed to this match. The shares add up to 100%; they describe the match, not why you would enjoy it.") + '</p>' : "") +
       (vibes.length ? '<div class="seeds">' + vibes.slice(0, 4).map(function(v, k){ return seedHTML({ name: v, type: "vibe" }, "sm" + (k < 2 ? " s" + (k + 1) : "")); }).join("") + "</div>" : "") +
-      (w.popularity != null ? '<p class="why-line">Popularity ' + Number(w.popularity).toFixed(2) + " (0 is obscure, 1 is everywhere).</p>" : "") +
+      (w.popularity != null ? '<p class="why-line">' + (zh ? "热门度 " + Number(w.popularity).toFixed(2) + "（0 代表冷门，1 代表人人都知道）。" : "Popularity " + Number(w.popularity).toFixed(2) + " (0 is obscure, 1 is everywhere).") + "</p>" : "") +
     "</section>";
-    const readCard = stop && stop.read ? '<section class="bcard bread"><div class="blabel"><span>Sparkling&rsquo;s read</span></div><p>' + esc(stopRead(stop)) + "</p><p class=\"why-line\">" + (stop.read_src === "model" ? "A sentence written by a model from the venue&rsquo;s description. It is not Qloo data." : "A plain template filled from Qloo&rsquo;s tags. No model wrote this.") + "</p></section>" : "";
+    /* a stay-in pick's read is the catalogue's own synopsis, not a Qloo-tag template and not model copy */
+    const readSrc = stop && stop.read_src;
+    const pickOverview = stop && (stop.overview != null ? stop.overview : stop.description);
+    const fromSynopsis = !!(stop && stop.read && (readSrc === "overview" || readSrc === "synopsis" || (!readSrc && plan && plan.mode === "in" && pickOverview != null && String(stop.read) === String(pickOverview))));
+    const readWhy = fromSynopsis ? (zh ? "目录里的简介，不是模型写的，也不是 Qloo 的数据。" : "From the catalogue's description. No model wrote it.")
+      : stop && stop.read_src === "model" ? (zh ? "这句话由模型根据场所介绍写成，不是 Qloo 的数据。" : "A sentence written by a model from the venue&rsquo;s description. It is not Qloo data.")
+      : (zh ? "这是把 Qloo 的标签套进固定模板，没有模型参与。" : "A plain template filled from Qloo&rsquo;s tags. No model wrote this.");
+    const readCard = stop && stop.read ? '<section class="bcard bread"><div class="blabel"><span>' + (zh ? "Sparkling 的解读" : "Sparkling&rsquo;s read") + '</span></div><p>' + esc(stopRead(stop)) + "</p><p class=\"why-line\">" + readWhy + "</p></section>" : "";
     const rc = '<div class="why-receipt" translate="no">' +
       "<div>GET /v2/insights &middot; filter.type=" + esc(w.type || "urn:entity:place") + "</div>" +
       "<div class=\"ind\">feature.explainability=true</div>" +
@@ -151,7 +191,7 @@ function renderPlanResult(id){
       "</div>";
     return '<span tabindex="-1" data-autofocus class="why-focus"></span>' +
       '<h3 class="why-h1" translate="no">' + esc((stop && stop.name) || "This stop") + "</h3>" +
-      '<p class="why-intro">Three layers, kept apart: what you wrote, what Qloo says, and what Sparkling adds.</p>' +
+      '<p class="why-intro">' + (zh ? "三层分开呈现：你写的、Qloo 说的、Sparkling 补充的。" : "Three layers, kept apart: what you wrote, what Qloo says, and what Sparkling adds.") + '</p>' +
       notesCard + qlooCard + readCard +
       '<details class="why-details"><summary>Receipt</summary>' + rc + "</details>";
   }
@@ -242,10 +282,11 @@ function renderPlanResult(id){
       const picks = (Array.isArray(currentPlan.picks) ? currentPlan.picks : []).filter(function(p){ return p && p.name; });
       const plainPicks = pl && Array.isArray(pl.picks) ? pl.picks.filter(function(p){ return p && p.name; }) : [];
       const kindTag = function(k){ return k ? ' <small>(' + esc(t(String(k).toLowerCase())) + ")</small>" : ""; };
-      const theirPicks = plainPicks.length ? plainPicks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + (p.why ? '<small class="muted" translate="no">' + esc(p.why) + "</small>" : "") + "</li>"; }).join("") : '<li><small class="muted">' + esc((pl && pl.note) || t("Could not load.")) + "</small></li>";
+      const sharedPickWhy = plainReasonOnce(plainPicks);
+      const theirPicks = plainPicks.length ? plainPicks.map(function(p){ return plainPickRow(p, kindTag, !!sharedPickWhy); }).join("") : '<li><small class="muted">' + esc((pl && pl.note) || t("Could not load.")) + "</small></li>";
       const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same model. The only change: no Qloo.")) + "</p>" +
         '<div class="pc-cols">' +
-          '<section class="pc-plain"><h3 class="r7-eyebrow">' + esc(t("Plain model")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
+          '<section class="pc-plain"><h3 class="r7-eyebrow">' + esc(t("Plain model")) + "</h3>" + plainReasonOnceHTML(sharedPickWhy) + '<ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
           '<section class="pc-mine">' + mineHalfHTML(currentPlan, "r7-eyebrow") + "</section>" +
         "</div>" +
         '<p class="why-line">' + esc(t("What is lost: the card behind each pick, and any check that it exists.")) + "</p>" +
@@ -259,11 +300,12 @@ function renderPlanResult(id){
     }
     const CK = { found: ["ok", "In Qloo"], far: ["warn", "In Qloo, but far"], closed: ["bad", "Closed for good, per Qloo"], not_found: ["warn", "Not in Qloo, so unchecked"], elsewhere: ["bad", "Only found in another city"], unchecked: ["muted", "Not checked"] };
     const ckLine = function(c){ if (!c) return '<span class="pc pc-muted">' + esc(t("Not checked")) + "</span>"; const k = CK[c.status] || CK.unchecked; const dist = c.mi != null ? " · " + esc(t(c.mi < 0.1 ? "on the route" : c.mi + " mi from the route")) : ""; return '<span class="pc pc-' + k[0] + '">' + esc(t(k[1])) + "</span>" + (c.status !== "not_found" && c.status !== "unchecked" && c.status !== "elsewhere" ? '<small class="muted">' + dist + (c.hood ? " · " + esc(c.hood) : "") + "</small>" : ""); };
-    const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
+    const sharedStopWhy = plainReasonOnce(pl && pl.stops);
+    const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return plainStopRow(s, ckLine, !!sharedStopWhy); }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
     const ok = pl && pl.stops ? pl.stops.filter(function(s){ return s.check && (s.check.status === "found"); }).length : 0;
     const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + '</p>' +
       '<div class="pc-cols">' +
-        '<section class="pc-plain"><h3>' + esc(t("Plain model")) + '</h3><ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p></section>' +
+        '<section class="pc-plain"><h3>' + esc(t("Plain model")) + "</h3>" + plainReasonOnceHTML(sharedStopWhy) + '<ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p></section>' +
         '<section class="pc-mine">' + mineHalfHTML(currentPlan) + '<p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p></section>' +
       '</div>';
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: body });
@@ -317,10 +359,10 @@ function renderPlanResult(id){
     const zh = LANG === "zh";
     const rows = (d.changes || []).map(function(c){
       const was = c.was ? '<s translate="no">' + esc(c.was) + '</s>' : "", now = c.now ? '<b translate="no">' + esc(c.now) + '</b>' : '<i>' + esc(zh ? "没有替代" : "nothing replaces it") + '</i>';
-      return '<li><span class="df-n num">' + esc(d.unit === "pick" ? (zh ? "第" + c.stop + "个" : "Pick " + c.stop) : zh ? "第" + c.stop + "站" : "Stop " + c.stop) + '</span>' + (c.was ? was + ' <span aria-hidden="true">&rarr;</span> ' : (zh ? "新增 " : "added ")) + now + '</li>';
+      return '<li><span class="df-n num">' + esc(d.unit === "pick" ? (zh ? "第" + c.stop + "个：" : "Pick " + c.stop) : zh ? "第" + c.stop + "站：" : "Stop " + c.stop) + '</span>' + (c.was ? was + ' <span aria-hidden="true">&rarr;</span> ' : (zh ? "新增 " : "added ")) + now + '</li>';
     }).join("");
     const rc = (d.recredit || []).map(function(c){
-      return '<li><span class="df-n num">' + esc(zh ? "第" + c.stop + "站" : "Stop " + c.stop) + '</span><b translate="no">' + esc(c.name) + '</b> ' + esc(zh ? "还在，理由换成了 " : "stays, now because of ") + '<span translate="no">' + esc((c.now || []).join(", ") || "—") + '</span></li>';
+      return '<li><span class="df-n num">' + esc(zh ? "第" + c.stop + "站：" : "Stop " + c.stop) + '</span><b translate="no">' + esc(c.name) + '</b> ' + esc(zh ? "还在，理由换成了 " : "stays, now because of ") + '<span translate="no">' + esc((c.now || []).join(", ") || "—") + '</span></li>';
     }).join("");
     const head = d.restore ? (zh ? "放回 " : "Put back ") : (zh ? "不含 " : "Without ");
     const lead = d.same ? (zh ? "路线没变：别的地方同样合适。" : "The route held: nothing else fit better.") : "";

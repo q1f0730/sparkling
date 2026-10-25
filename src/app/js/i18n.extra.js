@@ -215,3 +215,5 @@ Object.assign(ZH, {
 });
 /* 10-25 plan-error-friendly: outage copy (kept here too so the zh parity test sees it) */
 Object.assign(ZH, { "Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment.": "Sparkling 暂时连不上口味目录。你的笔记都在，稍后再试一次。" });
+/* 10-25 threads-stale-note: offline copy line (here too so the zh parity test sees it) */
+Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。" });

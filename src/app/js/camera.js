@@ -13,15 +13,15 @@ function renderCamera(){
       '<div class="cam-controls">' +
         '<button class="btn btn-sm" type="button" data-cam-take>' + icons.camera + "Take a photo</button>" +
         '<button class="btn btn-sm" type="button" data-cam-choose>' + icons.photo + "Choose from library</button>" +
-        '<button class="text-btn" type="button" data-cam-remove hidden>Remove photo</button>' +
+        '<button class="text-btn" type="button" data-cam-remove hidden>' + t("Remove photo") + "</button>" +
       "</div>" +
       '<input class="file-input-hidden" type="file" accept="image/*" capture="environment" data-cam-take-input tabindex="-1" aria-hidden="true">' +
       '<input class="file-input-hidden" type="file" accept="image/*" multiple data-cam-choose-input tabindex="-1" aria-hidden="true">' +
-      '<p class="cam-fallback" data-cam-fallback>If your camera does not open, choose a photo from your library instead.</p>' +
-      '<div class="cam-caption"><textarea data-cam-caption rows="2" maxlength="1000" placeholder="Add a few words, or just save" aria-label="Add a few words, or just save"></textarea></div>' +
+      '<p class="cam-fallback" data-cam-fallback>' + t("If your camera does not open, choose a photo from your library instead.") + '</p>' +
+      '<div class="cam-caption"><textarea data-cam-caption rows="2" maxlength="1000" placeholder="' + attr(t("Add a few words, or just save")) + '" aria-label="' + attr(t("Add a few words, or just save")) + '"></textarea></div>' +
       '<p class="inline-error" data-cam-error role="alert" hidden></p>' +
       '<div class="cam-save-row">' +
-        '<button class="btn btn-primary" type="button" data-cam-save disabled>Save photo</button>' +
+        '<button class="btn btn-primary" type="button" data-cam-save disabled>' + t("Save photo") + '</button>' +
         '<span class="tiny" data-cam-count>No photo chosen</span>' +
       "</div>" +
     "</div>" +
@@ -71,11 +71,11 @@ function renderCamera(){
     }
     if (removeBtn) {
       removeBtn.hidden = !selected.length;
-      removeBtn.textContent = selected.length > 1 ? "Remove this photo" : "Remove photo";
+      removeBtn.textContent = selected.length > 1 ? t("Remove this photo") : t("Remove photo");
     }
     if (saveBtn) {
       saveBtn.disabled = !selected.length;
-      saveBtn.textContent = selected.length > 1 ? "Save " + selected.length + " photos" : "Save photo";
+      saveBtn.textContent = selected.length > 1 ? t("Save " + selected.length + " photos") : t("Save photo");
     }
     if (countEl) {
       countEl.textContent = !selected.length
@@ -359,10 +359,10 @@ function renderCamera(){
             fallbackEl.hidden = true;
           } else if (status.state === "denied") {
             fallbackEl.hidden = false;
-            fallbackEl.textContent = "Camera access is off for this site. You can still choose a photo from your library.";
+            fallbackEl.textContent = t("Camera access is off for this site. You can still choose a photo from your library.");
           } else {
             fallbackEl.hidden = false;
-            fallbackEl.textContent = "If your camera does not open, choose a photo from your library instead.";
+            fallbackEl.textContent = t("If your camera does not open, choose a photo from your library instead.");
           }
         }
         apply();

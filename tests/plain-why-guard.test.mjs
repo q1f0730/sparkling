@@ -62,7 +62,7 @@ test("en go-out: an odd why falls back to the neutral template", async () => {
   });
   const r = await call(worker, env, "POST", "/api/plan/" + id + "/plain", { cookie, body: {} });
   assert.equal(r.status, 200);
-  assert.equal(r.json.plain.stops[0].why, "A bakery close to your taste.");
+  assert.equal(r.json.plain.stops[0].why, "The plain model gave no reason tied to your notes.");
 });
 
 test("zh go-out: the romance why falls back to the Chinese neutral template", async () => {
@@ -71,7 +71,7 @@ test("zh go-out: the romance why falls back to the Chinese neutral template", as
   });
   const r = await call(worker, env, "POST", "/api/plan/" + id + "/plain", { cookie, body: {} });
   assert.equal(r.status, 200);
-  assert.equal(r.json.plain.stops[0].why, "一家和你的口味相近的bakery。");
+  assert.equal(r.json.plain.stops[0].why, "纯模型没有给出和你笔记相关的理由。");
 });
 
 test("stay-in picks are guarded too", async () => {
@@ -80,7 +80,7 @@ test("stay-in picks are guarded too", async () => {
   });
   const r = await call(worker, env, "POST", "/api/plan/" + id + "/plain", { cookie, body: {} });
   assert.equal(r.status, 200);
-  assert.equal(r.json.plain.picks[0].why, "A film close to your taste.");
+  assert.equal(r.json.plain.picks[0].why, "The plain model gave no reason tied to your notes.");
 });
 
 test("a calm why passes through unchanged", async () => {

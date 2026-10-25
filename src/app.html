@@ -2217,6 +2217,7 @@ const ZH = {
   "A neighbourhood is enough. GPS is optional.": "填一个街区就够了，不需要 GPS。", "Neighbourhood": "街区",
   "That plan did not come together.": "这个计划没能拼出来。", "The plan stream ended before a plan arrived.": "计划还没生成完，连接就断了。",
   "A few more things would help.": "再多几样会更好。", "A number above zero is all it needs.": "填一个大于零的数字就行。",
+  "Weighing both notebooks…": "正在权衡两本笔记本…", "Could not plan for two just now.": "暂时没能为你们俩做计划。",
   // plan result
   "Your plan": "你的计划", "your plan": "你的计划", "Untitled plan": "未命名计划", "Swap": "换一个", "Shorten": "缩短", "Swapped stop": "已换掉这一站",
   "Lower budget": "降低预算", "Lower the budget": "降低预算", "New budget cap": "新的预算上限", "Plan saved.": "计划已保存。",
@@ -2305,6 +2306,7 @@ const ZH_PATTERNS = [
   [/^(\d+) cards?$/, function(m, n){ return n + " 张卡片"; }],
   [/^(\d+) footprints?$/, function(m, n){ return n + " 条足迹"; }],
   [/^(\d+) photos?$/, function(m, n){ return n + " 张照片"; }],
+  [/^Save (\d+) photos$/, function(m, n){ return "保存 " + n + " 张照片"; }],
   [/^(\d+) notes?$/, function(m, n){ return n + " 条笔记"; }],
   [/^(\d+) stops?$/, function(m, n){ return n + " 站"; }],
   [/^(\d+) stops? · Saved$/, function(m, n){ return n + " 站 · 已保存"; }],
@@ -2526,6 +2528,15 @@ Object.assign(ZH, { "Steady": "一直都在", "Share taste card": "分享口味�
 });
 
 /* picker:i18n:end */
+/* zh-onboarding-core: import block, shared retry copy, search field, threads note (t() call sites) */
+Object.assign(ZH, {
+  "No file chosen": "未选择文件",
+  "Reading your file. You can leave this screen while it works.": "正在读取文件，你可以先离开这个页面。",
+  "Trying again": "正在重试",
+  "That did not work. Try again.": "没成功，再试一次。",
+  "Search your notes": "搜索你的笔记",
+  "Everything you have kept.": "你留下的一切。"
+});
 function trZh(s){
   if (s == null) return s;
   const raw = String(s);
@@ -2550,6 +2561,7 @@ function trZh(s){
 Object.assign(ZH, {
   "I want to watch a film": "\u6211\u60f3\u770b\u4e00\u90e8\u7535\u5f71",
   "Saturday afternoon in Greenpoint, $40": "\u5468\u516d\u4e0b\u5348\uff0cGreenpoint\uff0c$40",
+  "Plan for two · try with a sample friend": "两个人一起规划 · 用示例朋友试试",
 });
 function fixCase(x){ return String(x).replace(/\b([A-Z][a-z]{2,})([A-Z])([a-z]+)\b/g, function(_, a, b, c){ return a + b.toLowerCase() + c; }); }
 function reasonZh(r){
@@ -3142,7 +3154,7 @@ function confirmSheet(opts){
         labelEl.textContent = o.busyLabel || "Working";
         if (errEl) errEl.hidden = true;
         Promise.resolve().then(o.onConfirm).then(closeModal, function(e){
-          if (errEl) { errEl.textContent = e && e.message ? e.message : "That did not work. Try again."; errEl.hidden = false; }
+          if (errEl) { errEl.textContent = e && e.message ? e.message : t("That did not work. Try again."); errEl.hidden = false; }
           labelEl.textContent = o.slide; reset();
         });
       });
@@ -3156,7 +3168,7 @@ function confirmSheet(opts){
           await o.onConfirm();
           closeModal();
         } catch (e) {
-          const msg = e && e.message ? e.message : "That did not work. Try again.";
+          const msg = e && e.message ? e.message : t("That did not work. Try again.");
           if (errEl) { errEl.textContent = msg; errEl.hidden = false; }
           yes.disabled = false;
           yes.textContent = old;
@@ -3287,7 +3299,7 @@ function emptyBlock(title, copy, actionHTML){
 function feedbackEl(){ return '<p class="feedback" role="status"></p>'; }
 function searchFieldHTML(id, value){
   return '<div class="search-field">' + icons.search +
-    '<input id="' + attr(id) + '" type="search" autocomplete="off" placeholder="Search your notes" aria-label="Search your notes" value="' + attr(value || "") + '">' +
+    '<input id="' + attr(id) + '" type="search" autocomplete="off" placeholder="' + attr(t("Search your notes")) + '" aria-label="' + attr(t("Search your notes")) + '" value="' + attr(value || "") + '">' +
     "</div>";
 }
 function sheetField(label, id, type, value, placeholder, autofocus){
@@ -3337,7 +3349,7 @@ function importBlockHTML(intro){
     '<input class="file-input-hidden" type="file" accept=".csv,.zip,text/csv,application/zip" data-import-file tabindex="-1" aria-hidden="true">' +
     '<div class="import-row">' +
       '<button class="btn btn-sm" type="button" data-import-choose>Choose your export file</button>' +
-      '<span class="file-name" data-import-name>No file chosen</span>' +
+      '<span class="file-name" data-import-name>' + t("No file chosen") + '</span>' +
     "</div>" +
     '<div class="import-row">' +
       '<button class="btn btn-primary btn-sm" type="button" data-import-submit disabled>Import file</button>' +
@@ -3386,7 +3398,7 @@ function wireImport(container, options){
 
   function setName(){
     if (!nameEl) return;
-    nameEl.textContent = file ? file.name : "No file chosen";
+    nameEl.textContent = file ? file.name : t("No file chosen");
   }
   if (choose && input) {
     choose.addEventListener("click", function(){ if (!busy) input.click(); });
@@ -3411,7 +3423,7 @@ function wireImport(container, options){
       if (statusEl) {
         statusEl.hidden = false;
         statusEl.className = "import-busy";
-        statusEl.textContent = "Reading your file. You can leave this screen while it works.";
+        statusEl.textContent = t("Reading your file. You can leave this screen while it works.");
       }
       if (resultEl) resultEl.innerHTML = "";
       try {
@@ -3445,7 +3457,7 @@ function wireImport(container, options){
    Onboarding
    --------------------------------------------------------------------------- */
 async function retryBootFromOnboarding(button){
-  if (button) { button.disabled = true; button.textContent = "Trying again"; }
+  if (button) { button.disabled = true; button.textContent = t("Trying again"); }
   try {
     const me = await api("/api/me");
     if (!me || !me.user) throw new Error("no session");
@@ -5104,7 +5116,7 @@ function renderNotes(){
         replaceNoteInDom(note.id, fresh, {});
         pollNote(fresh);
       } catch (e) {
-        err.textContent = "That did not save. Try again.";
+        err.textContent = t("That did not save. Try again.");
         err.hidden = false;
         save.disabled = false;
         save.textContent = old;
@@ -5175,7 +5187,7 @@ function renderNotes(){
       }
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
-      if (err) { err.textContent = "That did not save. Try again."; err.hidden = false; }
+      if (err) { err.textContent = t("That did not save. Try again."); err.hidden = false; }
       Array.prototype.forEach.call(buttons, function(b){ b.disabled = false; });
     }
   }
@@ -5313,7 +5325,7 @@ function renderNotes(){
     if (e.target.closest("[data-dyg-no]")) {
       const w = view.querySelector(".didyougo");
       if (w && !w.querySelector("[data-dyg-why]")) {
-        const q = w.querySelector(".didyougo-q"); if (q) q.textContent = "What got in the way?";
+        const q = w.querySelector(".didyougo-q"); if (q) q.textContent = t("What got in the way?");
         const a = w.querySelector(".didyougo-actions");
         a.innerHTML = [["far","Too far"],["taste","Not my taste"],["closed","Closed"],["time","No time"]].map(function(r){ return '<button class="btn btn-sm btn-ghost" type="button" data-dyg-why="' + r[0] + '">' + r[1] + "</button>"; }).join("");
         return;
@@ -5447,15 +5459,15 @@ function renderCamera(){
       '<div class="cam-controls">' +
         '<button class="btn btn-sm" type="button" data-cam-take>' + icons.camera + "Take a photo</button>" +
         '<button class="btn btn-sm" type="button" data-cam-choose>' + icons.photo + "Choose from library</button>" +
-        '<button class="text-btn" type="button" data-cam-remove hidden>Remove photo</button>' +
+        '<button class="text-btn" type="button" data-cam-remove hidden>' + t("Remove photo") + "</button>" +
       "</div>" +
       '<input class="file-input-hidden" type="file" accept="image/*" capture="environment" data-cam-take-input tabindex="-1" aria-hidden="true">' +
       '<input class="file-input-hidden" type="file" accept="image/*" multiple data-cam-choose-input tabindex="-1" aria-hidden="true">' +
-      '<p class="cam-fallback" data-cam-fallback>If your camera does not open, choose a photo from your library instead.</p>' +
-      '<div class="cam-caption"><textarea data-cam-caption rows="2" maxlength="1000" placeholder="Add a few words, or just save" aria-label="Add a few words, or just save"></textarea></div>' +
+      '<p class="cam-fallback" data-cam-fallback>' + t("If your camera does not open, choose a photo from your library instead.") + '</p>' +
+      '<div class="cam-caption"><textarea data-cam-caption rows="2" maxlength="1000" placeholder="' + attr(t("Add a few words, or just save")) + '" aria-label="' + attr(t("Add a few words, or just save")) + '"></textarea></div>' +
       '<p class="inline-error" data-cam-error role="alert" hidden></p>' +
       '<div class="cam-save-row">' +
-        '<button class="btn btn-primary" type="button" data-cam-save disabled>Save photo</button>' +
+        '<button class="btn btn-primary" type="button" data-cam-save disabled>' + t("Save photo") + '</button>' +
         '<span class="tiny" data-cam-count>No photo chosen</span>' +
       "</div>" +
     "</div>" +
@@ -5505,11 +5517,11 @@ function renderCamera(){
     }
     if (removeBtn) {
       removeBtn.hidden = !selected.length;
-      removeBtn.textContent = selected.length > 1 ? "Remove this photo" : "Remove photo";
+      removeBtn.textContent = selected.length > 1 ? t("Remove this photo") : t("Remove photo");
     }
     if (saveBtn) {
       saveBtn.disabled = !selected.length;
-      saveBtn.textContent = selected.length > 1 ? "Save " + selected.length + " photos" : "Save photo";
+      saveBtn.textContent = selected.length > 1 ? t("Save " + selected.length + " photos") : t("Save photo");
     }
     if (countEl) {
       countEl.textContent = !selected.length
@@ -5793,10 +5805,10 @@ function renderCamera(){
             fallbackEl.hidden = true;
           } else if (status.state === "denied") {
             fallbackEl.hidden = false;
-            fallbackEl.textContent = "Camera access is off for this site. You can still choose a photo from your library.";
+            fallbackEl.textContent = t("Camera access is off for this site. You can still choose a photo from your library.");
           } else {
             fallbackEl.hidden = false;
-            fallbackEl.textContent = "If your camera does not open, choose a photo from your library instead.";
+            fallbackEl.textContent = t("If your camera does not open, choose a photo from your library instead.");
           }
         }
         apply();
@@ -6691,7 +6703,7 @@ function renderThreads(){
   function setNote(data){
     if (!noteEl) return;
     const sh = data && data.shift;
-    if (period === "all" || !sh || !sh.based_on) { noteEl.textContent = period === "all" ? "Everything you have kept." : ""; return; }
+    if (period === "all" || !sh || !sh.based_on) { noteEl.textContent = period === "all" ? t("Everything you have kept.") : ""; return; }
     const names = period === "now" ? sh.now_cards : sh.then_cards;
     noteEl.textContent = (period === "now" ? "Your " + sh.based_on + " most recent cards: " : "The " + sh.based_on + " cards before your recent ones: ") + (names || []).join(", ") + ".";
   }
@@ -6856,7 +6868,7 @@ function renderInbox(){
   function showActionError(message){
     const err = bodyEl.querySelector("[data-inbox-error]");
     if (err) {
-      err.textContent = message || "That did not go through. Try again.";
+      err.textContent = message || t("That did not go through. Try again.");
       err.hidden = false;
     }
     const cardEl = bodyEl.querySelector(".inbox-card");
@@ -6890,7 +6902,7 @@ function renderInbox(){
       busy = false;
       showActionError(e && e.message === "not found"
         ? "That item is no longer here. It may have been handled already."
-        : "That did not go through. Try again.");
+        : t("That did not go through. Try again."));
     }
   }
 
@@ -6912,7 +6924,7 @@ function renderInbox(){
     } catch (e) {
       if (!isCurrent(token)) return;
       busy = false;
-      showActionError("That did not go through. Try again.");
+      showActionError(t("That did not go through. Try again."));
     }
   }
 
@@ -7074,7 +7086,7 @@ function renderPlanRequest(){
         '<input class="free-input" data-free aria-label="Anything else?" placeholder="A quiet bookstore, then somewhere to sit" value="' + attr(prefill) + '">' +
       "</div>" +
       '<div class="plan-submit"><button class="btn btn-primary btn-block" type="submit" data-make-plan>Make a plan</button></div>' +
-      '<div class="duo-box" data-out-only' + (mode === "in" ? " hidden" : "") + '><button class="btn btn-sm" type="button" data-duo-go>Plan for two &middot; try with a sample friend</button><div data-duo-out></div></div>' +
+      '<div class="duo-box" data-out-only' + (mode === "in" ? " hidden" : "") + '><button class="btn btn-sm" type="button" data-duo-go>' + esc(t("Plan for two · try with a sample friend")) + '</button><div data-duo-out></div></div>' +
       '<div data-plan-progress></div>' +
       '<div data-plan-error></div>' +
     "</form>" +
@@ -7129,13 +7141,13 @@ function renderPlanRequest(){
   }
   if (duoBtn) duoBtn.addEventListener("click", async function(){
     const out = view.querySelector("[data-duo-out]");
-    duoBtn.disabled = true; out.innerHTML = '<p class="duo-note">Weighing both notebooks&hellip;</p>';
+    duoBtn.disabled = true; out.innerHTML = '<p class="duo-note">' + esc(t("Weighing both notebooks…")) + "</p>";
     try {
       const r = await api("/api/duo", { method: "POST", body: { area: (areaInput.value || "").trim(), partner_ids: ["0F920838-D245-440D-B52E-2C045BEEFEE9","19DF9974-2931-42F7-AF6F-DC29B9E17974","28D688C4-0760-4042-BEC1-F6EE75E71CC7"] } });
       const bar = function(v){ return '<span class="duo-bar"><i style="width:' + Math.round(Math.min(1, v || 0) * 100) + '%"></i></span>'; };
       out.innerHTML = '<p class="duo-note">Chosen by our fairness rule: best for whoever likes it least.</p><ol class="duo-list">' +
         (r.picks || []).map(function(p){ return '<li><b>' + esc(p.name) + '</b><span>You ' + bar(p.scoreA) + '</span><span>Them ' + bar(p.scoreB) + '</span></li>'; }).join("") + '</ol>';
-    } catch (e) { out.innerHTML = '<p class="duo-note">Could not plan for two just now.</p>'; }
+    } catch (e) { out.innerHTML = '<p class="duo-note">' + esc(t("Could not plan for two just now.")) + "</p>"; }
     duoBtn.disabled = false;
   });
 
@@ -7228,7 +7240,7 @@ function renderPlanRequest(){
           }
         }
       }
-      showPlanError(null, "The plan stream ended before a plan arrived.");
+      showPlanError(null, t("The plan stream ended before a plan arrived."));
     } catch (e) {
       if (!isAbort(e) && isCurrent(token)) showPlanError(null, (e && e.message) || "That did not work. Try again.");
     } finally {
@@ -7244,7 +7256,7 @@ function renderPlanRequest(){
       data = await api("/api/plans", { signal: ac.signal });
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
-      savedSlot.innerHTML = '<div class="compact-error">Your saved plans did not load. <button class="text-btn" type="button" data-retry="saved">Try again</button></div>';
+      savedSlot.innerHTML = '<div class="compact-error">' + esc(t("Your saved plans did not load.")) + ' <button class="text-btn" type="button" data-retry="saved">Try again</button></div>';
       return;
     }
     if (!isCurrent(token)) return;

@@ -1,6 +1,12 @@
 /* ---------------------------------------------------------------------------
    Plan request (screen 8)
    --------------------------------------------------------------------------- */
+/* Plan presets: one tap fills the composer. The chips themselves live under the form. */
+function planPreset(name){
+  if (name === "out") return { mode: "out", when: "Saturday afternoon", area: "Greenpoint", budget: 40, text: "" };
+  if (name === "in") return { mode: "in", when: "", area: "", budget: null, text: "I want to watch a film" };
+  return null;
+}
 function renderPlanRequest(){
   const token = beginView();
   setShell({ title: "Plan", tabs: true, active: "plan" });
@@ -92,6 +98,10 @@ function renderPlanRequest(){
       '<div data-plan-progress></div>' +
       '<div data-plan-error></div>' +
     "</form>" +
+    '<div class="mood-row plan-presets" role="group" aria-label="Quick starts">' +
+      '<button class="plan-preset mood" type="button" data-plan-preset="out" style="height:auto;white-space:normal;text-align:left;padding:8px 12px;line-height:1.35">' + esc(t("Saturday afternoon in Greenpoint, $40")) + "</button>" +
+      '<button class="plan-preset mood" type="button" data-plan-preset="in" style="height:auto;white-space:normal;text-align:left;padding:8px 12px;line-height:1.35">' + esc(t("I want to watch a film")) + "</button>" +
+    "</div>" +
     '<div class="plan-ideas"><p class="plan-ideas-h">Try one of these</p>' +
     ["A quiet bookstore, then somewhere to sit","A record shop and a slow coffee","An old cinema, then a late bite"].map(function(t){return '<button type="button" class="plan-idea" data-idea="'+attr(t)+'" data-out-only' + (mode === "in" ? " hidden" : "") + '>'+esc(t)+'</button>';}).join("") +
     ["A film for tonight, from my notes","An album to put on while I cook","A book for a slow Sunday"].map(function(t){return '<button type="button" class="plan-idea" data-idea="'+attr(t)+'" data-in-only' + (mode === "out" ? " hidden" : "") + '>'+esc(t)+'</button>';}).join("") +
@@ -125,6 +135,18 @@ function renderPlanRequest(){
   const errSlot = view.querySelector("[data-plan-error]");
   const savedSlot = view.querySelector("[data-saved-plans]");
   const duoBtn = view.querySelector("[data-duo-go]");
+  function applyPreset(p){
+    if (!p) return;
+    modeLocked = true;
+    setMode(p.mode, false);
+    if (p.when && whenInput) whenInput.value = p.when;
+    if (p.area && areaInput) areaInput.value = p.area;
+    if (p.budget != null && budgetInput) budgetInput.value = String(p.budget);
+    if (p.text && freeInput) freeInput.value = t(p.text);
+    const hint = view.querySelector("[data-mode-hint]"); if (hint) hint.hidden = true;
+    const focusEl = p.mode === "in" ? freeInput : whenInput;
+    if (focusEl) { try { focusEl.focus(); } catch (_) {} }
+  }
   if (duoBtn) duoBtn.addEventListener("click", async function(){
     const out = view.querySelector("[data-duo-out]");
     duoBtn.disabled = true; out.innerHTML = '<p class="duo-note">Weighing both notebooks&hellip;</p>';
@@ -267,6 +289,11 @@ function renderPlanRequest(){
   }
 
   on(view, "click", function(e){
+    const presetBtn = e.target.closest("[data-plan-preset]");
+    if (presetBtn) {
+      applyPreset(planPreset(presetBtn.getAttribute("data-plan-preset")));
+      return;
+    }
     const perBtn = e.target.closest("[data-period]");
     if (perBtn) {
       period = perBtn.getAttribute("data-period");

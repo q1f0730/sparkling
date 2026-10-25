@@ -103,6 +103,8 @@ function renderSettings(page){
   if (page) wireSwipeBack(parent);
 }
 
+function profileName(u){ return u && u.sample ? "Juno Park" : (LANG === "zh" ? "你" : "You"); }
+
 function settingsRootHTML(u){
   const langName = LANG === "zh" ? "简体中文" : "English";
   const appName = t({ system: "System", light: "Light", paper: "Paper" }[prefs.appearance]);
@@ -115,7 +117,7 @@ function settingsRootHTML(u){
       '<p class="r7-eyebrow"><span>' + esc(t("Settings")) + '</span><span class="r7-sep" aria-hidden="true"></span><span>v' + esc(APP_VERSION) + '</span></p>' +
       '<div class="st-profile r7-st-profile">' +
         '<span class="st-avatar" aria-hidden="true">Q</span>' +
-        '<span class="st-profile-main"><span class="st-profile-name" translate="no">Q1f730</span><span class="st-sub">' + esc(t(u.sample ? "Sample notebook" : "Demo profile")) + "</span></span>" +
+        '<span class="st-profile-main"><span class="st-profile-name" translate="no">' + esc(profileName(u)) + '</span><span class="st-sub">' + esc(t(u.sample ? "Sample notebook" : "Demo profile")) + "</span></span>" +
       "</div>" +
       (defaults.length ? '<button type="button" class="r7-st-defaults" data-st-nav="#/settings/planning"><span class="r7-kicker">' + esc(t("Planning defaults")) + '</span><span class="r7-st-def">' + defaults.map(function(x){ return '<span>' + esc(t(x)) + '</span>'; }).join("") + '</span></button>' : "") +
     "</header>" +

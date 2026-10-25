@@ -2,7 +2,7 @@
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImageFull, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason, qsearch, CARD_URNS, TYPE_URNS, pickerMerge, cleanTags } from "./recognize.js";
-import { makePlan, makeStayIn, stayIntent, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds, groundedRead } from "./plan.js";
+import { makePlan, makeStayIn, stayIntent, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds, groundedRead, zhSpace } from "./plan.js";
 import { llmJSON } from "./llm.js";
 import { qlooTagInsights, getEntities, compareTastes } from "./qloo.js";
 import { duoPlan } from "./duo.js";
@@ -634,7 +634,8 @@ async function api(req, env, ctx, url) {
           picksOut = (out.picks || []).slice(0, 4).map((x) => {
             const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
             const why = String(x.why || "").slice(0, 240);
-            return { name, kind, why: plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang) };
+            const whyOut = plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang);
+            return { name, kind, why: lang === "zh" ? zhSpace(whyOut) : whyOut };
           }).filter((x) => x.name);
         } catch (e) { note = modelNote(e); }
         const plain = { model: MODEL, lang, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
@@ -659,7 +660,8 @@ async function api(req, env, ctx, url) {
         stopsOut = (out.stops || []).slice(0, 4).map((x) => {
           const name = String(x.name || "").slice(0, 80), kind = String(x.kind || "").slice(0, 30);
           const why = String(x.why || "").slice(0, 240);
-          return { name, kind, why: plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang) };
+          const whyOut = plainWhyOk(why, name) ? why : plainWhyFallback(kind, lang);
+          return { name, kind, why: lang === "zh" ? zhSpace(whyOut) : whyOut };
         }).filter((x) => x.name);
       } catch (e) { note = modelNote(e); }
       if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }

@@ -2,7 +2,7 @@
    Threads
    --------------------------------------------------------------------------- */
 
-Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。" });
+Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。", "No card carries this tag directly": "还没有卡片直接带着这个标签" });
 
 /* ---- monthly taste letter ---- */
 function renderLetter(){
@@ -121,13 +121,12 @@ function renderThreads(){
   function threadHTML(thread, i){
     const cards = Array.isArray(thread.cards) ? thread.cards : [];
     cards.forEach(function(c){ if (c && c.name) (window.SP_NAMES = window.SP_NAMES || {})[c.name] = 1; });
-    /* Chips must name only the cards that really carry the tag. When no card does, the thread is a
-       fallback over the most-kept cards and its label has to say so. */
+    /* Only cards that really carry the tag are this thread's rows. Payloads without the flag keep the
+       old listing; when every card is flagged false the server fell back to the shared most-kept cards,
+       so the thread says so instead of repeating the same rows as every other thread. */
     const carried = cards.filter(function(c){ return c && c.carries_tag === true; });
-    const allCarryFalse = cards.length > 0 && cards.every(function(c){ return c && c.carries_tag === false; });
-    const fallback = !carried.length && thread.carried_by_cards === false && allCarryFalse;
-    const shown = carried.length ? carried : cards;
-    const evidenceLabel = fallback ? (LANG === "zh" ? t("Across your most-kept cards") : "Across your most-kept cards") : "From your notes";
+    const flagged = cards.some(function(c){ return c && typeof c.carries_tag === "boolean"; });
+    const shown = carried.length ? carried : (flagged ? [] : cards);
     const chips = shown.map(function(card){
       const count = Number(card.footprints) || 0;
       const label = card.name + (count ? ", " + count + " " + plural(count, "footprint", "footprints") : "");
@@ -135,11 +134,13 @@ function renderThreads(){
         '<span translate="no">' + esc(card.name) + "</span>" + (count ? '<span class="count">' + count + "</span>" : "") +
       "</button>";
     }).join("");
+    const evidence = shown.length
+      ? '<span class="thread-evidence-label">From your notes</span><div class="thread-chips">' + chips + "</div>"
+      : '<p class="thread-no-evidence">' + esc(t("No card carries this tag directly")) + "</p>";
     return '<article class="thread">' +
       '<div class="thread-top"><span class="from-qloo">From the catalogue</span>' + shiftPill(thread.shift) + "</div>" +
       '<h2 class="thread-title" translate="no">' + threadTitleHTML(thread) + "</h2>" +
-      '<span class="thread-evidence-label">' + evidenceLabel + "</span>" +
-      '<div class="thread-chips">' + chips + "</div>" +
+      evidence +
       (thread.read ? '<p class="thread-read"><span class="label">Sparkling’s read</span>' + esc(thread.read) + "</p>" : "") +
       '<button class="why-btn" type="button" data-why="' + i + '">Why this thread?</button>' +
     "</article>";

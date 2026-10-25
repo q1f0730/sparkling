@@ -2377,6 +2377,7 @@ ZH_PATTERNS.unshift([/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 
 ZH_PATTERNS.unshift(
   [/^With Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "用了 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
   [/^Without Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
+  [/^With Qloo: (\d+) of (\d+) places checked out\.$/, function(m, a, b){ return "用 Qloo：" + b + " 个地方里有 " + a + " 个核对得上。"; }],
   [/^Without Qloo: (\d+) of (\d+) places checked out\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个地方里只有 " + a + " 个核对得上。"; }]
 );
 Object.assign(ZH, { "Plain LLM": "纯模型对比" });
@@ -2546,6 +2547,12 @@ Object.assign(ZH, {
 /* threads: an honest fallback label for threads that rest on the most-kept cards, not on the tag */
 Object.assign(ZH, {
   "Across your most-kept cards": "最常想起的卡片"
+});
+
+/* plain-compare pending state: the sheet opens at once with an honest loading line, or a retry on failure */
+Object.assign(ZH, {
+  "Checking the same notes without the catalogue…": "正在核对同样的笔记，这次不用口味目录……",
+  "The comparison did not load. Check your connection, then try again.": "对比没有加载出来。检查一下网络，再试一次。"
 });
 function trZh(s){
   if (s == null) return s;
@@ -3259,7 +3266,7 @@ function route(){
     case "plan": renderPlanRequest(); break;
     case "planResult": renderPlanResult(r.id); break;
     case "settings": renderSettings(r.page); break;
-    case "camera": state.capOpen = {}; history.replaceState(null, "", "#/notes"); renderNotes(); break;
+    case "camera": { state.capOpen = null; history.replaceState(null, "", "#/notes"); renderNotes(); const capFabEl = document.querySelector(".cap-fab"); if (window.Capture && (!capFabEl || capFabEl.getAttribute("aria-expanded") !== "true")) Capture.open({}); break; }
     default: renderNotes();
   }
 }
@@ -6665,6 +6672,15 @@ function renderLetter(){
   }).catch(function(){ el.innerHTML = '<div class="empty"><p>The letter did not load. Check your connection, then try again.</p></div>'; });
 }
 
+/* First paint for Threads: three skeleton rows right away, and the last response of each period kept in
+   memory so a revisit paints instantly while the fresh response replaces it in the background. */
+const THREADS_CACHE = Object.create(null);
+function threadsSkeletonHTML(){
+  return '<div class="skeleton sk-card tall"></div>' +
+    '<div class="skeleton sk-card"></div>' +
+    '<div class="skeleton sk-card"></div>';
+}
+
 function renderThreads(){
   const token = beginView();
   setShell({ title: "Threads", tabs: true, active: "cards" });
@@ -6686,10 +6702,7 @@ function renderThreads(){
       "</div>" +
       '<p class="period-note" data-period-note></p>' +
     "</div>" +
-    '<div data-threads>' +
-      '<div class="skeleton sk-card tall"></div>' +
-      '<div class="skeleton sk-card"></div>' +
-    "</div>";
+    '<div data-threads>' + threadsSkeletonHTML() + "</div>";
 
   const threadsEl = view.querySelector("[data-threads]");
   const noteEl = view.querySelector("[data-period-note]");
@@ -6813,23 +6826,30 @@ function renderThreads(){
     const names = period === "now" ? sh.now_cards : sh.then_cards;
     noteEl.textContent = (period === "now" ? "Your " + sh.based_on + " most recent cards: " : "The " + sh.based_on + " cards before your recent ones: ") + (names || []).join(", ") + ".";
   }
+  function paint(data){
+    lastData = data;
+    setNote(data);
+    const threads = Array.isArray(data && data.threads) ? data.threads : [];
+    current = threads;
+    if (!threads.length) {
+      threadsEl.innerHTML = emptyHTML(data && data.reason);
+      return;
+    }
+    threadsEl.innerHTML = threads.map(threadHTML).join("");
+  }
   async function load(){
     const seq = ++loadSeq;
-    if (threadsEl) threadsEl.innerHTML = '<div class="skeleton sk-card tall"></div><div class="skeleton sk-card"></div>';
+    const cached = THREADS_CACHE[period];
+    if (cached) paint(cached);
+    else if (threadsEl) threadsEl.innerHTML = threadsSkeletonHTML();
     try {
       const data = await api("/api/threads" + (period === "all" ? "" : "?period=" + period), { signal: ac.signal });
       if (!isCurrent(token) || seq !== loadSeq) return;
-      lastData = data;
-      setNote(data);
-      const threads = Array.isArray(data && data.threads) ? data.threads : [];
-      current = threads;
-      if (!threads.length) {
-        threadsEl.innerHTML = emptyHTML(data && data.reason);
-        return;
-      }
-      threadsEl.innerHTML = threads.map(threadHTML).join("");
+      THREADS_CACHE[period] = data;
+      paint(data);
     } catch (e) {
       if (!isCurrent(token) || seq !== loadSeq || isAbort(e)) return;
+      if (cached) return;
       threadsEl.innerHTML = errorBlock("Your threads did not load. Check your connection, then try again.", "threads");
     }
   }
@@ -7565,7 +7585,7 @@ function renderPlanResult(id){
     const seeds = verdictSeeds(plan, pl);
     let withN = mine.filter(function(x){ return verdictKeptLink(x); }).length, withT = mine.length;
     let withoutN = plain.filter(function(x){ return verdictNamesSeed(x.why, seeds); }).length, withoutT = plain.length;
-    let checked = null;
+    let checked = null, mineChecked = null;
     /* a server-sent verdict, when present, is authoritative */
     const v = pl && pl.verdict;
     if (v && typeof v === "object") {
@@ -7585,17 +7605,28 @@ function renderPlanResult(id){
         if (b) { withoutN = b.tied; withoutT = b.total; }
       }
       if (typeof v.plain_pass === "number" && isFinite(v.plain_pass)) checked = v.plain_pass;
+      if (typeof v.mine_pass === "number" && isFinite(v.mine_pass)) mineChecked = v.mine_pass;
     }
     return '<div class="plain-verdict" role="note" style="margin:2px 0 14px;padding:12px 14px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-soft)">' +
       '<p class="pv-with" style="margin:0;font-family:var(--sans);font-size:13px;font-weight:600;line-height:1.5;color:var(--b-ink)">' + esc(t("With Qloo: " + withN + " of " + withT + " tied to a card you kept.")) + "</p>" +
       '<p class="pv-without" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + withoutN + " of " + withoutT + " tied to a card you kept.")) + "</p>" +
+      (mineChecked != null ? '<p class="pv-checkmine" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("With Qloo: " + mineChecked + " of " + withT + " places checked out.")) + "</p>" : "") +
       (checked != null ? '<p class="pv-check" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + checked + " of " + withoutT + " places checked out.")) + "</p>" : "") +
     "</div>";
   }
   async function openPlain(){
-    openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" aria-busy="true"><p class="muted">' + esc(t("Asking a plain model, no Qloo… usually 5–15 seconds.")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
+    openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" role="status" aria-busy="true"><p class="muted">' + esc(t("Checking the same notes without the catalogue…")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
     let d = null;
     try { d = await prefetchPlain(planId); } catch (e) {}
+    if (!d) {
+      /* the comparison failed: say so and offer the one tap that asks again (the cache drops the failure) */
+      openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" role="alert"><p class="muted">' + esc(t("The comparison did not load. Check your connection, then try again.")) + '</p><button class="btn btn-sm" type="button" data-plain-retry="1">' + esc(t("Try again")) + "</button></div>", onMount: function(m){
+        m.querySelectorAll("[data-plain-retry]").forEach(function(btn){
+          btn.addEventListener("click", function(){ if (prefetchPlain.cache) delete prefetchPlain.cache[planId]; openPlain(); });
+        });
+      }});
+      return;
+    }
     const pl = d && d.plain;
     /* the raw model id stays out of the sheet; it is only a hover title for provenance */
     const modelSlug = pl && pl.model ? String(pl.model).split("/").pop() : "";

@@ -533,13 +533,18 @@ export async function dressPlan(env, user, seeds, stops, meta) {
       if (reads.length === stops.length) await cachePut(env, rkey, reads);
     } catch (_) {}
   }
-  const fit = (s, i = 0) => {
+  const fitRows = (s, i = 0) => {
     const k = (s.kind || "").toLowerCase();
     const want = /book|library/.test(k) ? ["book"] : /record|music|venue|bar/.test(k) ? ["music"] : /cinema|theater|theatre|movie/.test(k) ? ["film", "tv"] : null;
     const rel = want ? fps.filter((r) => want.includes(r.type)) : [];
     const use = rel.length ? rel : fps;
-    if (!use.length) return notesLine;
-    return notesLineFor([...use.slice(i % use.length), ...use.slice(0, i % use.length)].slice(0, 2), lang);
+    return use.length ? [...use.slice(i % use.length), ...use.slice(0, i % use.length)] : [];
+  };
+  // The kept card behind a stop's read: the first row fit() would show, rotated by stop index.
+  const fitCard = (s, i = 0) => fitRows(s, i)[0] || null;
+  const fit = (s, i = 0) => {
+    const rot = fitRows(s, i);
+    return rot.length ? notesLineFor(rot.slice(0, 2), lang) : notesLine;
   };
   const usedSrc = new Set();
   const byQ = new Map(fps.map((r) => [String(r.qloo_id).toLowerCase(), r]));
@@ -594,6 +599,7 @@ export async function dressPlan(env, user, seeds, stops, meta) {
     const open = openAt(s.hours, day, arrive, leave - arrive);
     const d = prev ? haversineMi(prev.coords, s.coords) : null;
     const fn_ = fit(s, i);
+    const fc = fitCard(s, i);
     return {
       qloo_id: s.qloo_id, name: s.name, kind: s.kind, asked: s.asked || null, neighborhood: s.neighborhood, borough: s.borough || null, address: s.address,
       distance: d != null ? (d < 1.3 ? `${Math.max(1, Math.round(d * 20))} min walk from stop ${i}` : `${Math.max(2, Math.round(d * 6))} min by bike from stop ${i} (${d.toFixed(1)} mi)`) : null,
@@ -604,8 +610,8 @@ export async function dressPlan(env, user, seeds, stops, meta) {
         return { attribution: !!cf, contributions: cf, affinity: s.affinity ?? null, qloo_id: s.qloo_id, popularity: s.popularity ?? null, vibes: (s.vibes || []).slice(0, 6), kinds: s.kinds || [], price_level: s.price_level ?? null, area: meta.area, seeds_sent: seedNames.length };
       })(),
       from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => `${r.name} (${Math.round(r.score * 100)}% of the match)`).join(" and ")}` + (s.affinity != null ? `; affinity ${Number(s.affinity).toFixed(2)}` : "") + "."; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
-      read: groundedRead(reads[i], s, (fn_[0] && fn_[0].name) || null),
-      read_src: reads[i] && groundedRead(reads[i], s, (fn_[0] && fn_[0].name) || null) === reads[i] ? "model" : "template",
+      read: groundedRead(reads[i], s, fc?.name || null),
+      read_src: reads[i] && groundedRead(reads[i], s, fc?.name || null) === reads[i] ? "model" : "template",
       ops: hoursLine(s.hours, meta.when) + (open === false ? " · may be closed when you arrive" : ""),
       open_on_arrival: open,
       checks: { category: s.primary || s.kind, fit: s.fit ?? null, neighborhood_source: s.hood_source || null, zip: s.zip || null, open_on_arrival: open, hours_listed: open !== null },

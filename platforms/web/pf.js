@@ -411,7 +411,7 @@
       }).join("") + "</ol>" + (fps.length > show.length ? '<p class="dk-more">' + esc(T("+ " + (fps.length - show.length) + " more on the card", "卡片上还有 " + (fps.length - show.length) + " 条")) + "</p>" : "") + "</div>";
     }
     if (tags.length) {
-      h += '<p class="dk-eyebrow dk-gap">' + esc(tr("From the catalogue")) + '</p><div class="dk-tags" translate="no">' + tags.map(function (t, i) { return '<span class="dk-tag ' + tones[i % 3] + '">' + esc(t) + "</span>"; }).join("") + "</div>";
+      h += '<p class="dk-eyebrow dk-gap">' + esc(tr("From the catalogue")) + '</p><div class="dk-tags" translate="no">' + tags.map(function (t, i) { return '<span class="dk-tag ' + tones[i % 3] + '">' + esc(typeof window.tagZh === "function" ? window.tagZh(t) : t) + "</span>"; }).join("") + "</div>";
     }
     h += '<div class="dk-actions dk-open"><button class="btn btn-sm" type="button" data-nav="#/cards/' + encodeURIComponent(c.id) + '">' + esc(tr("Open full card")) + "</button></div>";
     return h + "</article>";

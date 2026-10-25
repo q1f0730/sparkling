@@ -35,6 +35,7 @@ ZH_PATTERNS.unshift([/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 
 ZH_PATTERNS.unshift(
   [/^With Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "用了 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
   [/^Without Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
+  [/^With Qloo: (\d+) of (\d+) places checked out\.$/, function(m, a, b){ return "用 Qloo：" + b + " 个地方里有 " + a + " 个核对得上。"; }],
   [/^Without Qloo: (\d+) of (\d+) places checked out\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个地方里只有 " + a + " 个核对得上。"; }]
 );
 Object.assign(ZH, { "Plain LLM": "纯模型对比" });
@@ -199,4 +200,15 @@ Object.assign(ZH, {
   "That did not work. Try again.": "没成功，再试一次。",
   "Search your notes": "搜索你的笔记",
   "Everything you have kept.": "你留下的一切。"
+});
+
+/* threads: an honest fallback label for threads that rest on the most-kept cards, not on the tag */
+Object.assign(ZH, {
+  "Across your most-kept cards": "最常想起的卡片"
+});
+
+/* plain-compare pending state: the sheet opens at once with an honest loading line, or a retry on failure */
+Object.assign(ZH, {
+  "Checking the same notes without the catalogue…": "正在核对同样的笔记，这次不用口味目录……",
+  "The comparison did not load. Check your connection, then try again.": "对比没有加载出来。检查一下网络，再试一次。"
 });

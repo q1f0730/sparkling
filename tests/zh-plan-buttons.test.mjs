@@ -43,7 +43,8 @@ test("plan.js sends the composer labels through t()", () => {
   assert.equal(makePlan.length, 2, "both Make a plan buttons go through t()");
   assert.ok(PLAN.includes('planBtn.textContent = t("Make a plan")'), "the reset label goes through t()");
   assert.ok(PLAN.includes('planBtn.textContent = t("Making a plan")'), "the busy label goes through t()");
-  assert.ok(PLAN.includes('t("That did not work. Try again.")'), "the submit fallback goes through t()");
+  // 10-25 plan-error-friendly: the submit fallback is now the outage copy (never the raw e.message), still via t()
+  assert.ok(PLAN.includes('t("Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment.")'), "the submit fallback goes through t()");
   assert.ok(PLAN.includes("whenInput.value = t(p.when)"), "the out preset fills a translated when value");
 });
 

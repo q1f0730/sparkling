@@ -34,7 +34,11 @@ function renderInbox(){
   function emptyHTML(){
     return '<div class="done-wrap">' +
       '<p class="done-title">Nothing to look at.</p>' +
-      '<p class="done-copy">Sparkling was sure about everything lately. Anything less certain will wait here.</p>' +
+      '<p class="done-copy">' + esc(t("Sparkling was sure about everything lately.")) + '</p>' +
+      '<div class="inbox-how" style="max-width:300px;margin:4px auto 22px;padding:14px 16px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-card);text-align:left">' +
+        '<p class="inbox-how-lead" style="margin:0 0 6px;font:500 14px/20px var(--sans);color:var(--b-ink)">' + esc(t("Sparkling never guesses silently.")) + '</p>' +
+        '<p class="inbox-how-copy" style="margin:0;font:400 13px/19px var(--sans);color:var(--b-ink2)">' + esc(t("When a name could mean two things, like Margaret (a singer and a 2011 film), it waits here for you to pick.")) + '</p>' +
+      '</div>' +
       '<button class="btn btn-sm" type="button" data-nav="#/notes">Back to your notes</button>' +
     "</div>";
   }

@@ -212,3 +212,5 @@ Object.assign(ZH, {
   "Checking the same notes without the catalogue…": "正在核对同样的笔记，这次不用口味目录……",
   "The comparison did not load. Check your connection, then try again.": "对比没有加载出来。检查一下网络，再试一次。"
 });
+/* 10-25 plan-error-friendly: outage copy (kept here too so the zh parity test sees it) */
+Object.assign(ZH, { "Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment.": "Sparkling 暂时连不上口味目录。你的笔记都在，稍后再试一次。" });

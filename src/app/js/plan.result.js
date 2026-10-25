@@ -370,8 +370,12 @@ function renderPlanResult(id){
     const names = (Array.isArray(pk.sources) ? pk.sources : []).map(function(x){ return x && x.name; }).filter(Boolean).slice(0, 2);
     const tags = (Array.isArray(pk.tags) ? pk.tags : []).slice(0, 2);
     if (!names.length) return pk.why_line || t("The catalogue returned it for your cards taken together.");
-    return zh ? "因为你记过" + names.map(function(n){ return "《" + n + "》"; }).join("和") + (tags.length ? "；口味目录把它归在 " + tags.map(tagZh).join("、") + "。" : "。")
-      : "Because you kept " + names.join(" and ") + (tags.length ? "; the catalogue files it under " + tags.join(", ").toLowerCase() + "." : ".");
+    if (zh) {
+      const zhTags = tags.map(function(x){ return typeof tagZh === "function" ? tagZh(x) : x; })
+        .filter(function(x){ return x != null && /[\u4e00-\u9fff]/.test(String(x)); });
+      return "因为你记过" + names.map(function(n){ return "《" + n + "》"; }).join("和") + (zhTags.length ? "；口味目录把它归在 " + zhTags.join("、") + "。" : "。");
+    }
+    return "Because you kept " + names.join(" and ") + (tags.length ? "; the catalogue files it under " + tags.join(", ").toLowerCase() + "." : ".");
   }
   function pickHTML(pk, i){
     const zh = LANG === "zh";
@@ -471,10 +475,26 @@ function renderPlanResult(id){
     if (!r) return "";
     const seeds = Array.isArray(r.seeds) ? r.seeds : [];
     const qs = Array.isArray(r.queries) ? r.queries : [];
-    return '<div class="receipt"><p class="receipt-title">' + (LANG === "zh" ? "回执" : "Receipt") + '</p>' +
+    const zh = LANG === "zh";
+    const SENT_ZH = {
+      "Card IDs only. No note text, no location.": "只发卡片 ID，不发笔记原文，也不发位置。",
+      "Card IDs and your area. No note text.": "只发卡片 ID 和你的区域，不发笔记原文。"
+    };
+    const PROV_ZH = { "cached": "缓存", "live": "实时", "live + cached": "实时 + 缓存" };
+    const sent = String(r.sent_to_qloo || "");
+    const sentOut = zh ? (SENT_ZH[sent] || t(sent)) : sent;
+    let prov = "";
+    if (r.provenance) {
+      const live = r.provenance.live | 0, cached = r.provenance.cached | 0;
+      const label = String(r.provenance.label || "");
+      prov = zh
+        ? " · " + esc(PROV_ZH[label] || t(label)) + "（实时 " + live + " 次，缓存 " + cached + " 次）"
+        : " · " + esc(label) + " (" + live + " live, " + cached + " cached)";
+    }
+    return '<div class="receipt"><p class="receipt-title">' + (zh ? "回执" : "Receipt") + '</p>' +
       '<p class="receipt-line"><span>' + (LANG === "zh" ? "发给 Qloo 的种子" : "Seeds sent to Qloo") + '</span> ' + seeds.map(function(x){ return esc(x.name) + ' <code>' + esc(String(x.qloo_id || "").slice(0, 8)) + '</code>'; }).join(", ") + "</p>" +
       qs.map(function(q){ return '<p class="receipt-line"><code>GET ' + esc(q.endpoint) + "</code>" + (q["filter.location.query"] ? (LANG === "zh" ? " 类型 place · 标签 " : " type place · tag ") + esc(q["filter.tags"] || (LANG === "zh" ? "无" : "none")) + (LANG === "zh" ? " · 位置 " : " · near ") + esc(q["filter.location.query"] || "") : " " + esc(String(q["filter.type"] || "").split(":").pop())) + " · " + esc(String(q.returned)) + (LANG === "zh" ? " 个返回" : " back") + "</p>"; }).join("") +
-      '<p class="receipt-line muted">' + esc(r.sent_to_qloo || "") + (r.provenance ? " · " + esc(r.provenance.label) + " (" + (r.provenance.live|0) + " live, " + (r.provenance.cached|0) + " cached)" : "") + "</p></div>";
+      '<p class="receipt-line muted">' + esc(sentOut) + prov + "</p></div>";
   }
   function setActionBusy(b){
     Array.prototype.forEach.call(view.querySelectorAll("[data-action], [data-swap]"), function(el){

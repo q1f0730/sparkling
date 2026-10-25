@@ -101,7 +101,7 @@ const Picker = (function(){
     try {
       const d = await api("/api/catalogue?q=" + encodeURIComponent(q) + "&type=" + encodeURIComponent(S.type) + (LANG === "zh" ? "&lang=zh" : ""), { signal: ctl.signal });
       if (seq !== S.seq || !S.open) return;
-      const rows = Array.isArray(d && d.results) ? d.results : [];
+      const rows = pickerRelevant(Array.isArray(d && d.results) ? d.results : [], q);
       memo.set(key, rows); if (memo.size > 80) memo.delete(memo.keys().next().value);
       S.results = rows; S.loading = false; S.active = 0;
     } catch (e) {
@@ -209,6 +209,24 @@ const Picker = (function(){
   }
   return { open: open, close: close, isOpen: isOpen, isInline: isInline, setQuery: setQuery, keydown: keydown, place: place };
 })();
+
+/* Catalogue answers are fuzzy by design: "Normal People" also returns "Axwell · DJ". Keep the rows that
+   share a real word (>= 3 letters) with the query; CJK and wordless queries pass through, and an empty
+   filter falls back to the raw rows, because an empty picker is worse than a fuzzy one. */
+function pickerRelevant(rows, q){
+  const list = Array.isArray(rows) ? rows : [];
+  const query = String(q == null ? "" : q);
+  if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(query)) return list;
+  const keys = (query.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter(function(w){ return w.length >= 3; });
+  if (!keys.length) return list;
+  const out = list.filter(function(r){
+    const name = String(r && r.name != null ? r.name : "").toLowerCase();
+    const words = name.match(/[\p{L}\p{N}]+/gu) || [];
+    return words.some(function(w){ return keys.indexOf(w) >= 0; });
+  });
+  return out.length ? out : list;
+}
+
 window.Picker = Picker;
 
 /* picker:js:end */

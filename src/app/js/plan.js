@@ -266,7 +266,7 @@ function renderPlanRequest(){
       data = await api("/api/plans", { signal: ac.signal });
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
-      savedSlot.innerHTML = '<div class="compact-error">' + esc(t("Your saved plans did not load.")) + ' <button class="text-btn" type="button" data-retry="saved">Try again</button></div>';
+      savedSlot.innerHTML = '<div class="compact-error">' + esc(t("Your saved plans did not load.")) + (LANG === "zh" ? "" : " ") + '<button class="text-btn" type="button" data-retry="saved">' + esc(t("Try again")) + '</button></div>';
       return;
     }
     if (!isCurrent(token)) return;

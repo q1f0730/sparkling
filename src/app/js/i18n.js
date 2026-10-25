@@ -29,12 +29,16 @@ function reasonZh(r){
   if (r) r = fixCase(r);
   if (LANG !== "zh" || !r) return r;
   var TY = {show:"剧集", film:"电影", music:"音乐", book:"书", place:"地点", tv:"剧集", artist:"艺人"};
+  var MW = {films:"部电影", shows:"部剧", artists:"位艺人", books:"本书", places:"个地方", things:"样东西"};
   return String(r).replace(/"([^"]+)" is a ([a-z]+)(?: and a ([a-z]+))?\./g, function(_, m, a, b){ return "“" + m + "”既是" + (TY[a]||a) + (b ? "也是" + (TY[b]||b) : "") + "。"; })
-    .replace(/(\d+) (films|shows|artists|books|places|things) are called ([^.]+)\./g, function(_, n, w, nm){ return n + " 个同名条目：" + nm + "。"; })
+    .replace(/(\d+) (films|shows|artists|books|places|things) are called ([^.]+)\./g, function(_, n, w, nm){ return "有 " + n + " " + (MW[w]||"样东西") + "都叫 " + nm + "。"; })
     .replace(/"([^"]+)" could be a few things\./g, "“$1”可能指好几样东西。")
     .replace(/"([^"]+)" is the name of (.+?)\. Pick the one you meant\./g, function(_, m, list){ var NZ = {"a film":"电影","a TV show":"剧集","a musician":"音乐人","a book":"书","a place":"地点","a person":"人物"}; return "“" + m + "”可能是" + list.split(/, | or /).map(function(x){ return NZ[x] || x; }).join("、") + "。选你指的那个。"; })
     .replace(/Not sure "([^"]+)" means ([^.]+?)\./g, "不确定“$1”是不是指 $2。")
-    .replace(/\s*(?:Qloo|The catalogue) puts (.+?) closest to your taste \(([\d.]+)\)(?:, mostly through (.+?))?\./g, function(_, n, a, v){ return " 目录认为 " + n + " 最贴近你的口味（" + a + "）" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。"; });
+    .replace(/\s*(?:Qloo|The catalogue) puts (.+?) closest to your taste(?: \(([\d.]+)\))?(?:, mostly through (.+?))?\./g, function(_, n, a, v){
+      var top = n.replace(/\((\d{4}), ([a-z]+)\)/, function(_, y, k){ return "(" + y + ", " + (TY[k]||k) + ")"; });
+      return "目录认为 " + top + " 最贴近你的口味" + (v ? "，主要因为 " + v.replace(/ and /g, " 和 ") : "") + "。";
+    });
 }
 function reasonHtml(r){ var h = esc(reasonZh(r)); if (LANG !== "zh") return h; return h.replace(/[A-Za-z][A-Za-z0-9'’&:.\-]*(?: [A-Z][A-Za-z0-9'’&:.\-]*)*/g, function(m){ return '<span translate="no" style="margin:0 .18em">' + m + '</span>'; }); }
 function t(s){ return LANG === "zh" ? trZh(s) : s; }

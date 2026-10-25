@@ -2,7 +2,7 @@
 import APP from "./app.html";
 import { pwaAsset } from "./pwa.js";
 import { recognizeNote, readImageFull, upsertCard, addFootprint, uid, norm, parseLetterboxd, resolveSample, inboxReason, qsearch, CARD_URNS, TYPE_URNS, pickerMerge, cleanTags } from "./recognize.js";
-import { makePlan, makeStayIn, stayIntent, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds, groundedRead, zhSpace } from "./plan.js";
+import { makePlan, makeStayIn, stayIntent, AUDIENCES, planDiff, dressPlan, cohorts, planNotice, cacheGet, cachePut, checkPlainPlaces, pickSeeds, groundedRead, zhSpace, zhTag } from "./plan.js";
 import { llmJSON } from "./llm.js";
 import { qlooTagInsights, getEntities, compareTastes } from "./qloo.js";
 import { duoPlan } from "./duo.js";
@@ -403,8 +403,21 @@ async function api(req, env, ctx, url) {
     const mix = {}; for (const c of inMonth) mix[c.type] = (mix[c.type] || 0) + 1;
     const tagCount = {}; for (const c of inMonth) for (const t of c.tags || []) tagCount[t] = (tagCount[t] || 0) + 1;
     const themes = Object.entries(tagCount).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, n]) => ({ name, cards: n }));
-    const q = await env.DB.prepare("SELECT f.quote, n.text, f.created_at, c.name, c.id FROM footprints f JOIN notes n ON n.id=f.note_id JOIN cards c ON c.id=f.card_id WHERE c.user_id=? AND f.sentiment!='negative' AND f.created_at>=? AND f.created_at<? ORDER BY length(n.text) DESC LIMIT 3").bind(U, from, to).all().catch(() => null);
-    const words = ((q && q.results) || []).map((r) => ({ text: r.text, card: r.name, card_id: r.id, at: r.created_at }));
+    const q = await env.DB.prepare("SELECT f.quote, n.text, f.created_at, c.name, c.id FROM footprints f JOIN notes n ON n.id=f.note_id JOIN cards c ON c.id=f.card_id WHERE c.user_id=? AND f.sentiment!='negative' AND f.created_at>=? AND f.created_at<? ORDER BY length(n.text) DESC LIMIT 12").bind(U, from, to).all().catch(() => null);
+    // One entry per note text: a note that mentions two cards has one footprint per card,
+    // so merge the card names instead of listing the same words twice.
+    const seenText = new Set();
+    const words = ((q && q.results) || []).reduce((acc, r) => {
+      const key = r.text || "";
+      if (seenText.has(key)) {
+        const w = acc.find((x) => (x.text || "") === key);
+        if (w && r.name) { const names = w.card ? w.card.split(", ") : []; if (!names.includes(r.name)) w.card = names.concat(r.name).join(", "); }
+        return acc;
+      }
+      seenText.add(key);
+      acc.push({ text: r.text, card: r.name, card_id: r.id, at: r.created_at });
+      return acc;
+    }, []).slice(0, 3);
     const word = { film: "films", tv: "shows", music: "artists", book: "books", place: "places", person: "people", other: "things" };
     const lead = Object.entries(mix).sort((a, b) => b[1] - a[1])[0];
     const para = [];
@@ -437,9 +450,10 @@ async function api(req, env, ctx, url) {
       monthOut = `${y}年${mo + 1}月`;
       paraOut = [`${monthOut}有 ${fresh.length} 张新卡片加入你的墙` + (lead ? `，主要是${wz[lead[0]] || "其他"}（你碰过的 ${inMonth.length} 张里占 ${lead[1]} 张）。` : "。")];
       if (returns.length) paraOut.push(`你回头最多的是${nm(returns.map((c) => c.name))}。`);
-      if (themes.length) paraOut.push(`在你的卡片里反复出现的标签：${nm(themes.map((t) => t.name))}。`);
+      if (themes.length) paraOut.push(`在你的卡片里反复出现的标签：${nm(themes.map((t) => zhTag(t.name)))}。`);
       if (pl.length) paraOut.push(`在现实世界里，你把${nm(pl.map((c) => c.name))}留在了地图上。这些就是你的计划可以出发的地方。`);
       if (gaps.length) paraOut.push(`这个月没有${gaps.map((g) => ({ films: "电影", music: "音乐", artists: "音乐", books: "书", places: "地点" }[g] || g)).join("或")}。这不是评判，只是一个空着的书架。`);
+      paraOut = paraOut.map((p) => zhSpace(p));
       receiptOut = "由你的卡片、足迹和 Qloo 标签计算得出，没有模型参与撰写。";
     }
     return J({ letter: { month: monthOut, new_cards: fresh.length, touched: inMonth.length, mix, returns: returns.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image, footprints: c.footprints })), places: pl.map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), new: fresh.slice(0, 6).map((c) => ({ id: c.id, name: c.name, type: c.type, image: c.image })), themes, drift, your_words: words, paragraphs: paraOut, receipt: receiptOut } });

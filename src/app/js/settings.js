@@ -82,6 +82,7 @@ function renderSettings(page){
   view.innerHTML = '<div class="st">' + html + "</div>";
   translateNode(view);
 
+  if (page === "qloo") wireQlooLive(view);
   if (page === "import") wireImport(view.querySelector("[data-import-block]"), {});
   if (page === "planning") wirePlanning(view);
 
@@ -128,6 +129,7 @@ function settingsRootHTML(u){
       stRow({ icon: STI.film, label: t("Import from Letterboxd"), nav: "#/settings/import" }),
       stRow({ icon: STI.down, label: t("Export notes"), action: "export" }),
       u.sample ? stRow({ label: t("Leave the sample"), danger: true, center: true, action: "leave-sample" }) : "",
+      u.sample ? stRow({ label: t("Start the sample over"), center: true, action: "restart-sample" }) : "",
       stRow({ label: t("Delete all data"), danger: true, center: true, action: "delete-all" }),
     ].filter(Boolean), esc(t("Exports include every note and card. Deleting removes your notebook from the server."))) +
     stGroup(t("About"), [
@@ -222,7 +224,7 @@ function aboutHTML(){
 }
 function qlooHTML(){
   const para = function(s){ return '<div class="st-row st-explain"><span class="st-row-main"><span class="st-sub st-body">' + esc(t(s)) + "</span></span></div>"; };
-  return stGroup(t("What goes to Qloo"), [
+  return '<div data-qloo-live class="st-live-slot"></div>' + stGroup(t("What goes to Qloo"), [
       para("The few words that name a film, book, album or place, so Qloo search can match them to a catalogue entity."),
       para("When you plan: the IDs of a few cards and the area you typed."),
     ]) +
@@ -230,6 +232,33 @@ function qlooHTML(){
     stGroup(t("What comes back"), [
       para("Catalogue entities with their tags, Insights for Threads (tags shared across your cards) and venues near your area for Plan. Sparkling shows Qloo data as it is and marks its own read."),
     ], esc(t("Every thread and plan has a receipt with the exact Qloo calls behind it.")));
+}
+function qlooLiveHTML(cards, plans){
+  const list = Array.isArray(cards) ? cards : [];
+  const total = list.length;
+  const matched = list.filter(function(c){ return c && c.qloo_id; }).length;
+  const line = LANG === "zh"
+    ? "这本笔记里：" + total + " 张卡片中有 " + matched + " 张对上了 Qloo 目录条目。"
+    : t("In this notebook: " + matched + " of " + total + " cards are matched to a Qloo catalogue entry.");
+  const latest = Array.isArray(plans) ? plans[0] : null;
+  const link = latest && latest.id
+    ? '<a class="st-live-link" href="#/plan/' + esc(latest.id) + '">' + esc(t("See the Qloo calls behind your latest plan")) + "</a>"
+    : "";
+  return '<div class="st-live"><p class="st-live-line">' + esc(line) + "</p>" + link + "</div>";
+}
+function wireQlooLive(root){
+  const slot = root.querySelector("[data-qloo-live]");
+  if (!slot) return;
+  Promise.all([
+    api("/api/cards").catch(function(){ return null; }),
+    api("/api/plans").catch(function(){ return null; }),
+  ]).then(function(res){
+    const cards = res[0] && Array.isArray(res[0].cards) ? res[0].cards : null;
+    if (!cards) return;
+    const plans = res[1] && Array.isArray(res[1].plans) ? res[1].plans : [];
+    slot.innerHTML = qlooLiveHTML(cards, plans);
+    translateNode(slot);
+  }).catch(function(){});
 }
 
 function settingsPick(kind, value, page){
@@ -288,6 +317,23 @@ function settingsAction(action){
     });
     return;
   }
+  if (action === "restart-sample") {
+    confirmSheet({
+      title: t("Start the sample over?"),
+      copy: t("The sample notebook goes back to how it started. Your own notes are not touched."),
+      confirmLabel: t("Start over"),
+      cancelLabel: t("Cancel"),
+      busyLabel: t("Working"),
+      onConfirm: async function(){
+        await api("/api/delete", { method: "POST", body: { confirm: "DELETE" } });
+        await api("/api/session", { method: "POST", body: { mode: "sample" } });
+        clearPlanStorage(); clearDidYouGo(); clearDraft();
+        location.hash = "#/notes";
+        location.reload();
+      },
+    });
+    return;
+  }
   if (action === "sign-out") {
     confirmSheet({
       title: t("Sign out?"),
@@ -326,6 +372,14 @@ function wireSwipeBack(parent){
   });
 }
 
+
+Object.assign(ZH, {
+  "See the Qloo calls behind your latest plan": "查看最近一次计划背后的 Qloo 调用",
+  "Start the sample over": "重新开始示例",
+  "Start the sample over?": "重新开始示例？",
+  "The sample notebook goes back to how it started. Your own notes are not touched.": "示例笔记本会回到最初的样子。你自己的笔记不受影响。",
+  "Start over": "重新开始",
+});
 
 if (LANG === "zh") setLang("zh", true);
 boot();

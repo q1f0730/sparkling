@@ -31,12 +31,24 @@ Object.assign(ZH, { "Card IDs and your area. No note text.": "只发送卡片 ID
 /* compare-sheet zh */
 Object.assign(ZH, { "Same notes, no Qloo": "同样的笔记，不用 Qloo", "Same cards, same area, same model. The only change: no Qloo.": "同样的卡片、同样的区域、同一个模型，唯一的区别：不用 Qloo。", "The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.": "这些地方是模型凭记忆报的。随后 Sparkling 逐个到 Qloo 里查：是否存在、是否还在营业、离你的路线近不近。", "Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.": "每一站一开始就来自 Qloo：有 ID、坐标、营业时间，并标明出自你的哪条笔记。", "Asking a plain model, no Qloo… usually 5–15 seconds.": "正在问一个不带 Qloo 的纯模型……通常需要 5–15 秒。" });
 ZH_PATTERNS.unshift([/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 个里有 " + a + " 个通过。"; }]);
+/* plain-compare verdict zh (shot 5) */
+ZH_PATTERNS.unshift(
+  [/^With Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "用了 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
+  [/^Without Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }]
+);
 Object.assign(ZH, { "In Qloo": "Qloo 里有", "In Qloo, but far": "Qloo 里有，但很远", "Closed for good, per Qloo": "Qloo 标注已永久关闭", "Not in Qloo, so unchecked": "Qloo 里没有，无法核对", "Only found in another city": "只在别的城市找到", "Not checked": "未核对", "Open on arrival": "到达时营业", "May be closed when you arrive": "到达时可能已关门", "on the route": "就在路线上", "Plain model": "纯模型", "Sparkling + Qloo": "Sparkling + Qloo" });
 ZH_PATTERNS.unshift(
   [/^(\d+) min walk$/, function(m, n){ return "步行 " + n + " 分钟"; }],
   [/^(\d+) min by bike \(([\d.]+) mi\)$/, function(m, n, d){ return "骑车 " + n + " 分钟（" + d + " 英里）"; }],
   [/^([\d.]+) mi from the route$/, function(m, d){ return "离路线 " + d + " 英里"; }]
 );
+/* stay-in plain compare zh */
+Object.assign(ZH, {
+  "Same cards, same model. The only change: no Qloo.": "同样的卡片、同一个模型，唯一的区别：不用 Qloo。",
+  "because you kept": "因为你记过",
+  "What is lost: the card behind each pick, and any check that it exists.": "少了什么：每个推荐背后的那张卡，以及它是否真的存在这项核对。",
+  "The model named these from memory. Sparkling did not look them up.": "这些是模型凭记忆报的，Sparkling 没有逐个核对。"
+});
 /* plan trace zh */
 (function(){
   var RJ = { "of the wrong kind": "类型不符", "that are not places to linger (barbers, grocers…)": "不适合逗留的地方（理发店、杂货店等）", "chains": "连锁店", "closed for good": "已永久关闭", "closed that afternoon": "当天下午不营业", "outside the city": "在城市之外", "across the river": "在河对岸", "without an address": "没有地址", "without an id": "没有 ID" };

@@ -230,7 +230,19 @@ function renderNotes(){
         if (idx >= 0) notes[idx] = fresh;
         if (fresh.status !== "pending") {
           replaceNoteInDom(id, fresh, { draw: true, plus: true });
-          try { if (window.Fx && Fx.grow) { const nn = view.querySelector('[data-note-id="' + id.replace(/"/g, "") + '"]'); if (nn) Fx.grow(nn); } } catch (e) {}
+          try {
+            if (window.Fx && Fx.grow) {
+              const safeId = String(id).replace(/\x22/g, "");
+              const nn = view.querySelector("[data-note-id=\"" + safeId + "\"]");
+              if (nn) Fx.grow(nn);
+            }
+          } catch (e) {}
+          // older notes of the same card still show the old count, so they get a quiet repaint
+          syncMentionCounts(notes, fresh).forEach(function(nid){
+            if (String(nid) === id) return;
+            const older = notes.find(function(n){ return String(n.id) === String(nid); });
+            if (older) replaceNoteInDom(nid, older, {});
+          });
           refreshMe();
           return;
         }
@@ -337,7 +349,7 @@ function renderNotes(){
         replaceNoteInDom(note.id, fresh, {});
         pollNote(fresh);
       } catch (e) {
-        err.textContent = "That did not save. Try again.";
+        err.textContent = t("That did not save. Try again.");
         err.hidden = false;
         save.disabled = false;
         save.textContent = old;
@@ -408,7 +420,7 @@ function renderNotes(){
       }
     } catch (e) {
       if (!isCurrent(token) || isAbort(e)) return;
-      if (err) { err.textContent = "That did not save. Try again."; err.hidden = false; }
+      if (err) { err.textContent = t("That did not save. Try again."); err.hidden = false; }
       Array.prototype.forEach.call(buttons, function(b){ b.disabled = false; });
     }
   }
@@ -546,7 +558,7 @@ function renderNotes(){
     if (e.target.closest("[data-dyg-no]")) {
       const w = view.querySelector(".didyougo");
       if (w && !w.querySelector("[data-dyg-why]")) {
-        const q = w.querySelector(".didyougo-q"); if (q) q.textContent = "What got in the way?";
+        const q = w.querySelector(".didyougo-q"); if (q) q.textContent = t("What got in the way?");
         const a = w.querySelector(".didyougo-actions");
         a.innerHTML = [["far","Too far"],["taste","Not my taste"],["closed","Closed"],["time","No time"]].map(function(r){ return '<button class="btn btn-sm btn-ghost" type="button" data-dyg-why="' + r[0] + '">' + r[1] + "</button>"; }).join("");
         return;
@@ -616,5 +628,41 @@ function renderNotes(){
   });
 
   loadInitial();
+}
+
+/* A fresh note can push a card's count up while older notes still show the old one. Raise the same card's
+   mention count on every other note in the feed (never lower it) and hand back the ids that changed. */
+function syncMentionCounts(list, fresh){
+  const changed = [];
+  if (!Array.isArray(list) || !fresh || !Array.isArray(fresh.mentions)) return changed;
+  const raised = [];
+  fresh.mentions.forEach(function(m){
+    if (!m || typeof m !== "object" || !m.card || typeof m.card !== "object") return;
+    if (m.card.id === null || m.card.id === undefined || m.card.id === "") return;
+    if (typeof m.card.n !== "number" || !Number.isFinite(m.card.n)) return;
+    raised.push({ id: String(m.card.id), n: m.card.n });
+  });
+  if (!raised.length) return changed;
+  const freshId = fresh.id === null || fresh.id === undefined ? "" : String(fresh.id);
+  list.forEach(function(note){
+    if (!note || note === fresh) return;
+    if (freshId && note.id !== null && note.id !== undefined && String(note.id) === freshId) return;
+    if (!Array.isArray(note.mentions)) return;
+    let touched = false;
+    note.mentions.forEach(function(m){
+      if (!m || typeof m !== "object" || !m.card || typeof m.card !== "object") return;
+      const cid = (m.card.id !== null && m.card.id !== undefined && m.card.id !== "")
+        ? String(m.card.id)
+        : (m.card_id === null || m.card_id === undefined ? "" : String(m.card_id));
+      if (!cid) return;
+      raised.forEach(function(r){
+        if (r.id !== cid) return;
+        const cur = Number(m.card.n);
+        if (!Number.isFinite(cur) || cur < r.n) { m.card.n = r.n; touched = true; }
+      });
+    });
+    if (touched) changed.push(note.id);
+  });
+  return changed;
 }
 

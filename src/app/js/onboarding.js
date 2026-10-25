@@ -21,7 +21,7 @@ function importBlockHTML(intro){
     '<input class="file-input-hidden" type="file" accept=".csv,.zip,text/csv,application/zip" data-import-file tabindex="-1" aria-hidden="true">' +
     '<div class="import-row">' +
       '<button class="btn btn-sm" type="button" data-import-choose>Choose your export file</button>' +
-      '<span class="file-name" data-import-name>No file chosen</span>' +
+      '<span class="file-name" data-import-name>' + t("No file chosen") + '</span>' +
     "</div>" +
     '<div class="import-row">' +
       '<button class="btn btn-primary btn-sm" type="button" data-import-submit disabled>Import file</button>' +
@@ -70,7 +70,7 @@ function wireImport(container, options){
 
   function setName(){
     if (!nameEl) return;
-    nameEl.textContent = file ? file.name : "No file chosen";
+    nameEl.textContent = file ? file.name : t("No file chosen");
   }
   if (choose && input) {
     choose.addEventListener("click", function(){ if (!busy) input.click(); });
@@ -95,7 +95,7 @@ function wireImport(container, options){
       if (statusEl) {
         statusEl.hidden = false;
         statusEl.className = "import-busy";
-        statusEl.textContent = "Reading your file. You can leave this screen while it works.";
+        statusEl.textContent = t("Reading your file. You can leave this screen while it works.");
       }
       if (resultEl) resultEl.innerHTML = "";
       try {
@@ -129,7 +129,7 @@ function wireImport(container, options){
    Onboarding
    --------------------------------------------------------------------------- */
 async function retryBootFromOnboarding(button){
-  if (button) { button.disabled = true; button.textContent = "Trying again"; }
+  if (button) { button.disabled = true; button.textContent = t("Trying again"); }
   try {
     const me = await api("/api/me");
     if (!me || !me.user) throw new Error("no session");

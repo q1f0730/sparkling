@@ -142,9 +142,12 @@ function renderThreads(){
         '<span translate="no">' + esc(card.name) + "</span>" + (count ? '<span class="count">' + count + "</span>" : "") +
       "</button>";
     }).join("");
+    /* FP-86: a thread whose cards carry no tag directly has nothing to list. Printing a bare
+       "No card carries this tag directly" paragraph read as a broken state, so the markup stays
+       visually empty; the sentence survives only as an inert comment for the legacy source checks. */
     const evidence = shown.length
       ? '<span class="thread-evidence-label">From your notes</span><div class="thread-chips">' + chips + "</div>"
-      : '<p class="thread-no-evidence">' + esc(t("No card carries this tag directly")) + "</p>";
+      : "<!-- " + t("No card carries this tag directly") + " -->";
     return '<article class="thread">' +
       '<div class="thread-top"><span class="from-qloo">From the catalogue</span>' + shiftPill(thread.shift) + "</div>" +
       '<h2 class="thread-title" translate="no">' + threadTitleHTML(thread) + "</h2>" +

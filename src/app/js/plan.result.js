@@ -11,6 +11,21 @@ function prefetchPlain(planId){
   p.catch(function(){ if (cache[id] === p) delete cache[id]; });
   return p;
 }
+/* the server sends English clock times ("2:00 PM", "2:00–4:37 PM"); zh reads "下午 2:00", "下午 2:00–4:37" */
+function zhClock(s){
+  if (LANG !== "zh" || typeof s !== "string") return s;
+  const T = { AM: "上午", PM: "下午" };
+  const both = s.match(/^(\d{1,2}:\d{2})\s*(AM|PM)\s*[\u2013\u2014-]\s*(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+  if (both) {
+    const a = T[both[2].toUpperCase()] + " " + both[1], b = T[both[4].toUpperCase()] + " " + both[3];
+    return both[2].toUpperCase() === both[4].toUpperCase() ? a + "\u2013" + both[3] : a + "\u2013" + b;
+  }
+  const range = s.match(/^(\d{1,2}:\d{2})\s*[\u2013\u2014-]\s*(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+  if (range) return T[range[3].toUpperCase()] + " " + range[1] + "\u2013" + range[2];
+  const one = s.match(/^(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+  if (one) return T[one[2].toUpperCase()] + " " + one[1];
+  return s;
+}
 function renderPlanResult(id){
   const token = beginView();
   setShell({ title: "Plan", tabs: true, active: "plan" });
@@ -298,7 +313,7 @@ function renderPlanResult(id){
         '<span class="stop-index num">' + (i + 1) + "</span>" +
         '<div class="stop-main">' +
           '<p class="r7-stop-eyebrow num">' + esc("Stop " + String(i + 1).padStart(2, "0")) + '</p>' +
-          (stop && stop.arrive ? '<p class="stop-time">' + esc(stop.arrive) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + (LANG === "zh" ? " 分钟" : " min") : "") + "</p>" : "") +
+          (stop && stop.arrive ? '<p class="stop-time">' + esc(zhClock(stop.arrive)) + (stop.stay_min ? " &middot; " + esc(String(stop.stay_min)) + (LANG === "zh" ? " 分钟" : " min") : "") + "</p>" : "") +
           '<h3 class="stop-name">' + esc((stop && stop.name) || "Somewhere") + "</h3>" +
           '<p class="stop-where">' + esc([stop && stop.kind && t(String(stop.kind).toLowerCase()), place].filter(Boolean).join(" · ")) + "</p>" +
           (stop && stop.open_on_arrival === true ? '<p class="stop-open">' + esc(t("Open when you arrive, per listed hours")) + "</p>" : stop && stop.open_on_arrival === false ? '<p class="stop-open stop-open-warn">' + esc(t("May be closed when you arrive")) + "</p>" : "") +
@@ -362,7 +377,7 @@ function renderPlanResult(id){
           return '<g class="rm-pin" data-why-stop="' + i + '"><circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="13"/>' +
             '<text x="' + q[0].toFixed(1) + '" y="' + (q[1] + 4.5).toFixed(1) + '" text-anchor="middle">' + (i + 1) + "</text>" +
             '<text class="rm-label" translate="no" x="' + lx.toFixed(1) + '" y="' + (q[1] - 1).toFixed(1) + '" text-anchor="' + anchor + '">' + esc(short(st.name)) + "</text>" +
-            '<text class="rm-sub" x="' + lx.toFixed(1) + '" y="' + (q[1] + 13).toFixed(1) + '" text-anchor="' + anchor + '">' + esc(String(st.arrive || "")) + "</text></g>";
+            '<text class="rm-sub" x="' + lx.toFixed(1) + '" y="' + (q[1] + 13).toFixed(1) + '" text-anchor="' + anchor + '">' + esc(zhClock(String(st.arrive || ""))) + "</text></g>";
         }).join("") +
         "</svg><figcaption>" + t("Schematic route") + " &middot; " + t("not to scale") + "</figcaption></figure>";
     }
@@ -424,7 +439,7 @@ function renderPlanResult(id){
     view.innerHTML =
       '<header class="r7-plan-mast pick-mast">' +
         '<p class="r7-eyebrow"><span>' + esc(LANG === "zh" ? trZh(when) : when) + '</span><span class="r7-sep" aria-hidden="true"></span><span>' + esc(t("Stay in")) + "</span>" + (saved ? '<span class="r7-saved">Saved</span>' : "") + "</p>" +
-        '<h2 class="plan-header r7-display"><span>' + esc(t("Stay in")) + (LANG === "zh" ? "，" : ".") + '</span> <em>' + esc(t(em)) + "</em></h2>" +
+        '<h2 class="plan-header r7-display"><span>' + esc(t("Stay in")) + (LANG === "zh" ? "，" : ".") + '</span>' + (LANG === "zh" ? "" : " ") + '<em>' + esc(t(em)) + "</em></h2>" +
         '<div class="plan-chips">' + (moodC ? '<span class="plan-chip">' + esc(LANG === "zh" ? trZh(moodC) : moodC) + "</span>" : "") + '<span class="plan-chip">' + esc(picks.length + " " + (LANG === "zh" ? "个推荐" : plural(picks.length, "pick", "picks"))) + '</span><span class="plan-chip">' + esc(t(one || "mixed")) + "</span></div>" +
         '<button class="plain-cta" type="button" data-plain="1"><span>' + esc(t("Same notes, no Qloo")) + '</span><span class="plain-cta-go">' + esc(t("Compare →")) + "</span></button>" +
       "</header>" +
@@ -455,11 +470,11 @@ function renderPlanResult(id){
         var first=stops[0]&&stops[0].arrive, last=stops.length&&stops[stops.length-1].leave;
         return '<header class="r7-plan-mast">' +
           '<p class="r7-eyebrow">' + t.map(function(x, k){ return (k ? '<span class="r7-sep" aria-hidden="true"></span>' : "") + '<span>' + esc(x) + '</span>'; }).join("") + (saved ? '<span class="r7-saved">Saved</span>' : "") + '</p>' +
-          '<h2 class="plan-header r7-display"><span>Go</span> <em>live it.</em></h2>' +
+          '<h2 class="plan-header r7-display"><span>Go</span>' + (LANG === "zh" ? "" : " ") + '<em>live it.</em></h2>' +
           (ch.length?'<div class="plan-chips">'+ch.map(function(c){return '<span class="plan-chip">'+esc(LANG === "zh" ? trZh(c) : c)+"</span>";}).join("")+"</div>":"") +
           '<dl class="r7-stats">' +
             '<div><dt>' + esc(plural(stops.length, "stop", "stops")) + '</dt><dd class="num">' + stops.length + '</dd></div>' +
-            '<div><dt>window</dt><dd class="num r7-small">' + esc(first && last ? String(first).replace(/ ?[AP]M$/,"") + "\u2013" + last : "\u2014") + '</dd></div>' +
+            '<div><dt>window</dt><dd class="num r7-small">' + esc(first && last ? (LANG === "zh" ? zhClock(String(first) + "\u2013" + last) : String(first).replace(/ ?[AP]M$/,"") + "\u2013" + last) : "\u2014") + '</dd></div>' +
             '<div><dt>walking</dt><dd class="num">' + (walk ? walk + '<small>' + (LANG === "zh" ? "分钟" : "min") + '</small>' : "\u2014") + '</dd></div>' +
           '</dl>' + '<button class="plain-cta" type="button" data-plain="1"><span>Same notes, no Qloo</span><span class="plain-cta-go">Compare &rarr;</span></button>' + '</header>'; })() +
       (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +

@@ -169,6 +169,7 @@ function renderNotes(){
     if (nres && nres.status === "fulfilled") {
       const data = nres.value || {};
       notes = Array.isArray(data.notes) ? data.notes : [];
+      normalizeMentionCounts(notes);
       baseCount = notes.length;
       greetingNotes = notes;
       initialRetry = false;
@@ -199,6 +200,7 @@ function renderNotes(){
       const data = await api("/api/notes?" + params.toString(), { signal: ac.signal });
       if (!isCurrent(token) || seq !== loadSeq) return;
       notes = Array.isArray(data && data.notes) ? data.notes : [];
+      normalizeMentionCounts(notes);
       if (filter === "all" && !query.trim()) baseCount = notes.length;
       paintTimeline();
     } catch (e) {
@@ -662,6 +664,41 @@ function syncMentionCounts(list, fresh){
       });
     });
     if (touched) changed.push(note.id);
+  });
+  return changed;
+}
+
+/* The first load can hand back one card with different counts (today's note 4x, an older note 3x). Raise every
+   note of that card to the largest n seen, never lower, and hand back the ids of the notes that changed. */
+function normalizeMentionCounts(list){
+  const changed = [];
+  if (!Array.isArray(list)) return changed;
+  const top = {};
+  const rows = [];
+  list.forEach(function(note){
+    if (!note || typeof note !== "object" || !Array.isArray(note.mentions)) return;
+    note.mentions.forEach(function(m){
+      if (!m || typeof m !== "object" || !m.card || typeof m.card !== "object") return;
+      const cid = (m.card.id !== null && m.card.id !== undefined && m.card.id !== "")
+        ? String(m.card.id)
+        : (m.card_id === null || m.card_id === undefined ? "" : String(m.card_id));
+      if (!cid) return;
+      const n = Number(m.card.n);
+      if (Number.isFinite(n) && (top[cid] === undefined || n > top[cid])) top[cid] = n;
+      rows.push({ note: note, card: m.card, cid: cid });
+    });
+  });
+  const hit = [];
+  rows.forEach(function(r){
+    const wanted = top[r.cid];
+    if (wanted === undefined) return;
+    const cur = Number(r.card.n);
+    if (Number.isFinite(cur) && cur >= wanted) return;
+    r.card.n = wanted;
+    if (hit.indexOf(r.note) < 0) hit.push(r.note);
+  });
+  hit.forEach(function(note){
+    changed.push(note.id);
   });
   return changed;
 }

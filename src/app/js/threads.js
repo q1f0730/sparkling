@@ -61,6 +61,15 @@ function renderLetter(){
   }).catch(function(){ el.innerHTML = '<div class="empty"><p>The letter did not load. Check your connection, then try again.</p></div>'; });
 }
 
+/* First paint for Threads: three skeleton rows right away, and the last response of each period kept in
+   memory so a revisit paints instantly while the fresh response replaces it in the background. */
+const THREADS_CACHE = Object.create(null);
+function threadsSkeletonHTML(){
+  return '<div class="skeleton sk-card tall"></div>' +
+    '<div class="skeleton sk-card"></div>' +
+    '<div class="skeleton sk-card"></div>';
+}
+
 function renderThreads(){
   const token = beginView();
   setShell({ title: "Threads", tabs: true, active: "cards" });
@@ -82,10 +91,7 @@ function renderThreads(){
       "</div>" +
       '<p class="period-note" data-period-note></p>' +
     "</div>" +
-    '<div data-threads>' +
-      '<div class="skeleton sk-card tall"></div>' +
-      '<div class="skeleton sk-card"></div>' +
-    "</div>";
+    '<div data-threads>' + threadsSkeletonHTML() + "</div>";
 
   const threadsEl = view.querySelector("[data-threads]");
   const noteEl = view.querySelector("[data-period-note]");
@@ -113,7 +119,14 @@ function renderThreads(){
   function threadHTML(thread, i){
     const cards = Array.isArray(thread.cards) ? thread.cards : [];
     cards.forEach(function(c){ if (c && c.name) (window.SP_NAMES = window.SP_NAMES || {})[c.name] = 1; });
-    const chips = cards.map(function(card){
+    /* Chips must name only the cards that really carry the tag. When no card does, the thread is a
+       fallback over the most-kept cards and its label has to say so. */
+    const carried = cards.filter(function(c){ return c && c.carries_tag === true; });
+    const allCarryFalse = cards.length > 0 && cards.every(function(c){ return c && c.carries_tag === false; });
+    const fallback = !carried.length && thread.carried_by_cards === false && allCarryFalse;
+    const shown = carried.length ? carried : cards;
+    const evidenceLabel = fallback ? (LANG === "zh" ? t("Across your most-kept cards") : "Across your most-kept cards") : "From your notes";
+    const chips = shown.map(function(card){
       const count = Number(card.footprints) || 0;
       const label = card.name + (count ? ", " + count + " " + plural(count, "footprint", "footprints") : "");
       return '<button class="thread-chip type-' + attr(card.type || "other") + '" type="button" data-nav="#/cards/' + encodeURIComponent(card.id) + '" aria-label="' + attr(label) + '">' +
@@ -123,7 +136,7 @@ function renderThreads(){
     return '<article class="thread">' +
       '<div class="thread-top"><span class="from-qloo">From the catalogue</span>' + shiftPill(thread.shift) + "</div>" +
       '<h2 class="thread-title" translate="no">' + threadTitleHTML(thread) + "</h2>" +
-      '<span class="thread-evidence-label">From your notes</span>' +
+      '<span class="thread-evidence-label">' + evidenceLabel + "</span>" +
       '<div class="thread-chips">' + chips + "</div>" +
       (thread.read ? '<p class="thread-read"><span class="label">Sparkling’s read</span>' + esc(thread.read) + "</p>" : "") +
       '<button class="why-btn" type="button" data-why="' + i + '">Why this thread?</button>' +
@@ -202,23 +215,30 @@ function renderThreads(){
     const names = period === "now" ? sh.now_cards : sh.then_cards;
     noteEl.textContent = (period === "now" ? "Your " + sh.based_on + " most recent cards: " : "The " + sh.based_on + " cards before your recent ones: ") + (names || []).join(", ") + ".";
   }
+  function paint(data){
+    lastData = data;
+    setNote(data);
+    const threads = Array.isArray(data && data.threads) ? data.threads : [];
+    current = threads;
+    if (!threads.length) {
+      threadsEl.innerHTML = emptyHTML(data && data.reason);
+      return;
+    }
+    threadsEl.innerHTML = threads.map(threadHTML).join("");
+  }
   async function load(){
     const seq = ++loadSeq;
-    if (threadsEl) threadsEl.innerHTML = '<div class="skeleton sk-card tall"></div><div class="skeleton sk-card"></div>';
+    const cached = THREADS_CACHE[period];
+    if (cached) paint(cached);
+    else if (threadsEl) threadsEl.innerHTML = threadsSkeletonHTML();
     try {
       const data = await api("/api/threads" + (period === "all" ? "" : "?period=" + period), { signal: ac.signal });
       if (!isCurrent(token) || seq !== loadSeq) return;
-      lastData = data;
-      setNote(data);
-      const threads = Array.isArray(data && data.threads) ? data.threads : [];
-      current = threads;
-      if (!threads.length) {
-        threadsEl.innerHTML = emptyHTML(data && data.reason);
-        return;
-      }
-      threadsEl.innerHTML = threads.map(threadHTML).join("");
+      THREADS_CACHE[period] = data;
+      paint(data);
     } catch (e) {
       if (!isCurrent(token) || seq !== loadSeq || isAbort(e)) return;
+      if (cached) return;
       threadsEl.innerHTML = errorBlock("Your threads did not load. Check your connection, then try again.", "threads");
     }
   }

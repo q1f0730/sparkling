@@ -256,6 +256,13 @@ const KIND_ZH_OF = (k) => KIND_ZH[k] || k;
 const DAY_ZH = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const WORK_TYPES = new Set(["film", "tv", "music", "book", "podcast"]);
 const zhTitle = (x) => (WORK_TYPES.has(String((x && x.type) || "")) ? `《${x.name}》` : String((x && x.name) ?? ""));
+/** zh copy spacing: no stray space before CJK punctuation, exactly one space between a Latin run and a CJK character. */
+export function zhSpace(s) {
+  return String(s == null ? "" : s)
+    .replace(/([A-Za-z0-9])\s*([\u4e00-\u9fff])/g, "$1 $2")
+    .replace(/([\u4e00-\u9fff])\s*([A-Za-z0-9])/g, "$1 $2")
+    .replace(/[ \t]+([，。、；：！？）」』》])/g, "$1");
+}
 
 // ---- small caches in D1 (llm_cache table): Qloo place pools for 6 h, model sentences for 7 days.
 async function sha(s) { return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join(""); }
@@ -346,12 +353,12 @@ export async function makePlan(env, user, req, log) {
     : `Planning from ${req.period === "now" ? "your recent notes" : "your earlier notes"} only.`);
   if (seeds.length < 2) throw { state: "too_few", text: "I need a few more things you love to plan from. Mark a couple of cards with a heart, or start from one card." };
   log(lang === "zh"
-    ? `用 ${seeds.length} 张卡片做种子：${seeds.map(zhTitle).join("、")}。`
+    ? zhSpace(`用 ${seeds.length} 张卡片做种子：${seeds.map(zhTitle).join("、")}。`)
     : `Using ${seeds.length} cards as seeds: ${seeds.map((s) => s.name).join(", ")}.`);
   const kinds = planKinds(req.text);
   timing.kinds_ms = Date.now() - T0;
   log(lang === "zh"
-    ? `要找：${kinds.map(KIND_ZH_OF).join("、")}，范围在 ${area}。`
+    ? zhSpace(`要找：${kinds.map(KIND_ZH_OF).join("、")}，范围在 ${area}。`)
     : `Looking for: ${kinds.join(", then ")}, around ${area}.`);
   const known = new Set(all.map((c) => c.qloo_id));
   const num = (v) => { const n = typeof v === "number" || (typeof v === "string" && v.trim()) ? Number(v) : NaN; return Number.isFinite(n) && n > 0 ? Math.min(n, 100000) : null; };
@@ -409,7 +416,7 @@ export async function makePlan(env, user, req, log) {
   const pools = first.map(({ k, tag, sd, raw }) => {
     const { ok, dropped } = clean(raw, k);
     log(lang === "zh"
-      ? `拿${sd.map(zhTitle).slice(0, 3).join("、")}${sd.length > 3 ? "等" : ""}去问口味目录要${KIND_ZH_OF(k)}，范围在 ${area}：回来 ${raw.length} 个，${ok.length} 个通过检查` + (dropped.check ? `（${dropped.check} 个品类不对、已关门或不是能停留的地方）` : "") + (dropped.known ? `，${dropped.known} 个你已经记过` : "") + (dropped.price ? `，${dropped.price} 个超出预算` : "") + "。"
+      ? zhSpace(`拿${sd.map(zhTitle).slice(0, 3).join("、")}${sd.length > 3 ? "等" : ""}去问口味目录要${KIND_ZH_OF(k)}，范围在 ${area}：回来 ${raw.length} 个，${ok.length} 个通过检查` + (dropped.check ? `（${dropped.check} 个品类不对、已关门或不是能停留的地方）` : "") + (dropped.known ? `，${dropped.known} 个你已经记过` : "") + (dropped.price ? `，${dropped.price} 个超出预算` : "") + "。")
       : `Asked the catalogue for ${k} near ${area} with ${sd.map((s) => s.name).slice(0, 3).join(", ")}${sd.length > 3 ? "…" : ""}: ${raw.length} came back, ${ok.length} passed the checks` + (dropped.check ? ` (${dropped.check} wrong kind, closed or not a stop)` : "") + (dropped.known ? `, ${dropped.known} you already know` : "") + (dropped.price ? `, ${dropped.price} over budget` : "") + ".");
     return { kind: k, tag, seeds: sd, items: ok };
   });
@@ -434,7 +441,7 @@ export async function makePlan(env, user, req, log) {
     if (centre) { const dc = (x) => haversineMi(centre, x.coords) ?? 99; more = more.filter((x) => dc(x) <= MAX_HOP_MI).sort((a, b) => (tier(dc(a)) - tier(dc(b))) || (b.fit - a.fit) || (dc(a) - dc(b))); }
     const seen = new Set(pool.items.map((i) => i.qloo_id));
     const add = more.filter((i) => !seen.has(i.qloo_id) && (seen.add(i.qloo_id), true));
-    if (add.length) { pool.items.push(...add); widened = where; log(lang === "zh" ? `在 ${area} 附近${KIND_ZH_OF(pool.kind)}的选择不多，我把范围放宽到 ${whereZh}，又找到 ${add.length} 个。` : `Few ${pool.kind} results right in ${area}, so I widened to ${where} and found ${add.length}.`); }
+    if (add.length) { pool.items.push(...add); widened = where; log(lang === "zh" ? zhSpace(`在 ${area} 附近${KIND_ZH_OF(pool.kind)}的选择不多，我把范围放宽到 ${whereZh}，又找到 ${add.length} 个。`) : `Few ${pool.kind} results right in ${area}, so I widened to ${where} and found ${add.length}.`); }
   }));
   timing.qloo_widen_ms = Date.now() - T2;
   const usable = pools.filter((p) => p.items.length);
@@ -457,27 +464,27 @@ export async function makePlan(env, user, req, log) {
     skippedHours += pick ? cands.indexOf(pick) : 0;
     if (!pick) { pick = cands.find((c) => openAt(c.hours, day, arriveAt(c), stay(c)) === null); if (pick) unknownHours++; }
     if (!pick) { log(lang === "zh"
-      ? `我找到的${KIND_ZH_OF(pool.kind)}在${DAY_ZH[DAYS.indexOf(day)]} ${fmtTZh(clock)} 前后都没开门，所以这一站先跳过。`
+      ? zhSpace(`我找到的${KIND_ZH_OF(pool.kind)}在${DAY_ZH[DAYS.indexOf(day)]} ${fmtTZh(clock)} 前后都没开门，所以这一站先跳过。`)
       : `Nothing ${pool.kind} I found is open around ${fmtT(clock)} on ${day[0].toUpperCase() + day.slice(1)}, so I left that stop out.`); continue; }
     clock = arriveAt(pick) + stay(pick);
     stops.push({ ...pick, kind: pick.label || pool.kind, asked: pool.kind, seeds_used: pool.seeds.map((s) => s.qloo_id) });
     if (stops.length >= 3) break;
   }
   if (!stops.length) throw { state: "weak", text: `Nothing near ${area} is open then for what you asked. Try another time or area.` };
-  if (skippedHours) log(lang === "zh" ? `跳过了 ${skippedHours} 个到你到的时候会关门的。` : `Skipped ${skippedHours} that would be closed when you got there.`);
+  if (skippedHours) log(lang === "zh" ? zhSpace(`跳过了 ${skippedHours} 个到你到的时候会关门的。`) : `Skipped ${skippedHours} that would be closed when you got there.`);
   const rj = Object.entries(rejected).filter(([, n]) => n);
   if (rj.length) log(lang === "zh"
     ? `检查排除了 ${rj.map(([r, n]) => `${n} 个${{ wrong_category: "品类不对", not_a_stop: "不是能停留的地方（理发店、杂货店……）", chain: "连锁店", closed: "已永久停业", closed_then: "那天下午会关门", outside_nyc: "不在纽约市内", other_borough: "在河对岸", no_location: "没有地址", no_id: "没有编号" }[r] || r}`).join("，")}。`
     : `Checks left out ${rj.map(([r, n]) => `${n} ${{ wrong_category: "of the wrong kind", not_a_stop: "that are not places to linger (barbers, grocers…)", chain: "chains", closed: "closed for good", closed_then: "closed that afternoon", outside_nyc: "outside the city", other_borough: "across the river", no_location: "without an address", no_id: "without an id" }[r] || r}`).join(", ")}.`);
-  if (stops.length >= 2) log(lang === "zh" ? `让各站靠得近一些：${stops.map((s) => s.name).join("、")}。` : `Kept stops close together: ${stops.map((s) => s.name).join(" then ")}.`);
+  if (stops.length >= 2) log(lang === "zh" ? zhSpace(`让各站靠得近一些：${stops.map((s) => s.name).join("、")}。`) : `Kept stops close together: ${stops.map((s) => s.name).join(" then ")}.`);
   const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
   const T3 = Date.now();
   const plan = await dressPlan(env, user, allSeeds, stops, { area, budget, mood: req.mood, audience: AUDIENCES[req.audience] ? req.audience : null, period: req.period || "all", when, lang: req.lang === "zh" ? "zh" : "en" });
   timing.dress_ms = Date.now() - T3;
   if (req.lang === "zh") await zhReads(env, plan.stops);
-  log(lang === "zh" ? `查过${DAY_ZH[DAYS.indexOf(day)]}的营业时间，并为每一站写了一句。` : `Checked hours for ${day[0].toUpperCase() + day.slice(1)} and wrote one line per stop.`);
+  log(lang === "zh" ? zhSpace(`查过${DAY_ZH[DAYS.indexOf(day)]}的营业时间，并为每一站写了一句。`) : `Checked hours for ${day[0].toUpperCase() + day.slice(1)} and wrote one line per stop.`);
   plan.widened = !!widened;
-  plan.notice = planNotice(plan.stops, area, !!widened);
+  plan.notice = planNotice(plan.stops, area, !!widened, lang);
   if (unknownHours) plan.notice = [plan.notice, `No listed hours for ${unknownHours === 1 ? "one stop" : unknownHours + " stops"}; check before you go.`].filter(Boolean).join(" ");
   plan.pool = pools.map((p) => ({ kind: p.kind, items: p.items.slice(0, 8) }));
   plan.receipt = {
@@ -496,13 +503,22 @@ const fmtT = (m) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${
 const fmtTZh = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 /** Honest note whenever a stop sits outside the neighbourhood asked for (not only after widening). */
-export function planNotice(stops, area, widened) {
+export function planNotice(stops, area, widened, lang) {
   const areaWord = String(area || "").split(",")[0].trim();
   const hoods = (stops || []).map((x) => x.neighborhood).filter(Boolean);
   const outside = hoods.filter((h) => h.toLowerCase() !== areaWord.toLowerCase());
   if (!outside.length) return null;
   if (!widened && !ZIP_HOOD_NAMES.has(lc(areaWord))) return null; // free-text area we cannot compare against
   const uniq = [...new Set(outside)];
+  if (lang === "zh") {
+    const leadZh = widened ? `${areaWord} 附近匹配的不多，所以我往外多找了一点。` : `Qloo 在 ${areaWord} 附近最匹配的地方，有的在边界外。`;
+    const tied = uniq.join(" 和 ");
+    if (outside.length === stops.length) {
+      const tail = stops.length === 1 ? `这一站在 ${uniq[0]}。` : uniq.length === 1 ? (stops.length === 2 ? `两站都在 ${uniq[0]}。` : `所有站都在 ${uniq[0]}。`) : `这几站在 ${tied}。`;
+      return zhSpace(leadZh + tail);
+    }
+    return zhSpace(leadZh + (outside.length === 1 ? `有一站在 ${tied}。` : `有 ${outside.length} 站在 ${tied}。`));
+  }
   const lead = widened ? `Not much matched right in ${areaWord}, so I looked a little further.` : `The best matches near ${areaWord} spill over the border.`;
   if (outside.length === stops.length) return `${lead} ${stops.length === 1 ? `The stop is in ${uniq[0]}.` : uniq.length === 1 ? `${stops.length === 2 ? "Both stops are" : "All stops are"} in ${uniq[0]}.` : `The stops are in ${uniq.join(" and ")}.`}`;
   return `${lead} ${outside.length === 1 ? "One stop is" : outside.length + " stops are"} in ${uniq.join(" and ")}.`;
@@ -790,7 +806,7 @@ export async function makeStayIn(env, user, req, log) {
   const kindNoun = { film: "a film", tv: "a series", music: "music", book: "a book", podcast: "a podcast" };
   const kindNounZh = { film: "一部电影", tv: "一部剧集", music: "一些音乐", book: "一本书", podcast: "一档播客" };
   log(lang === "zh"
-    ? `在家：找${kinds.map((k) => kindNounZh[k]).join("、")}，不需要选街区。`
+    ? zhSpace(`在家：找${kinds.map((k) => kindNounZh[k]).join("、")}，不需要选街区。`)
     : `Staying in: looking for ${kinds.map((k) => kindNoun[k]).join(", ")}. No neighbourhood needed.`);
   const known = new Set(all.map((c) => String(c.qloo_id)));
   const seedsFor = (k) => {
@@ -813,7 +829,7 @@ export async function makeStayIn(env, user, req, log) {
     }
     const fresh = items.filter((x) => !known.has(String(x.qloo_id)) && !sd.some((s) => s.qloo_id === x.qloo_id));
     const seedNames = sd.slice(0, 3).map((s) => s.name);
-    if (lang === "zh") log(`拿${seedNames.map((n) => "《" + n + "》").join("")}${sd.length > 3 ? "等" : ""}去问口味目录要${{ film: "电影", tv: "剧集", music: "音乐", book: "书", podcast: "播客" }[k]}：回来 ${items.length} 个，其中 ${items.length - fresh.length} 个你已经记过。`);
+    if (lang === "zh") log(zhSpace(`拿${seedNames.map((n) => "《" + n + "》").join("")}${sd.length > 3 ? "等" : ""}去问口味目录要${{ film: "电影", tv: "剧集", music: "音乐", book: "书", podcast: "播客" }[k]}：回来 ${items.length} 个，其中 ${items.length - fresh.length} 个你已经记过。`));
     else log(`Asked the catalogue for ${k} with ${seedNames.join(", ")}${sd.length > 3 ? "…" : ""}: ${items.length} came back, ${items.length - fresh.length} you already have cards for.`);
     return { kind: k, seeds: sd, items: fresh, returned: items.length };
   }));
@@ -831,7 +847,7 @@ export async function makeStayIn(env, user, req, log) {
   const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
   const dressed = await dressPicks(env, user, allSeeds, picks, lang);
   if (lang === "zh") await zhReads(env, dressed, 2500); // cap the wait so a cold translator can't stall the plan; the English read stays as fallback
-  log(lang === "zh" ? `选了 ${dressed.length} 个：${dressed.map((p) => "《" + p.name + "》").join("")}。` : `Picked ${dressed.length}: ${dressed.map((p) => p.name).join(", ")}.`);
+  log(lang === "zh" ? zhSpace(`选了 ${dressed.length} 个：${dressed.map((p) => "《" + p.name + "》").join("")}。`) : `Picked ${dressed.length}: ${dressed.map((p) => p.name).join(", ")}.`);
   const when = req.when || user.whenx || "Saturday afternoon";
   const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[req.mood] || "familiar";
   const left_out = ((await env.DB.prepare("SELECT name FROM cards WHERE user_id=? AND heart=-1 ORDER BY name LIMIT 5").bind(user.id).all().catch(() => null))?.results || []).map((r) => r.name);

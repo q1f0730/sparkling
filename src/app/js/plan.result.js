@@ -34,6 +34,13 @@ function whyZhDate(ms){
   const year = d.getFullYear() === new Date().getFullYear() ? "" : d.getFullYear() + "年";
   return year + (d.getMonth() + 1) + "月" + d.getDate() + "日";
 }
+/* the catalogue lists In the Mood for Love as 1990; the film is 2000 */
+function fixYear(pk){
+  const p = pk || {};
+  const name = String(p.name || p.title || "").toLowerCase();
+  if (name === "in the mood for love" || name === "花样年华") return 2000;
+  return p.year;
+}
 /* the "Sparkling + Qloo" half of the compare sheet: the plan's own stops (go-out) or picks (stay-in).
    Built in one place so the first paint can show it while the plain request is still in flight. */
 function mineHalfHTML(plan, eyebrow){
@@ -473,13 +480,14 @@ function renderPlanResult(id){
     if (zh) {
       const zhTags = tags.map(function(x){ return typeof tagZh === "function" ? tagZh(x) : x; })
         .filter(function(x){ return x != null && /[\u4e00-\u9fff]/.test(String(x)); });
-      return "因为你记过" + names.map(function(n){ return "《" + n + "》"; }).join("和") + (zhTags.length ? "；口味目录把它归在 " + zhTags.join("、") + "。" : "。");
+      return "因为你记过" + names.map(function(n){ return "《" + n + "》"; }).join("和") + (zhTags.length ? "；口味目录把它归在" + " " + zhTags.join("、") + "。" : "。");
     }
     return "Because you kept " + names.join(" and ") + (tags.length ? "; the catalogue files it under " + tags.join(", ").toLowerCase() + "." : ".");
   }
   function pickHTML(pk, i){
     const zh = LANG === "zh";
-    const meta = [pk.year ? String(pk.year) : "", pk.by || ""].filter(Boolean).join(" · ");
+    const year = fixYear(pk);
+    const meta = [year ? String(year) : "", pk.by || ""].filter(Boolean).join(" · ");
     const src = Array.isArray(pk.sources) ? pk.sources.filter(function(x){ return x && x.name; }) : [];
     const BAND = zh ? { near: "熟悉", mid: "邻近", far: "远一步" } : { near: "familiar", mid: "nearby", far: "a step out" };
     return '<article class="pick type-' + attr(pk.kind === "music" ? "music" : pk.kind === "book" ? "book" : "film") + '">' +

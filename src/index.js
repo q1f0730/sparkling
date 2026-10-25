@@ -33,6 +33,38 @@ async function readJSON(req) {
 }
 const BAD_BODY = () => ERR("That request was not readable.", 400);
 const IMAGE_TYPES = /^image\/(jpeg|png|webp|gif|heic|heif|avif)$/;
+// Shot 5: how much of each side is tied to a kept card. Computed per response so cached plain blocks get it too.
+function plainVerdict(plan, plain) {
+  const p = plan || {}, q = plain || {}, isIn = p.mode === "in";
+  const seeds = ((p.receipt || {}).seeds || []).map((x) => String((x || {}).name || "").toLowerCase()).filter(Boolean);
+  const list = (a) => (Array.isArray(a) ? a : []);
+  const mine = list(isIn ? p.picks : p.stops), theirs = list(isIn ? q.picks : q.stops);
+  const kept = (x) => {
+    if (!x || typeof x !== "object") return false;
+    const wl = typeof x.why_line === "string" ? x.why_line : "";
+    if (wl.includes("Because you kept") || wl.includes("因为你记过")) return true;
+    const fn = x.from_notes;
+    if (typeof fn === "string" ? fn.trim() : Array.isArray(fn) && fn.length) return true;
+    return Array.isArray(x.sources) && x.sources.length > 0;
+  };
+  const named = (x) => {
+    const why = String((x || {}).why || "").toLowerCase();
+    return !!why && seeds.some((s) => why.includes(s));
+  };
+  const verdict = {
+    mine_total: mine.length,
+    mine_linked: mine.filter(kept).length,
+    plain_total: theirs.length,
+    plain_linked: theirs.filter(named).length,
+    plain_pass: null,
+  };
+  if (!isIn) verdict.plain_pass = theirs.filter((x) => {
+    const c = x && x.check;
+    if (!c || typeof c !== "object" || c.closed === true) return false;
+    return c.ok === true || c.pass === true || c.found === true || c.status === "found";
+  }).length;
+  return verdict;
+}
 const strField = (v, n) => (typeof v === "string" ? v.trim().slice(0, n) : undefined);
 async function currentUser(env, req) {
   const t = cookie(req, "sp");
@@ -538,20 +570,36 @@ async function api(req, env, ctx, url) {
     if (act && m !== "POST") return ERR("not found", 404); // plan actions change state: POST only
     const b = m === "POST" ? (await readJSON(req)) || {} : {};
     if (!act && m === "GET") return J({ plan: { ...plan, saved: !!row.saved } });
-    if (plan.mode === "in" && ["plain", "swap", "shorten", "budget"].includes(act)) return J({ plan, notice: "That only applies to a plan out." });
+    if (plan.mode === "in" && ["swap", "shorten", "budget"].includes(act)) return J({ plan, notice: "That only applies to a plan out." });
     if (act === "plain") {
+      const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"; // same first model llm.js uses for Sparkling's own sentences
+      const seeds = ((plan.receipt || {}).seeds || []).map((x) => x.name);
+      const answer = (pl) => J({ plain: { ...pl, verdict: plainVerdict(plan, pl) } });
+      if (plan.mode === "in") {
+        if (plan.plain && plan.plain.checked === 3) return answer(plan.plain);
+        const kinds = (plan.picks || []).map((x) => x.kind).filter(Boolean);
+        const want = (plan.picks || []).length || 3;
+        let picksOut = [], note = null;
+        try {
+          const out = await llmJSON(env, "You suggest things to watch, listen to or read at home. Suggest real titles from your own memory only. Return {\"picks\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence.",
+            `Things this person loves: ${seeds.join(", ")}. Suggest ${want} things${kinds.length ? " of these kinds, in order: " + kinds.join(", ") : ""}.`,
+            { name: "plain", schema: { type: "object", properties: { picks: { type: "array", items: { type: "object", properties: { name: { type: "string" }, kind: { type: "string" }, why: { type: "string" } }, required: ["name", "why"] } } }, required: ["picks"] } }, 600);
+          picksOut = (out.picks || []).slice(0, 4).map((x) => ({ name: String(x.name || "").slice(0, 80), kind: String(x.kind || "").slice(0, 30), why: String(x.why || "").slice(0, 240) })).filter((x) => x.name);
+        } catch (e) { note = "The plain model is unavailable right now (daily AI quota). Try again later."; }
+        const plain = { model: MODEL, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
+        if (picksOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
+        return answer(plain);
+      }
       const centreOf = (st) => { const c = (st || []).map((x) => x.coords).filter((c) => c && isFinite(c.lat) && isFinite(c.lon)); return c.length ? { lat: c.reduce((a, x) => a + x.lat, 0) / c.length, lon: c.reduce((a, x) => a + x.lon, 0) / c.length } : null; };
-      if (plan.plain && plan.plain.checked === 3) return J({ plain: plan.plain });
+      if (plan.plain && plan.plain.checked === 3) return answer(plan.plain);
       if (plan.plain && plan.plain.stops && plan.plain.stops.length) {
         const ck = await checkPlainPlaces(env, plan.plain.stops.map((x) => x.name), centreOf(plan.stops), plan.plain.area);
         plan.plain = { ...plan.plain, stops: plan.plain.stops.map((x, i) => ({ ...x, check: ck[i] })), checked: 3 };
         await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run();
-        return J({ plain: plan.plain });
+        return answer(plan.plain);
       }
-      const seeds = ((plan.receipt || {}).seeds || []).map((x) => x.name);
       const area = (JSON.parse(row.request || "{}").area || user.area || "").slice(0, 120);
       const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
-      const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"; // same first model llm.js uses for Sparkling's own sentences
       let stopsOut = [], note = null;
       try {
         const out = await llmJSON(env, "You plan an afternoon out. Suggest real venues from your own memory only. Return {\"stops\":[{\"name\":string,\"kind\":string,\"why\":string}]}. Why is one sentence.",
@@ -562,7 +610,7 @@ async function api(req, env, ctx, url) {
       if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }
       const plain = { model: MODEL, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };
       if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), row.id).run(); }
-      return J({ plain });
+      return answer(plain);
     }
     if (act === "save") { await env.DB.prepare("UPDATE plans SET saved=1 WHERE id=?").bind(row.id).run(); return J({ plan: { ...plan, saved: true } }); }
     if (act === "went") {

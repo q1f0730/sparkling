@@ -326,6 +326,24 @@ export async function zhReads(env, stops, ms) {
   if (out.length === src.length) stops.forEach((s, i) => { if (out[i] && /[\u4e00-\u9fff]/.test(out[i])) s.read_zh = zhSpace(String(out[i]).slice(0, 200)); });
 }
 const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", items: { type: "string" } } }, required: ["reads"] };
+/** Simplified-Chinese version of each pick's catalogue synopsis (overview_zh). Cached; the English overview stays as fallback. */
+export async function zhOverviews(env, picks, ms) {
+  const src = picks.map((p) => String(p.overview || ""));
+  if (!src.some(Boolean)) return;
+  const key = "ov:zh:" + (await sha(JSON.stringify(src)));
+  let out = await cacheGet(env, key, 7 * 86400000);
+  if (!out) {
+    try {
+      const o = await withTimeout(llmJSON(env,
+        "Translate each English synopsis into natural Simplified Chinese (一到两句话，口语化，不加感叹号). Keep film, TV, book, album and artist names in their original English spelling. Do not add facts. Return {\"overviews\":[...]} with exactly the same number of items in the same order.",
+        JSON.stringify({ synopses: src }), OVERVIEW_SCHEMA, 700), ms || +env.READ_TIMEOUT_MS || 3500);
+      out = o?.overviews || [];
+      if (out.length === src.length) await cachePut(env, key, out);
+    } catch (_) { out = []; }
+  }
+  if (out.length === src.length) picks.forEach((p, i) => { if (out[i] && /[\u4e00-\u9fff]/.test(out[i])) p.overview_zh = zhSpace(String(out[i]).slice(0, 240)); });
+}
+const OVERVIEW_SCHEMA = { type: "object", properties: { overviews: { type: "array", items: { type: "string" } } }, required: ["overviews"] };
 const READ_BASE = "For each venue write ONE plain sentence addressed to the reader as \"you\" (12-20 words) on why it suits this person's afternoon, connecting a concrete fact about the venue (its kind, vibes or description) to the feel of what they keep returning to (given as seeds). Do not name the seeds as if the venue is about them; no hype, no exclamation marks, use ONLY facts present in the given kind, vibes or description (never invent atmosphere, decor, lighting or style words not listed), no claims about hours, prices or being open. Return {\"reads\":[...]} in order.";
 /** English unless the request is zh; then ask for the same grounded sentence in Simplified Chinese. */
 export const readPrompt = (lang) => READ_BASE + (lang === "zh" ? " Write each sentence in Simplified Chinese (15-30 characters), keep venue names unchanged." : "");
@@ -657,8 +675,8 @@ export async function dressPlan(env, user, seeds, stops, meta) {
         return { attribution: !!cf, contributions: cf, affinity: s.affinity ?? null, qloo_id: s.qloo_id, popularity: s.popularity ?? null, vibes: (s.vibes || []).slice(0, 6), kinds: s.kinds || [], price_level: s.price_level ?? null, area: meta.area, seeds_sent: seedNames.length };
       })(),
       from_qloo: (() => { const cf = contribFor(s); if (cf) { const top = cf.slice(0, 2); return `Matched this ${String(s.kind || "place").toLowerCase()} mostly through ${top.map((r) => r.name).join(" and ")}.`; } const n = seedNames.length || 1, a = [seedNames[(i * 2) % n], seedNames[(i * 2 + 1) % n]].filter((x, j, arr) => x && arr.indexOf(x) === j); return `Ranked this ${String(s.kind || "place").toLowerCase()} near ${a.join(" and ")} in taste` + (s.popularity != null ? ` (popularity ${Number(s.popularity).toFixed(2)})` : "") + "."; })(),
-      read: groundedRead(reads[i], s, fc?.name || null),
-      read_src: reads[i] && groundedRead(reads[i], s, fc?.name || null) === reads[i] ? "model" : "template",
+      read: groundedRead(reads[i], s, (contribFor(s)?.[0]?.name || fc?.name) || null),
+      read_src: reads[i] && groundedRead(reads[i], s, (contribFor(s)?.[0]?.name || fc?.name) || null) === reads[i] ? "model" : "template",
       ops: hoursLine(s.hours, meta.when) + (open === false ? " · may be closed when you arrive" : ""),
       open_on_arrival: open,
       checks: { category: s.primary || s.kind, fit: s.fit ?? null, neighborhood_source: s.hood_source || null, zip: s.zip || null, open_on_arrival: open, hours_listed: open !== null },
@@ -858,6 +876,7 @@ export async function makeStayIn(env, user, req, log) {
   const allSeeds = [...seeds, ...pools.flatMap((p) => p.seeds)].filter((s, i, arr) => arr.findIndex((x) => x.qloo_id === s.qloo_id) === i);
   const dressed = await dressPicks(env, user, allSeeds, picks, lang);
   if (lang === "zh") await zhReads(env, dressed, 2500); // cap the wait so a cold translator can't stall the plan; the English read stays as fallback
+  if (lang === "zh") await zhOverviews(env, dressed, 2500);
   log(lang === "zh" ? zhSpace(`选了 ${dressed.length} 个：${dressed.map((p) => "《" + p.name + "》").join("")}。`) : `Picked ${dressed.length}: ${dressed.map((p) => p.name).join(", ")}.`);
   const when = req.when || user.whenx || "Saturday afternoon";
   const moodWord = { familiar: "familiar", different: "a little different", surprise: "surprise me" }[req.mood] || "familiar";
@@ -906,6 +925,7 @@ export async function dressPicks(env, user, seeds, picks, lang) {
       : (lang === "zh" ? "口味目录根据你的卡片整体给出。" : "The catalogue returned it for your cards taken together.");
     return {
       qloo_id: p.qloo_id, name: p.name, kind: p.kind, year: p.year, by: p.by, image: p.image, description: p.description, tags: p.tags,
+      overview: p.overview || p.description || "",
       read: p.description || "", why_line: why, sources: ord,
       why: { attribution, contributions: cf.length ? cf : null, affinity: p.affinity, popularity: p.popularity, vibes: p.tags, qloo_id: p.qloo_id, type: MEDIA_URN[p.kind], seeds_sent: (p.seeds_used || []).length },
     };

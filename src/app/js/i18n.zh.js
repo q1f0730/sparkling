@@ -184,7 +184,7 @@ const ZH = {
   "Something a little off my usual track": "稍微偏离我平时的路线", "A quiet bookstore, then somewhere to sit": "一家安静的书店，再找个地方坐坐",
   "A record shop and a slow coffee": "一家唱片店，一杯慢慢喝的咖啡", "An old cinema, then a late bite": "一家老电影院，再吃点夜宵",
   "Anything else?": "还有别的吗？", "Area": "区域", "Budget": "预算", "When": "时间", "Mood": "心情", "Somewhere": "某处",
-  "Saturday afternoon": "周六下午", "Go out": "出门", "Stay in": "在家", "Go out or stay in": "出门还是在家",
+  "Saturday afternoon": "周六下午", "Show less": "收起", "Go out": "出门", "Stay in": "在家", "Go out or stay in": "出门还是在家",
   "Picked from what you wrote": "按你写的自动选了", "Meditators": "冥想者", "Hikers": "徒步爱好者", "Musicians": "音乐人", "Arts & crafts": "手作爱好者", "Photographers": "摄影爱好者", "Lens, optional": "视角（可选）", "Could not load.": "没加载出来。", "Sparkling + Qloo": "Sparkling + 口味目录", "The catalogue returned it for your cards taken together.": "口味目录根据你的卡片整体给出。", "Stay in.": "在家，", "Why this pick?": "为什么推荐这个？", "Plan something else": "换个计划",
   "A film for tonight, from my notes": "今晚看部电影，按我的记录推荐", "An album to put on while I cook": "做饭时放一张专辑", "A book for a slow Sunday": "慢悠悠的周日读本书",
   "Press play.": "按下播放。", "One more episode.": "再看一集。", "Put it on.": "放起来。", "Turn the page.": "翻开第一页。", "Take your time.": "慢慢来。",
@@ -313,4 +313,5 @@ const ZH_PATTERNS = [
   [/^(?:Qloo lists|Listed) (.+) \u00b7 not live-checked$/, function(m, x){ return "标注营业时间 " + x + " · 未实时核实"; }],
   [/^Photo (\d+)$/, function(m, n){ return "照片 " + n; }], [/^Show photo (\d+)$/, function(m, n){ return "显示照片 " + n; }],
   [/^under \$(\d+)$/, function(m, n){ return n + " 美元以内"; }],
+  [/^\+ (\d+) more from your notes$/, function(m, n){ return "还有 " + n + " 条来自你的笔记"; }],
 ];

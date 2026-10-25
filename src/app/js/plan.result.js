@@ -487,6 +487,7 @@ function renderPlanResult(id){
   function pickHTML(pk, i){
     const zh = LANG === "zh";
     const year = fixYear(pk);
+    const synopsis = zh ? (pk.overview_zh ? String(pk.overview_zh) : stopRead(pk)) : (pk.overview != null ? String(pk.overview) : stopRead(pk));
     const meta = [year ? String(year) : "", pk.by || ""].filter(Boolean).join(" · ");
     const src = Array.isArray(pk.sources) ? pk.sources.filter(function(x){ return x && x.name; }) : [];
     const BAND = zh ? { near: "熟悉", mid: "邻近", far: "远一步" } : { near: "familiar", mid: "nearby", far: "a step out" };
@@ -496,7 +497,7 @@ function renderPlanResult(id){
         '<p class="pick-eyebrow">' + esc(t(pk.kind || "film")) + (meta ? '<span class="r7-sep" aria-hidden="true"></span><span class="num" translate="no">' + esc(meta) + "</span>" : "") + "</p>" +
         '<h3 class="pick-name" translate="no">' + esc(pk.name || "") + "</h3>" +
         '<p class="pick-why">' + esc(pickWhyLine(pk)) + "</p>" +
-        (stopRead(pk) ? '<p class="pick-desc">' + esc(stopRead(pk)) + "</p>" : "") +
+        (synopsis ? '<p class="pick-desc">' + esc(synopsis) + "</p>" : "") +
         (src.length ? '<div class="pick-src">' + src.map(function(x){
           return '<button type="button" class="pick-trace" data-nav="#/cards/' + attr(x.card_id || "") + '"' + (x.card_id ? "" : " disabled") + '>' +
             (x.image ? '<img src="' + attr(x.image) + '" alt="" loading="lazy" onerror="this.remove()">' : '<i class="ph"></i>') +

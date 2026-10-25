@@ -2277,6 +2277,9 @@ const ZH = {
   "What it rests on: Qloo\u2019s data and your own notes, shown as they are. Sparkling\u2019s own read sits apart.": "它的依据：Qloo 的数据和你自己的笔记，原样呈现。Sparkling 自己的解读单独放在一边。",
   "Qloo tags": "Qloo 标签", "Listed on": "标注在",
   "Saved on this device only.": "仅保存在本设备。",
+  "Sparkling was sure about everything lately.": "最近 Sparkling 都很有把握。",
+  "Sparkling never guesses silently.": "Sparkling 从不悄悄替你猜。",
+  "When a name could mean two things, like Margaret (a singer and a 2011 film), it waits here for you to pick.": "当一个名字可能指两样东西时，比如 Margaret（一位歌手和一部 2011 年的电影），它会在这里等你来选。",
 };
 
 const NUM_ZH = { zero:"零", one:"一", two:"两", three:"三", four:"四", five:"五", six:"六", seven:"七", eight:"八", nine:"九", ten:"十", eleven:"十一", twelve:"十二", many:"很多" };
@@ -2366,12 +2369,24 @@ Object.assign(ZH, { "Card IDs and your area. No note text.": "只发送卡片 ID
 /* compare-sheet zh */
 Object.assign(ZH, { "Same notes, no Qloo": "同样的笔记，不用 Qloo", "Same cards, same area, same model. The only change: no Qloo.": "同样的卡片、同样的区域、同一个模型，唯一的区别：不用 Qloo。", "The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.": "这些地方是模型凭记忆报的。随后 Sparkling 逐个到 Qloo 里查：是否存在、是否还在营业、离你的路线近不近。", "Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.": "每一站一开始就来自 Qloo：有 ID、坐标、营业时间，并标明出自你的哪条笔记。", "Asking a plain model, no Qloo… usually 5–15 seconds.": "正在问一个不带 Qloo 的纯模型……通常需要 5–15 秒。" });
 ZH_PATTERNS.unshift([/^(\d+) of (\d+) pass\.$/, function(m, a, b){ return b + " 个里有 " + a + " 个通过。"; }]);
+/* plain-compare verdict zh (shot 5) */
+ZH_PATTERNS.unshift(
+  [/^With Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "用了 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }],
+  [/^Without Qloo: (\d+) of (\d+) tied to a card you kept\.$/, function(m, a, b){ return "不用 Qloo：" + b + " 个里有 " + a + " 个连着你留下的卡片。"; }]
+);
 Object.assign(ZH, { "In Qloo": "Qloo 里有", "In Qloo, but far": "Qloo 里有，但很远", "Closed for good, per Qloo": "Qloo 标注已永久关闭", "Not in Qloo, so unchecked": "Qloo 里没有，无法核对", "Only found in another city": "只在别的城市找到", "Not checked": "未核对", "Open on arrival": "到达时营业", "May be closed when you arrive": "到达时可能已关门", "on the route": "就在路线上", "Plain model": "纯模型", "Sparkling + Qloo": "Sparkling + Qloo" });
 ZH_PATTERNS.unshift(
   [/^(\d+) min walk$/, function(m, n){ return "步行 " + n + " 分钟"; }],
   [/^(\d+) min by bike \(([\d.]+) mi\)$/, function(m, n, d){ return "骑车 " + n + " 分钟（" + d + " 英里）"; }],
   [/^([\d.]+) mi from the route$/, function(m, d){ return "离路线 " + d + " 英里"; }]
 );
+/* stay-in plain compare zh */
+Object.assign(ZH, {
+  "Same cards, same model. The only change: no Qloo.": "同样的卡片、同一个模型，唯一的区别：不用 Qloo。",
+  "because you kept": "因为你记过",
+  "What is lost: the card behind each pick, and any check that it exists.": "少了什么：每个推荐背后的那张卡，以及它是否真的存在这项核对。",
+  "The model named these from memory. Sparkling did not look them up.": "这些是模型凭记忆报的，Sparkling 没有逐个核对。"
+});
 /* plan trace zh */
 (function(){
   var RJ = { "of the wrong kind": "类型不符", "that are not places to linger (barbers, grocers…)": "不适合逗留的地方（理发店、杂货店等）", "chains": "连锁店", "closed for good": "已永久关闭", "closed that afternoon": "当天下午不营业", "outside the city": "在城市之外", "across the river": "在河对岸", "without an address": "没有地址", "without an id": "没有 ID" };
@@ -2531,6 +2546,11 @@ function trZh(s){
   if (out == null) return raw;
   return raw.replace(key, out);
 }
+/* plan presets: quick-start chip labels (this file loads after i18n.zh.js, so ZH already exists) */
+Object.assign(ZH, {
+  "I want to watch a film": "\u6211\u60f3\u770b\u4e00\u90e8\u7535\u5f71",
+  "Saturday afternoon in Greenpoint, $40": "\u5468\u516d\u4e0b\u5348\uff0cGreenpoint\uff0c$40",
+});
 function fixCase(x){ return String(x).replace(/\b([A-Z][a-z]{2,})([A-Z])([a-z]+)\b/g, function(_, a, b, c){ return a + b.toLowerCase() + c; }); }
 function reasonZh(r){
   if (r) r = fixCase(r);
@@ -6149,6 +6169,33 @@ function renderCardDetail(id){
       return '<img class="strip-img" src="' + attr(url) + '" alt="Photo from your notes" loading="lazy">';
     }).join("") + "</div>";
   }
+  /* the context of a mention rather than the whole note: a ~200 char window around the card's name,
+     the name marked, an ellipsis on whichever side was trimmed. Always escaped. */
+  function fpQuoteHTML(quote, name){
+    const text = String(quote || "").trim();
+    if (!text) return "";
+    const limit = 200;
+    const label = String(name || "");
+    const at = label ? text.toLowerCase().indexOf(label.toLowerCase()) : -1;
+    if (at < 0) return esc(text.slice(0, limit)) + (text.length > limit ? "…" : "");
+    const end = at + label.length;
+    if (text.length <= limit) {
+      return esc(text.slice(0, at)) + '<mark class="fp-hit">' + esc(text.slice(at, end)) + "</mark>" + esc(text.slice(end));
+    }
+    let start = Math.max(0, at - Math.floor((limit - label.length) / 2));
+    let stop = Math.min(text.length, start + limit);
+    if (start > 0) {
+      const sp = text.indexOf(" ", start);
+      if (sp > -1 && sp < at) start = sp + 1;
+    }
+    if (stop < text.length) {
+      const sp = text.lastIndexOf(" ", stop);
+      if (sp > end) stop = sp;
+    }
+    return (start > 0 ? "…" : "") + esc(text.slice(start, at)) +
+      '<mark class="fp-hit">' + esc(text.slice(at, end)) + "</mark>" +
+      esc(text.slice(end, stop)) + (stop < text.length ? "…" : "");
+  }
   function timelineHTML(){
     if (!footprints.length) {
       return '<p class="compact-empty">No footprints yet. Write about this again and it will gather here.</p>';
@@ -6165,7 +6212,7 @@ function renderCardDetail(id){
             (source ? '<span class="fp-kind" title="' + attr(source.title) + '">' + esc(source.label) + "</span>" : "") +
             '<button class="fp-detach" type="button" data-detach="' + attr(fp.id) + '" aria-label="Not about this footprint">Not about this</button>' +
           "</div>" +
-          (quote ? '<p class="fp-quote">' + esc(quote) + "</p>" : "") +
+          (quote ? '<p class="fp-quote">' + fpQuoteHTML(quote, card && card.name) + "</p>" : "") +
           (image ? '<img class="fp-thumb" src="' + attr(image) + '" alt="Photo from this footprint" loading="lazy">' : "") +
         "</div>";
       }).join("") + "</div>";
@@ -6720,7 +6767,11 @@ function renderInbox(){
   function emptyHTML(){
     return '<div class="done-wrap">' +
       '<p class="done-title">Nothing to look at.</p>' +
-      '<p class="done-copy">Sparkling was sure about everything lately. Anything less certain will wait here.</p>' +
+      '<p class="done-copy">' + esc(t("Sparkling was sure about everything lately.")) + '</p>' +
+      '<div class="inbox-how" style="max-width:300px;margin:4px auto 22px;padding:14px 16px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-card);text-align:left">' +
+        '<p class="inbox-how-lead" style="margin:0 0 6px;font:500 14px/20px var(--sans);color:var(--b-ink)">' + esc(t("Sparkling never guesses silently.")) + '</p>' +
+        '<p class="inbox-how-copy" style="margin:0;font:400 13px/19px var(--sans);color:var(--b-ink2)">' + esc(t("When a name could mean two things, like Margaret (a singer and a 2011 film), it waits here for you to pick.")) + '</p>' +
+      '</div>' +
       '<button class="btn btn-sm" type="button" data-nav="#/notes">Back to your notes</button>' +
     "</div>";
   }
@@ -6930,6 +6981,12 @@ function renderInbox(){
 /* ---------------------------------------------------------------------------
    Plan request (screen 8)
    --------------------------------------------------------------------------- */
+/* Plan presets: one tap fills the composer. The chips themselves live under the form. */
+function planPreset(name){
+  if (name === "out") return { mode: "out", when: "Saturday afternoon", area: "Greenpoint", budget: 40, text: "" };
+  if (name === "in") return { mode: "in", when: "", area: "", budget: null, text: "I want to watch a film" };
+  return null;
+}
 function renderPlanRequest(){
   const token = beginView();
   setShell({ title: "Plan", tabs: true, active: "plan" });
@@ -7021,6 +7078,10 @@ function renderPlanRequest(){
       '<div data-plan-progress></div>' +
       '<div data-plan-error></div>' +
     "</form>" +
+    '<div class="mood-row plan-presets" role="group" aria-label="Quick starts">' +
+      '<button class="plan-preset mood" type="button" data-plan-preset="out" style="height:auto;white-space:normal;text-align:left;padding:8px 12px;line-height:1.35">' + esc(t("Saturday afternoon in Greenpoint, $40")) + "</button>" +
+      '<button class="plan-preset mood" type="button" data-plan-preset="in" style="height:auto;white-space:normal;text-align:left;padding:8px 12px;line-height:1.35">' + esc(t("I want to watch a film")) + "</button>" +
+    "</div>" +
     '<div class="plan-ideas"><p class="plan-ideas-h">Try one of these</p>' +
     ["A quiet bookstore, then somewhere to sit","A record shop and a slow coffee","An old cinema, then a late bite"].map(function(t){return '<button type="button" class="plan-idea" data-idea="'+attr(t)+'" data-out-only' + (mode === "in" ? " hidden" : "") + '>'+esc(t)+'</button>';}).join("") +
     ["A film for tonight, from my notes","An album to put on while I cook","A book for a slow Sunday"].map(function(t){return '<button type="button" class="plan-idea" data-idea="'+attr(t)+'" data-in-only' + (mode === "out" ? " hidden" : "") + '>'+esc(t)+'</button>';}).join("") +
@@ -7054,6 +7115,18 @@ function renderPlanRequest(){
   const errSlot = view.querySelector("[data-plan-error]");
   const savedSlot = view.querySelector("[data-saved-plans]");
   const duoBtn = view.querySelector("[data-duo-go]");
+  function applyPreset(p){
+    if (!p) return;
+    modeLocked = true;
+    setMode(p.mode, false);
+    if (p.when && whenInput) whenInput.value = p.when;
+    if (p.area && areaInput) areaInput.value = p.area;
+    if (p.budget != null && budgetInput) budgetInput.value = String(p.budget);
+    if (p.text && freeInput) freeInput.value = t(p.text);
+    const hint = view.querySelector("[data-mode-hint]"); if (hint) hint.hidden = true;
+    const focusEl = p.mode === "in" ? freeInput : whenInput;
+    if (focusEl) { try { focusEl.focus(); } catch (_) {} }
+  }
   if (duoBtn) duoBtn.addEventListener("click", async function(){
     const out = view.querySelector("[data-duo-out]");
     duoBtn.disabled = true; out.innerHTML = '<p class="duo-note">Weighing both notebooks&hellip;</p>';
@@ -7196,6 +7269,11 @@ function renderPlanRequest(){
   }
 
   on(view, "click", function(e){
+    const presetBtn = e.target.closest("[data-plan-preset]");
+    if (presetBtn) {
+      applyPreset(planPreset(presetBtn.getAttribute("data-plan-preset")));
+      return;
+    }
     const perBtn = e.target.closest("[data-period]");
     if (perBtn) {
       period = perBtn.getAttribute("data-period");
@@ -7328,17 +7406,91 @@ function renderPlanResult(id){
       notesCard + qlooCard + readCard +
       '<details class="why-details"><summary>Receipt</summary>' + rc + "</details>";
   }
+  /* compare verdict: two plain lines at the top of the sheet, counted from what is already on screen */
+  function verdictKeptLink(x){
+    if (!x) return false;
+    if (x.why_line || x.from_notes) return true;
+    return Array.isArray(x.sources) && x.sources.some(function(s){ return s && s.name; });
+  }
+  function verdictSeeds(plan, pl){
+    if (pl && Array.isArray(pl.seeds) && pl.seeds.length) {
+      return pl.seeds.map(function(x){ return typeof x === "string" ? x : (x && x.name) || ""; }).filter(Boolean);
+    }
+    const rs = plan && plan.receipt && Array.isArray(plan.receipt.seeds) ? plan.receipt.seeds : [];
+    return rs.map(function(x){ return x && x.name; }).filter(Boolean);
+  }
+  function verdictNamesSeed(text, seeds){
+    const s = String(text == null ? "" : text).toLowerCase();
+    if (!s.trim() || !seeds.length) return false;
+    return seeds.some(function(n){ return n && s.indexOf(String(n).toLowerCase()) >= 0; });
+  }
+  function verdictPair(o){
+    if (Array.isArray(o) && o.length >= 2) return { tied: Number(o[0]) || 0, total: Number(o[1]) || 0 };
+    if (!o || typeof o !== "object") return null;
+    const tied = o.tied != null ? o.tied : o.kept != null ? o.kept : o.n;
+    const total = o.total != null ? o.total : o.of != null ? o.of : o.count;
+    return tied != null && total != null ? { tied: Number(tied) || 0, total: Number(total) || 0 } : null;
+  }
+  function verdictHTML(plan, pl, mineItems, plainItems){
+    const mine = (Array.isArray(mineItems) ? mineItems : []).filter(function(x){ return x && x.name; });
+    const plain = (Array.isArray(plainItems) ? plainItems : []).filter(function(x){ return x && x.name; });
+    const seeds = verdictSeeds(plan, pl);
+    let withN = mine.filter(function(x){ return verdictKeptLink(x); }).length, withT = mine.length;
+    let withoutN = plain.filter(function(x){ return verdictNamesSeed(x.why, seeds); }).length, withoutT = plain.length;
+    /* a server-sent verdict, when present, is authoritative */
+    const v = pl && pl.verdict;
+    if (v && typeof v === "object") {
+      const a = verdictPair(v.with_qloo || v.withQloo || v["with"] || v.sparkling);
+      const b = verdictPair(v.without_qloo || v.withoutQloo || v.without || v.plain);
+      if (a) { withN = a.tied; withT = a.total; }
+      if (b) { withoutN = b.tied; withoutT = b.total; }
+    }
+    return '<div class="plain-verdict" role="note" style="margin:2px 0 14px;padding:12px 14px;border:1px solid var(--b-line);border-radius:18px;background:var(--b-soft)">' +
+      '<p class="pv-with" style="margin:0;font-family:var(--sans);font-size:13px;font-weight:600;line-height:1.5;color:var(--b-ink)">' + esc(t("With Qloo: " + withN + " of " + withT + " tied to a card you kept.")) + "</p>" +
+      '<p class="pv-without" style="margin:4px 0 0;font-family:var(--sans);font-size:13px;font-weight:400;line-height:1.5;color:var(--b-ink2)">' + esc(t("Without Qloo: " + withoutN + " of " + withoutT + " tied to a card you kept.")) + "</p>" +
+    "</div>";
+  }
   async function openPlain(){
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: '<div class="plain-skel" aria-busy="true"><p class="muted">' + esc(t("Asking a plain model, no Qloo… usually 5–15 seconds.")) + '</p><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:80%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:60%"></div><div style="height:14px;border-radius:7px;background:rgba(120,110,90,.18);margin:12px 0;width:70%"></div></div>' });
     let d = null;
     try { d = await api("/api/plan/" + encodeURIComponent(planId) + "/plain", { method: "POST", body: "{}" }); } catch (e) {}
     const pl = d && d.plain;
+    if (currentPlan && currentPlan.mode === "in") {
+      /* stayin: compare the picks side by side — Sparkling's carry a kept-card link, the plain model's carry none */
+      const picks = (Array.isArray(currentPlan.picks) ? currentPlan.picks : []).filter(function(p){ return p && p.name; });
+      const plainPicks = pl && Array.isArray(pl.picks) ? pl.picks.filter(function(p){ return p && p.name; }) : [];
+      const kindTag = function(k){ return k ? ' <small>(' + esc(t(String(k).toLowerCase())) + ")</small>" : ""; };
+      const keptLine = function(p){
+        const src = (Array.isArray(p.sources) ? p.sources : []).filter(function(x){ return x && x.name; }).slice(0, 2);
+        if (!src.length) return p.why_line ? '<small class="muted">' + esc(p.why_line) + "</small>" : "";
+        const names = src.map(function(x){
+          const label = LANG === "zh" ? "《" + x.name + "》" : x.name;
+          return x.card_id ? '<a class="df-link" href="#/cards/' + attr(x.card_id) + '" data-close-nav="#/cards/' + attr(x.card_id) + '" translate="no">' + esc(label) + "</a>" : '<span translate="no">' + esc(label) + "</span>";
+        });
+        return '<small class="muted">' + esc(t("because you kept")) + (LANG === "zh" ? "" : " ") + names.join(LANG === "zh" ? "、" : " and ") + "</small>";
+      };
+      const minePicks = picks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + keptLine(p) + "</li>"; }).join("");
+      const theirPicks = plainPicks.length ? plainPicks.map(function(p){ return '<li><b translate="no">' + esc(p.name) + "</b>" + kindTag(p.kind) + "<br>" + (p.why ? '<small class="muted" translate="no">' + esc(p.why) + "</small>" : "") + "</li>"; }).join("") : '<li><small class="muted">' + esc((pl && pl.note) || t("Could not load.")) + "</small></li>";
+      const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted">' + esc(t("Same cards, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + "</small>" : "") + "</p>" +
+        '<div class="why-feed">' +
+          '<section><h3 class="r7-eyebrow">' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + minePicks + "</ol></section>" +
+          '<section><h3 class="r7-eyebrow">' + esc(t("Plain model")) + '</h3><ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
+        "</div>" +
+        '<p class="why-line">' + esc(t("What is lost: the card behind each pick, and any check that it exists.")) + "</p>" +
+        '<p class="muted"><small>' + esc(t("The model named these from memory. Sparkling did not look them up.")) + "</small></p>";
+      openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: body, onMount: function(m){
+        m.querySelectorAll("[data-close-nav]").forEach(function(a){
+          a.addEventListener("click", function(e){ e.preventDefault(); const h = a.getAttribute("data-close-nav"); closeModal(); location.hash = h; });
+        });
+      }});
+      return;
+    }
     const mine = (currentPlan.stops || []).map(function(s, i){ const hood = s.neighborhood || s.address || ""; const dst = i > 0 && s.distance ? String(s.distance).replace(/ from stop \d+/, "") : ""; const op = s.open_on_arrival === true ? t("Open on arrival") : s.open_on_arrival === false ? t("May be closed when you arrive") : ""; const bits = [dst ? esc(t(dst)) : "", hood ? esc(hood) : "", op ? esc(op) : ""].filter(Boolean).join(" · "); return '<li><b translate="no">' + esc(s.name) + '</b><br><span class="pc pc-ok">' + esc(t("In Qloo")) + '</span>' + (bits ? '<small class="muted"> · ' + bits + '</small>' : "") + '<br><small>' + esc(stopRead(s)) + '</small></li>'; }).join("");
     const CK = { found: ["ok", "In Qloo"], far: ["warn", "In Qloo, but far"], closed: ["bad", "Closed for good, per Qloo"], not_found: ["warn", "Not in Qloo, so unchecked"], elsewhere: ["bad", "Only found in another city"], unchecked: ["muted", "Not checked"] };
     const ckLine = function(c){ if (!c) return '<span class="pc pc-muted">' + esc(t("Not checked")) + "</span>"; const k = CK[c.status] || CK.unchecked; const dist = c.mi != null ? " · " + esc(t(c.mi < 0.1 ? "on the route" : c.mi + " mi from the route")) : ""; return '<span class="pc pc-' + k[0] + '">' + esc(t(k[1])) + "</span>" + (c.status !== "not_found" && c.status !== "unchecked" && c.status !== "elsewhere" ? '<small class="muted">' + dist + (c.hood ? " · " + esc(c.hood) : "") + "</small>" : ""); };
     const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return '<li><b translate="no">' + esc(s.name) + '</b>' + (s.kind ? ' <small>(' + esc(t(String(s.kind).toLowerCase())) + ')</small>' : '') + '<br>' + ckLine(s.check) + '<br><small>' + esc(s.why) + '</small></li>'; }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
     const ok = pl && pl.stops ? pl.stops.filter(function(s){ return s.check && (s.check.status === "found"); }).length : 0;
-    const body = '<p class="muted">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + '</small>' : '') + '</p>' +
+    const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + (pl ? ' <small translate="no">' + esc(String(pl.model).split("/").pop()) + '</small>' : '') + '</p>' +
       '<h3>' + esc(t("Plain model")) + '</h3><ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p>' +
       '<h3>' + esc(t("Sparkling + Qloo")) + '</h3><ol class="plain-list">' + mine + '</ol><p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p>';
     openSheet({ title: t("Same notes, no Qloo"), cls: "why-sheet", body: body });
@@ -7503,8 +7655,8 @@ function renderPlanResult(id){
     const names = (Array.isArray(pk.sources) ? pk.sources : []).map(function(x){ return x && x.name; }).filter(Boolean).slice(0, 2);
     const tags = (Array.isArray(pk.tags) ? pk.tags : []).slice(0, 2);
     if (!names.length) return pk.why_line || t("The catalogue returned it for your cards taken together.");
-    return zh ? "因为你记过 " + names.map(function(n){ return "《" + n + "》"; }).join("和") + (tags.length ? "；Qloo 给它的标签：" + tags.join("、") + "。" : "。")
-      : "Because you kept " + names.join(" and ") + (tags.length ? "; Qloo files it with " + tags.join(" and ").toLowerCase() + "." : ".");
+    return zh ? "因为你记过" + names.map(function(n){ return "《" + n + "》"; }).join("和") + (tags.length ? "；口味目录把它归在 " + tags.map(tagZh).join("、") + "。" : "。")
+      : "Because you kept " + names.join(" and ") + (tags.length ? "; the catalogue files it under " + tags.join(", ").toLowerCase() + "." : ".");
   }
   function pickHTML(pk, i){
     const zh = LANG === "zh";
@@ -7541,6 +7693,7 @@ function renderPlanResult(id){
         '<p class="r7-eyebrow"><span>' + esc(LANG === "zh" ? trZh(when) : when) + '</span><span class="r7-sep" aria-hidden="true"></span><span>' + esc(t("Stay in")) + "</span>" + (saved ? '<span class="r7-saved">Saved</span>' : "") + "</p>" +
         '<h2 class="plan-header r7-display"><span>' + esc(t("Stay in")) + (LANG === "zh" ? "，" : ".") + '</span> <em>' + esc(t(em)) + "</em></h2>" +
         '<div class="plan-chips">' + (moodC ? '<span class="plan-chip">' + esc(LANG === "zh" ? trZh(moodC) : moodC) + "</span>" : "") + '<span class="plan-chip">' + esc(picks.length + " " + (LANG === "zh" ? "个推荐" : plural(picks.length, "pick", "picks"))) + '</span><span class="plan-chip">' + esc(t(one || "mixed")) + "</span></div>" +
+        '<button class="plain-cta" type="button" data-plain="1"><span>' + esc(t("Same notes, no Qloo")) + '</span><span class="plain-cta-go">' + esc(t("Compare →")) + "</span></button>" +
       "</header>" +
       (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +
       diffHTML(plan) +

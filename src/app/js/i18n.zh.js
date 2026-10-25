@@ -253,6 +253,9 @@ const ZH = {
   "What it rests on: Qloo\u2019s data and your own notes, shown as they are. Sparkling\u2019s own read sits apart.": "它的依据：Qloo 的数据和你自己的笔记，原样呈现。Sparkling 自己的解读单独放在一边。",
   "Qloo tags": "Qloo 标签", "Listed on": "标注在",
   "Saved on this device only.": "仅保存在本设备。",
+  "Sparkling was sure about everything lately.": "最近 Sparkling 都很有把握。",
+  "Sparkling never guesses silently.": "Sparkling 从不悄悄替你猜。",
+  "When a name could mean two things, like Margaret (a singer and a 2011 film), it waits here for you to pick.": "当一个名字可能指两样东西时，比如 Margaret（一位歌手和一部 2011 年的电影），它会在这里等你来选。",
 };
 
 const NUM_ZH = { zero:"零", one:"一", two:"两", three:"三", four:"四", five:"五", six:"六", seven:"七", eight:"八", nine:"九", ten:"十", eleven:"十一", twelve:"十二", many:"很多" };

@@ -2,6 +2,8 @@
    Threads
    --------------------------------------------------------------------------- */
 
+Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。" });
+
 /* ---- monthly taste letter ---- */
 function renderLetter(){
   const token = beginView();
@@ -236,9 +238,21 @@ function renderThreads(){
       if (!isCurrent(token) || seq !== loadSeq) return;
       THREADS_CACHE[period] = data;
       paint(data);
+      const stale = threadsEl && threadsEl.querySelector(".stale-note");
+      if (stale) stale.remove();
     } catch (e) {
       if (!isCurrent(token) || seq !== loadSeq || isAbort(e)) return;
-      if (cached) return;
+      if (cached) {
+        /* The cached list is all we have: say once, above it, that it may be old. */
+        if (threadsEl && !threadsEl.querySelector(".stale-note")) {
+          const note = document.createElement("p");
+          note.className = "stale-note";
+          note.setAttribute("role", "status");
+          note.innerHTML = esc(t("Offline · showing your last copy."));
+          threadsEl.insertBefore(note, threadsEl.firstChild);
+        }
+        return;
+      }
       threadsEl.innerHTML = errorBlock("Your threads did not load. Check your connection, then try again.", "threads");
     }
   }

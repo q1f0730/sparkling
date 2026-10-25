@@ -636,7 +636,7 @@ export function inboxReason(mention, guesses) {
   const lead = same.length > 1 ? (types.length > 1 ? `"${mention}" is a ${types.map((t) => (t === "tv" ? "show" : t)).join(" and a ")}.` : `${same.length} ${word[top.type] || "things"} are called ${top.name}.`) : guesses.length > 1 ? `"${mention}" could be a few things.` : `Not sure "${mention}" means ${top.name}.`;
   if (top.taste && typeof top.taste.affinity === "number") {
     const via = (top.taste.via || []).map((v) => v.name).filter(Boolean).slice(0, 2);
-    return `${lead} The catalogue puts ${label(top)} closest to your taste (${top.taste.affinity.toFixed(2)})${via.length ? `, mostly through ${via.join(" and ")}` : ""}.`;
+    return `${lead} The catalogue puts ${label(top)} closest to your taste${via.length ? `, mostly through ${via.join(" and ")}` : ""}.`;
   }
   return lead;
 }

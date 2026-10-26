@@ -740,6 +740,11 @@ svg{flex:0 0 auto}
   transition:border-color .15s ease;
 }
 .choice:hover{border-color:var(--line-strong)}
+/* sample-first (prod): the sample notebook is the obvious first tap */
+.choice.choice-primary{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;padding:17px 16px}
+.choice.choice-primary .choice-title{font-size:15px}
+.choice.choice-primary .choice-chev{color:var(--accent-ink)}
+.choice.choice-primary:hover{border-color:var(--accent-ink)}
 .choice-copy{min-width:0;flex:1}
 .choice-title{display:block;font-size:14px;font-weight:600;line-height:1.35;color:var(--text)}
 .choice-sub{display:block;font-size:12px;line-height:1.4;color:var(--muted);margin-top:2px}
@@ -2567,7 +2572,9 @@ Object.assign(ZH, {
 /* 10-25 plan-error-friendly: outage copy (kept here too so the zh parity test sees it) */
 Object.assign(ZH, { "Sparkling could not reach the catalogue just now. Your notes are safe. Try again in a moment.": "Sparkling 暂时连不上口味目录。你的笔记都在，稍后再试一次。" });
 /* 10-25 threads-stale-note: offline copy line (here too so the zh parity test sees it) */
-Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。" });
+Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。", "Couldn't refresh · showing your last copy.": "没能刷新 · 显示的是上次的内容。" });
+/* sample-first (prod welcome) */
+Object.assign(ZH, { "Open Juno Park's sample notebook": "打开 Juno Park 的示例笔记本", "One tap: a made-up New Yorker's notes, cards and plans.": "点一下就能看：一位虚构纽约人的笔记、卡片和计划。" });
 function trZh(s){
   if (s == null) return s;
   const raw = String(s);
@@ -3520,8 +3527,8 @@ async function retryBootFromOnboarding(button){
     renderOnboarding();
   }
 }
-function onboardingChoiceHTML(key, title, support){
-  return '<button class="choice" type="button" data-choice="' + attr(key) + '">' +
+function onboardingChoiceHTML(key, title, support, extraClass){
+  return '<button class="choice' + (extraClass ? " " + attr(extraClass) : "") + '" type="button" data-choice="' + attr(key) + '">' +
     '<span class="choice-copy"><span class="choice-title">' + esc(title) + '</span><span class="choice-sub">' + esc(support) + "</span></span>" +
     '<span class="choice-chev">' + icons.chevron + "</span>" +
   "</button>";
@@ -3541,11 +3548,26 @@ function switchOnboardLang(){
   const b = view.querySelector("[data-onboard-lang]");
   if (b) try { b.focus({ preventScroll: true }); } catch (_) {}
 }
+/* sample-first (prod, SAMPLE_FIRST=1 -> <html data-sample-first="1">): judges reach Juno Park's notebook in one tap.
+   The first hash is kept because route() rewrites it to #/onboarding before this screen renders. */
+const SP_FIRST_HASH = (function(){ try { return location.hash || ""; } catch (_) { return ""; } })();
+let spSampleDeepLinkUsed = false;
+function onboardingChoicesHTML(sampleFirst){
+  if (!sampleFirst) {
+    return onboardingChoiceHTML("note", "Add your first note", "Start with whatever is on your mind.") +
+      onboardingChoiceHTML("sample", "Try a sample notebook", "Look around a made-up notebook first.") +
+      onboardingChoiceHTML("history", "Bring some history", "Start from your Letterboxd export.");
+  }
+  return onboardingChoiceHTML("sample", "Open Juno Park's sample notebook", "One tap: a made-up New Yorker's notes, cards and plans.", "choice-primary") +
+    onboardingChoiceHTML("note", "Add your first note", "Start with whatever is on your mind.") +
+    onboardingChoiceHTML("history", "Bring some history", "Start from your Letterboxd export.");
+}
 function renderOnboarding(){
   beginView();
   setShell({ hide: true });
   document.title = "Sparkling";
   view.className = "view onboarding";
+  const sampleFirst = document.documentElement.getAttribute("data-sample-first") === "1";
   const bootError = state.bootError
     ? '<div class="onboard-error" role="alert"><span>' + esc(state.bootError) + '</span><br><button class="text-btn" type="button" data-retry-boot>Try again</button></div>'
     : "";
@@ -3562,9 +3584,7 @@ function renderOnboarding(){
       '<p class="onboard-sub">Write a thought, paste a link, or add a screenshot. Sparkling connects the cultural things you return to.</p>' +
       notice +
       '<div class="choices">' +
-        onboardingChoiceHTML("note", "Add your first note", "Start with whatever is on your mind.") +
-        onboardingChoiceHTML("sample", "Try a sample notebook", "Look around a made-up notebook first.") +
-        onboardingChoiceHTML("history", "Bring some history", "Start from your Letterboxd export.") +
+        onboardingChoicesHTML(sampleFirst) +
       "</div>" +
       '<p class="onboard-status" data-onboard-status role="status" hidden></p>' +
       '<div class="onboard-foot-row">' +
@@ -3634,6 +3654,10 @@ function renderOnboarding(){
       else makeSession("new", "history");
     }
   });
+  if (sampleFirst && !spSampleDeepLinkUsed && !state.user && SP_FIRST_HASH === "#/sample") {
+    spSampleDeepLinkUsed = true;
+    makeSession("sample", "sample");
+  }
 }
 
 function renderOnboardingImport(){
@@ -4843,6 +4867,8 @@ function pickerRelevant(rows, q){
 window.Picker = Picker;
 
 /* picker:js:end */
+// notes feed: last rendered list (declared here so notes.feed.js keeps its manifest anchor as its first line)
+let NOTES_LAST = null;
 function renderNotes(){
   const token = beginView();
   setShell({ title: "Notes", tabs: true, active: "notes" });
@@ -5017,10 +5043,12 @@ function renderNotes(){
       normalizeMentionCounts(notes);
       baseCount = notes.length;
       greetingNotes = notes;
+      NOTES_LAST = notes;
       initialRetry = false;
     } else {
-      notes = [];
-      greetingNotes = null;
+      notes = NOTES_LAST || [];
+      baseCount = NOTES_LAST ? NOTES_LAST.length : null;
+      greetingNotes = NOTES_LAST;
     }
     if (cres && cres.status === "fulfilled") {
       const data = cres.value || {};
@@ -5029,8 +5057,27 @@ function renderNotes(){
       greetingCards = null;
     }
     paintGreeting();
-    if (nres && nres.status === "fulfilled") paintTimeline();
-    else setListError();
+    if (nres && nres.status === "fulfilled") {
+      paintTimeline();
+    } else if (NOTES_LAST) {
+      /* The last notebook is all we have: paint it and say once, above it, that it may be old. */
+      notes = NOTES_LAST;
+      paintTimeline();
+      if (listEl) {
+        const note = document.createElement("p");
+        note.className = "stale-note";
+        note.setAttribute("role", "status");
+        const err = nres && nres.reason;
+        const online = typeof navigator === "undefined" || navigator.onLine !== false;
+        const msg = online && err && err.status
+          ? "Couldn't refresh · showing your last copy."
+          : "Offline · showing your last copy.";
+        note.textContent = t(msg);
+        listEl.insertBefore(note, listEl.firstChild);
+      }
+    } else {
+      setListError();
+    }
   }
 
   async function loadNotes(opts){
@@ -6669,7 +6716,7 @@ function renderCardDetail(id){
    Threads
    --------------------------------------------------------------------------- */
 
-Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。", "No card carries this tag directly": "还没有卡片直接带着这个标签" });
+Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。", "Couldn't refresh · showing your last copy.": "没能刷新 · 显示的是上次的内容。", "No card carries this tag directly": "还没有卡片直接带着这个标签", "The letter did not load. Check your connection, then try again.": "来信没加载出来。检查网络后再试一次。" });
 
 /* Display name for the taste card: the made-up sample notebook belongs to Juno Park,
    everyone else stays a plain "You" — never the author handle. */
@@ -6690,6 +6737,7 @@ function renderLetter(){
       '<button class="seg-btn" type="button" aria-pressed="true">Letter</button></div></div>' +
     '<div data-letter><div class="skeleton sk-card tall"></div></div>';
   const el = view.querySelector("[data-letter]");
+  bindRetries({ letter: renderLetter });
   api("/api/letter" + (/^zh/i.test(document.documentElement.lang||"") ? "?lang=zh" : "")).then(function(d){
     if (!isCurrent(token)) return;
     const L = d && d.letter;
@@ -6735,7 +6783,7 @@ function renderLetter(){
         },"image/png");
       });
     });
-  }).catch(function(){ el.innerHTML = '<div class="empty"><p>The letter did not load. Check your connection, then try again.</p></div>'; });
+  }).catch(function(){ el.innerHTML = errorBlock("The letter did not load. Check your connection, then try again.", "letter"); });
 }
 
 /* First paint for Threads: three skeleton rows right away, and the last response of each period kept in
@@ -6745,6 +6793,12 @@ function threadsSkeletonHTML(){
   return '<div class="skeleton sk-card tall"></div>' +
     '<div class="skeleton sk-card"></div>' +
     '<div class="skeleton sk-card"></div>';
+}
+
+/* Prod: while the catalogue is busy, the sample notebook's Threads screen is answered from a saved copy;
+   the server marks that copy with busy_notice — show it honestly, above the threads. */
+function busyNoticeHTML(data){
+  return data && data.busy_notice ? '<p class="plan-notice" role="note">' + esc(data.busy_notice) + "</p>" : "";
 }
 
 function renderThreads(){
@@ -6901,11 +6955,12 @@ function renderThreads(){
     setNote(data);
     const threads = Array.isArray(data && data.threads) ? data.threads : [];
     current = threads;
+    const notice = busyNoticeHTML(data);
     if (!threads.length) {
-      threadsEl.innerHTML = emptyHTML(data && data.reason);
+      threadsEl.innerHTML = notice + emptyHTML(data && data.reason);
       return;
     }
-    threadsEl.innerHTML = threads.map(threadHTML).join("");
+    threadsEl.innerHTML = notice + threads.map(threadHTML).join("");
   }
   async function load(){
     const seq = ++loadSeq;
@@ -6927,7 +6982,11 @@ function renderThreads(){
           const note = document.createElement("p");
           note.className = "stale-note";
           note.setAttribute("role", "status");
-          note.innerHTML = esc(t("Offline · showing your last copy."));
+          const online = typeof navigator === "undefined" || navigator.onLine !== false;
+          const msg = online && e && e.status
+            ? t("Couldn't refresh · showing your last copy.")
+            : t("Offline · showing your last copy.");
+          note.innerHTML = esc(msg);
           threadsEl.insertBefore(note, threadsEl.firstChild);
         }
         return;
@@ -7815,6 +7874,8 @@ function renderPlanResult(id){
       return;
     }
     const pl = d && d.plain;
+    /* Prod: a sample fallback comparison says so, in the same notice line the plan views use. */
+    const busyHTML = pl && pl.busy_notice ? '<p class="plan-notice" role="note">' + esc(pl.busy_notice) + "</p>" : "";
     /* the raw model id stays out of the sheet; it is only a hover title for provenance */
     const modelSlug = pl && pl.model ? String(pl.model).split("/").pop() : "";
     const modelLabel = modelSlug ? esc(modelSlug) : "";
@@ -7825,7 +7886,7 @@ function renderPlanResult(id){
       const kindTag = function(k){ return k ? ' <small>(' + esc(t(String(k).toLowerCase())) + ")</small>" : ""; };
       const sharedPickWhy = plainReasonOnce(plainPicks);
       const theirPicks = plainPicks.length ? plainPicks.map(function(p){ return plainPickRow(p, kindTag, !!sharedPickWhy); }).join("") : '<li><small class="muted">' + esc((pl && pl.note) || t("Could not load.")) + "</small></li>";
-      const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same model. The only change: no Qloo.")) + "</p>" +
+      const body = busyHTML + verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same model. The only change: no Qloo.")) + "</p>" +
         '<div class="pc-cols">' +
           '<section class="pc-plain"><h3 class="r7-eyebrow">' + esc(t("Plain model")) + "</h3>" + plainReasonOnceHTML(sharedPickWhy) + '<ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
           '<section class="pc-mine">' + mineHalfHTML(currentPlan, "r7-eyebrow") + "</section>" +
@@ -7844,7 +7905,7 @@ function renderPlanResult(id){
     const sharedStopWhy = plainReasonOnce(pl && pl.stops);
     const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return plainStopRow(s, ckLine, !!sharedStopWhy); }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
     const ok = pl && pl.stops ? pl.stops.filter(function(s){ return s.check && (s.check.status === "found"); }).length : 0;
-    const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + '</p>' +
+    const body = busyHTML + verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + '</p>' +
       '<div class="pc-cols">' +
         '<section class="pc-plain"><h3>' + esc(t("Plain model")) + "</h3>" + plainReasonOnceHTML(sharedStopWhy) + '<ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p></section>' +
         '<section class="pc-mine">' + mineHalfHTML(currentPlan) + '<p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p></section>' +
@@ -8058,6 +8119,7 @@ function renderPlanResult(id){
         '<button class="plain-cta" type="button" data-plain="1"><span>' + esc(t("Same notes, no Qloo")) + '</span><span class="plain-cta-go">' + esc(t("Compare →")) + "</span></button>" +
       "</header>" +
       (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +
+      (plan.busy_notice ? '<p class="plan-notice" role="note">' + esc(plan.busy_notice) + "</p>" : "") +
       diffHTML(plan) +
       '<div class="picks">' + picks.map(pickHTML).join("") + "</div>" +
       '<p class="pick-foot">' + esc(t("Already in your cards? Left out.")) + " " + esc(t("Where to watch is not shown: the catalogue does not list it.")) + "</p>" +
@@ -8094,6 +8156,7 @@ function renderPlanResult(id){
       (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +
       diffHTML(plan) +
       (plan.notice ? '<p class="plan-notice" role="note">' + esc(plan.notice) + "</p>" : "") +
+      (plan.busy_notice ? '<p class="plan-notice" role="note">' + esc(plan.busy_notice) + "</p>" : "") +
       routeMapHTML(stops) + sideHTML(stops, plan) +
       stops.map(function(st, i){ return stopHTML(st, i, stops); }).join("") +
       '<div class="plan-actions">' +

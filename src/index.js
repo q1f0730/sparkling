@@ -184,8 +184,28 @@ async function warmPlain(env, user, planRow, lang) {
     ? (lang === "zh" ? "纯模型太久没回应，再试一次。" : "The plain model took too long to answer. Try again.")
     : "The plain model is unavailable right now (daily AI quota). Try again later.";
   const block = (pl) => ({ ...pl, verdict: plainVerdict(plan, pl) });
+  // Prod 10-26: judges open a new sample notebook every run, so a sample user's compare is cached under a
+  // user-independent key (mode, lang, area, seed names, stop/pick names) and reused across notebooks.
+  const keyNames = (a) => (Array.isArray(a) ? a : []).map((x) => String((x && x.name) || "")).filter(Boolean).join(",");
+  let reqArea = ""; try { reqArea = JSON.parse(planRow.request || "{}").area || ""; } catch (_) {}
+  const sampleKey = user.sample ? "sample-plain:v1:" + [
+    plan.mode, lang,
+    String((plan.meta && plan.meta.area) || reqArea || user.area || "").slice(0, 120),
+    seeds.join(","),
+    keyNames(plan.mode === "in" ? plan.picks : plan.stops),
+  ].join("|") : null;
+  const sampleCached = async () => {
+    if (!sampleKey) return null;
+    const hit = await cacheGet(env, sampleKey, 7 * DAY);
+    if (!hit || typeof hit !== "object") return null;
+    plan.plain = hit;
+    await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run();
+    return block(hit);
+  };
   if (plan.mode === "in") {
     if (cachedFor(plan.plain) && plan.plain.checked === 3) return block(plan.plain);
+    const hit = await sampleCached();
+    if (hit) return hit;
     const kinds = (plan.picks || []).map((x) => x.kind).filter(Boolean);
     const want = (plan.picks || []).length || 3;
     let picksOut = [], note = null;
@@ -201,7 +221,7 @@ async function warmPlain(env, user, planRow, lang) {
       }).filter((x) => x.name);
     } catch (e) { note = modelNote(e); }
     const plain = { model: MODEL, lang, seeds, kinds, picks: picksOut, note, verified: false, checked: picksOut.length ? 3 : false };
-    if (picksOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run(); }
+    if (picksOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run(); if (sampleKey) await cachePut(env, sampleKey, plain); }
     return block(plain);
   }
   const centreOf = (st) => { const c = (st || []).map((x) => x.coords).filter((c) => c && isFinite(c.lat) && isFinite(c.lon)); return c.length ? { lat: c.reduce((a, x) => a + x.lat, 0) / c.length, lon: c.reduce((a, x) => a + x.lon, 0) / c.length } : null; };
@@ -212,6 +232,8 @@ async function warmPlain(env, user, planRow, lang) {
     await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run();
     return block(plan.plain);
   }
+  const hit = await sampleCached();
+  if (hit) return hit;
   const area = (JSON.parse(planRow.request || "{}").area || user.area || "").slice(0, 120);
   const kinds = (plan.stops || []).map((x) => x.kind).filter(Boolean);
   let stopsOut = [], note = null;
@@ -228,12 +250,58 @@ async function warmPlain(env, user, planRow, lang) {
   } catch (e) { note = modelNote(e); }
   if (stopsOut.length) { const ck = await checkPlainPlaces(env, stopsOut.map((x) => x.name), centreOf(plan.stops), area); stopsOut = stopsOut.map((x, i) => ({ ...x, check: ck[i] })); }
   const plain = { model: MODEL, lang, seeds, area, stops: stopsOut, note, verified: false, checked: stopsOut.length ? 3 : false };
-  if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run(); }
+  if (stopsOut.length) { plan.plain = plain; await env.DB.prepare("UPDATE plans SET plan=? WHERE id=?").bind(JSON.stringify(plan), planRow.id).run(); if (sampleKey) await cachePut(env, sampleKey, plain); }
   return block(plain);
+}
+
+// Prod anti-abuse: per-IP fixed one-minute windows kept in isolate memory (no D1/KV write per request).
+// Each window drops the previous minute's entries when the minute turns, so the maps never grow unbounded.
+// Both windows are off unless env.RATE_LIMIT_PER_MIN / env.RATE_LIMIT_EXPENSIVE_PER_MIN is a positive number.
+const RATE_LIMIT_MSG = "Too many requests from this network. Wait a minute and try again.";
+const RATE_WINDOWS = { all: { minute: -1, hits: new Map() }, expensive: { minute: -1, hits: new Map() } };
+const EXPENSIVE_POST = /^\/api\/(?:notes|notes\/photo|plan|duo|import\/letterboxd)$|^\/api\/plan\/\w+\/plain$/;
+function rateLimited(kind, ip, limit, now) {
+  const max = Number(limit);
+  if (!(max > 0)) return null;
+  const minute = Math.floor(now / 60000), win = RATE_WINDOWS[kind];
+  if (win.minute !== minute) { win.minute = minute; win.hits.clear(); } // previous minute is dead weight
+  const n = (win.hits.get(ip) || 0) + 1;
+  win.hits.set(ip, n);
+  if (n <= max) return null;
+  const left = Math.min(60, Math.max(1, 60 - Math.floor((now % 60000) / 1000)));
+  return J({ error: RATE_LIMIT_MSG, busy: true }, 429, { "retry-after": String(left) });
+}
+
+// Prod monitoring: /api/health is open (no cookie) and answered before the rate limiter so a monitor is
+// never throttled. It reports today's daily-cap usage and the configured limits only — no keys, no users.
+const positiveLimit = (v) => { const n = Number(v); return n > 0 ? n : null; };
+async function dailyUsed(env, kind) {
+  const key = "cap:" + kind + ":" + new Date().toISOString().slice(0, 10);
+  try {
+    const row = await env.DB.prepare("SELECT n FROM quota WHERE key=?").bind(key).first();
+    const n = row ? Number(row.n) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch (_) { return 0; }
+}
+async function health(env) {
+  return J({
+    ok: true,
+    caps: {
+      qloo: { used: await dailyUsed(env, "qloo"), cap: positiveLimit(env.QLOO_DAILY_CAP) },
+      llm: { used: await dailyUsed(env, "llm"), cap: positiveLimit(env.LLM_DAILY_CAP) },
+    },
+    rate: { per_min: positiveLimit(env.RATE_LIMIT_PER_MIN), expensive_per_min: positiveLimit(env.RATE_LIMIT_EXPENSIVE_PER_MIN) },
+  }, 200, { "cache-control": "no-store" });
 }
 
 async function api(req, env, ctx, url) {
   const p = url.pathname, m = req.method;
+  if (p === "/api/health" && m === "GET") return health(env);
+  // Rate limit first, before routing: the app page and static assets never reach api().
+  const now = Date.now(), ip = req.headers.get("cf-connecting-ip") || "unknown";
+  const limited = rateLimited("all", ip, env.RATE_LIMIT_PER_MIN, now)
+    || (m === "POST" && EXPENSIVE_POST.test(p) ? rateLimited("expensive", ip, env.RATE_LIMIT_EXPENSIVE_PER_MIN, now) : null);
+  if (limited) return limited;
 
   if (p === "/api/session" && m === "POST") {
     const body = (await readJSON(req)) || {};
@@ -534,90 +602,117 @@ async function api(req, env, ctx, url) {
 
   // ---- threads
   if (p === "/api/threads" && m === "GET") {
-    const all = (await cardsFor(env, U)).filter((c) => c.heart >= 0 && c.footprints >= 1);
-    const liked = all.filter((c) => c.heart === 1 || c.footprints >= 1);
-    if (liked.length < 4 || new Set(liked.map((c) => c.type)).size < 2)
-      return J({ threads: [], reason: "Threads show up once a few things keep coming back." });
-    const co = cohorts(liked, 6);
-    const KEEP = /theme|style|mood|tone|music:qloo|artist:qloo|setting|subgenre|keyword/;
-    const tagRead = async (cards) => {
-      // Qloo tag insights for this card set, cached 6 h (same cards -> same answer; saves ~0.8 s per call).
-      const ids = cards.map((c) => c.qloo_id).sort();
-      const ck = "tags:v1:" + ids.join(",");
-      let d = await cacheGet(env, ck, 6 * 3600000);
-      if (!d) { d = await qlooTagInsights(env, cards.map((c) => c.qloo_id)); await cachePut(env, ck, d); }
-      return d.filter((t) => KEEP.test(t.subtype || "") && !/genre:brand|person|subgenre|lifestyle/.test(t.subtype || "") && !/speech|politic|rights|commentary|design|religio|war|crime|violence|controvers|anxiety|scandal/i.test(t.name)).slice(0, 12);
-    };
+    // Prod: the sample notebook's Threads screen never shows an error. A good answer is remembered per language
+    // (sample-saved:v1:threads:<lang>); when building threads fails (Qloo down or a daily cap), that saved answer
+    // is served back with an honest notice. Everyone else keeps the live answer or the honest catalogue line.
+    const tLang = url.searchParams.get("lang") === "zh" ? "zh" : "en";
+    const tKey = "sample-saved:v1:threads:" + tLang;
     const period = ["now", "then"].includes(url.searchParams.get("period")) ? url.searchParams.get("period") : "all";
-    if (period !== "all" && co.size < 3) return J({ threads: [], period, reason: "Not enough notes yet to compare earlier and recent you. Keep writing; this fills in on its own." });
-    const heavy = period === "now" ? co.now : period === "then" ? co.then : [...liked].sort((a, b) => b.attention - a.attention).slice(0, 8);
-    let main = [], nowT = [], thenT = [];
+    let body = null;
     try {
-      let mainAll;
-      [nowT, thenT, mainAll] = await Promise.all([co.size >= 3 ? tagRead(co.now) : [], co.size >= 3 ? tagRead(co.then) : [], period === "all" ? tagRead(heavy) : null]);
-      main = period === "now" ? nowT : period === "then" ? thenT : mainAll;
-    } catch (e) { return J({ threads: [], period, reason: "The taste catalogue isn't answering right now. Your cards are fine." }); }
-    const evidence = (tag, pool) => pool.filter((c) => c.tags.some((t) => t.toLowerCase() === tag.toLowerCase()));
-    const latestQ = new Map();
-    for (const r of ((await env.DB.prepare("SELECT f.card_id, f.quote, n.text, f.created_at FROM footprints f JOIN notes n ON n.id=f.note_id WHERE f.user_id=? AND f.sentiment!='negative' ORDER BY f.created_at DESC").bind(U).all()).results || [])) if (!latestQ.has(r.card_id)) latestQ.set(r.card_id, r);
-    const quotesFor = async (cards) => {
-      const out = [], seen = new Set();
-      for (const c of cards) {
-        const r = latestQ.get(c.id);
-        if (r && !seen.has(r.text)) { seen.add(r.text); out.push({ text: r.text, at: r.created_at, card: c.name, card_id: c.id }); }
-        if (out.length >= 3) break;
+      body = await (async () => {
+        const all = (await cardsFor(env, U)).filter((c) => c.heart >= 0 && c.footprints >= 1);
+        const liked = all.filter((c) => c.heart === 1 || c.footprints >= 1);
+        if (liked.length < 4 || new Set(liked.map((c) => c.type)).size < 2)
+          return { threads: [], reason: "Threads show up once a few things keep coming back." };
+        const co = cohorts(liked, 6);
+        const KEEP = /theme|style|mood|tone|music:qloo|artist:qloo|setting|subgenre|keyword/;
+        const tagRead = async (cards) => {
+          // Qloo tag insights for this card set, cached 6 h (same cards -> same answer; saves ~0.8 s per call).
+          const ids = cards.map((c) => c.qloo_id).sort();
+          const ck = "tags:v1:" + ids.join(",");
+          let d = await cacheGet(env, ck, 6 * 3600000);
+          if (!d) { d = await qlooTagInsights(env, cards.map((c) => c.qloo_id)); await cachePut(env, ck, d); }
+          return d.filter((t) => KEEP.test(t.subtype || "") && !/genre:brand|person|subgenre|lifestyle/.test(t.subtype || "") && !/speech|politic|rights|commentary|design|religio|war|crime|violence|controvers|anxiety|scandal/i.test(t.name)).slice(0, 12);
+        };
+        if (period !== "all" && co.size < 3) return { threads: [], period, reason: "Not enough notes yet to compare earlier and recent you. Keep writing; this fills in on its own." };
+        const heavy = period === "now" ? co.now : period === "then" ? co.then : [...liked].sort((a, b) => b.attention - a.attention).slice(0, 8);
+        let main = [], nowT = [], thenT = [];
+        try {
+          let mainAll;
+          [nowT, thenT, mainAll] = await Promise.all([co.size >= 3 ? tagRead(co.now) : [], co.size >= 3 ? tagRead(co.then) : [], period === "all" ? tagRead(heavy) : null]);
+          main = period === "now" ? nowT : period === "then" ? thenT : mainAll;
+        } catch (e) {
+          // The sample notebook falls back to its saved copy in the outer catch; everyone else gets the line.
+          if (user.sample) throw e;
+          return { threads: [], period, reason: "The taste catalogue isn't answering right now. Your cards are fine." };
+        }
+        const evidence = (tag, pool) => pool.filter((c) => c.tags.some((t) => t.toLowerCase() === tag.toLowerCase()));
+        const latestQ = new Map();
+        for (const r of ((await env.DB.prepare("SELECT f.card_id, f.quote, n.text, f.created_at FROM footprints f JOIN notes n ON n.id=f.note_id WHERE f.user_id=? AND f.sentiment!='negative' ORDER BY f.created_at DESC").bind(U).all()).results || [])) if (!latestQ.has(r.card_id)) latestQ.set(r.card_id, r);
+        const quotesFor = async (cards) => {
+          const out = [], seen = new Set();
+          for (const c of cards) {
+            const r = latestQ.get(c.id);
+            if (r && !seen.has(r.text)) { seen.add(r.text); out.push({ text: r.text, at: r.created_at, card: c.name, card_id: c.id }); }
+            if (out.length >= 3) break;
+          }
+          return out;
+        };
+        const nowNames = new Set(nowT.map((t) => t.name)), thenNames = new Set(thenT.map((t) => t.name));
+        const shiftOf = (name) => (co.size < 3 ? null : nowNames.has(name) && !thenNames.has(name) ? "New in recent notes" : thenNames.has(name) && !nowNames.has(name) ? "Fading from recent notes" : nowNames.has(name) ? "Steady" : null);
+        const kindWord = { film: "a film", tv: "a show", music: "an artist", book: "a book", place: "a place" };
+        // carried-first: tags backed by >=2 of the user's cards lead; stable inside each group
+        main = main
+          .map((t, i) => ({ t, i, group: evidence(t.name, liked).length >= 2 ? 0 : 1 }))
+          .sort((a, b) => a.group - b.group || a.i - b.i)
+          .map((x) => x.t);
+        const threads = [];
+        for (const t of main.slice(0, 8)) {
+          const ev = evidence(t.name, heavy.length ? liked : liked);
+          const cards = (ev.length >= 2 ? ev : heavy.slice(0, 4)).slice(0, 5);
+          threads.push({
+            tag: t.name, tag_id: t.id, kind: (t.subtype || "").split(":").pop(), affinity: t.affinity,
+            qloo_tags: [{ name: t.name, id: t.id, subtype: t.subtype, affinity: t.affinity, listed_on: ev.map((c) => c.name) }],
+            cards: cards.map((c) => ({ id: c.id, name: c.name, type: c.type, footprints: c.footprints, qloo_id: c.qloo_id, carries_tag: ev.some((e) => e.id === c.id) })),
+            carried_by_cards: ev.length >= 2,
+            your_words: await quotesFor(cards),
+            shift: shiftOf(t.name),
+            read: ev.length >= 2 ? `Shows up in ${[...new Set(ev.map((c) => kindWord[c.type] || "something"))].join(", ").replace(/, ([^,]*)$/, " and $1")} you keep returning to.` : "Read across the cards you return to most.",
+          });
+        }
+        // Merge threads that rest on the same cards; drop near-duplicate tag names (Intimacy / Intimate).
+        const stem = (w) => w.toLowerCase().replace(/(acy|ate|ity|ness|ive|al|s)$/,"");
+        const merged = [];
+        for (const t of threads) {
+          const key = t.carried_by_cards ? t.cards.map((c) => c.id).join(",") : "u:" + stem(t.tag);
+          const same = merged.find((m) => m.key === key);
+          if (same) {
+            if (!same.tags.some((x) => stem(x) === stem(t.tag))) { same.tags.push(t.tag); same.qloo_tags.push(...t.qloo_tags); if (!same.shift || same.shift === "Steady") same.shift = t.shift || same.shift; }
+            continue;
+          }
+          merged.push({ ...t, key, tags: [t.tag] });
+        }
+        threads.length = 0;
+        const input = heavy.map((c) => ({ qloo_id: c.qloo_id, name: c.name }));
+        let mi = 0;
+        for (const m of merged) {
+          const { key, tags, ...rest } = m; const idx = mi++;
+          threads.push({ ...rest, tag: tags.slice(0, 2).join(" · "), read: m.carried_by_cards ? m.read : (() => { const top = [...(m.cards || [])].sort((a, b) => (b.footprints || 0) - (a.footprints || 0)); top.push(...top.splice(0, idx % Math.max(1, top.length))); top.length = Math.min(top.length, 2); const names = top.map((c) => c.name); const lead = names.length > 1 ? `${names[0]} and ${names[1]}` : names[0]; const w = (m.your_words || [])[idx % Math.max(1, (m.your_words || []).length)]; const q = w ? (w.text || w.quote || (typeof w === "string" ? w : "")) : ""; return `${tags.map((x) => "“" + x + "”").join(" and ")} is how the catalogue reads the pull of ${lead || (period === "now" ? "your recent cards" : "your cards")}${q ? ` — you wrote “${clipQuote(q, 70)}”` : ""}.`; })(),
+            receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": input, tag_ids: m.qloo_tags.map((q) => q.id) } });
+        }
+        threads.splice(5);
+        const pick = (arr) => arr.slice(0, 6).map((t) => t.name);
+        return {
+          threads, period,
+          shift: co.size >= 3 ? { based_on: co.size, now: pick(nowT), then: pick(thenT), now_cards: co.now.map((c) => c.name), then_cards: co.then.map((c) => c.name) } : { based_on: co.size, reason: "Not enough notes yet to compare earlier and recent." },
+          receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": heavy.map((c) => c.qloo_id) },
+        };
+      })();
+    } catch (e) {
+      // The sample notebook never shows an error: answer the last good threads instead, marked honestly.
+      if (user.sample) {
+        const saved = await cacheGet(env, tKey, 30 * DAY);
+        if (saved && typeof saved === "object")
+          return J({ ...saved, busy_notice: tLang === "zh" ? "现在有点忙，先给你看保存过的结果。" : "Busy right now — showing a saved result." });
+        console.log("threads error", e && e.message);
+        return J({ threads: [], period, reason: "The taste catalogue isn't answering right now. Your cards are fine." });
       }
-      return out;
-    };
-    const nowNames = new Set(nowT.map((t) => t.name)), thenNames = new Set(thenT.map((t) => t.name));
-    const shiftOf = (name) => (co.size < 3 ? null : nowNames.has(name) && !thenNames.has(name) ? "New in recent notes" : thenNames.has(name) && !nowNames.has(name) ? "Fading from recent notes" : nowNames.has(name) ? "Steady" : null);
-    const kindWord = { film: "a film", tv: "a show", music: "an artist", book: "a book", place: "a place" };
-    // carried-first: tags backed by >=2 of the user's cards lead; stable inside each group
-    main = main
-      .map((t, i) => ({ t, i, group: evidence(t.name, liked).length >= 2 ? 0 : 1 }))
-      .sort((a, b) => a.group - b.group || a.i - b.i)
-      .map((x) => x.t);
-    const threads = [];
-    for (const t of main.slice(0, 8)) {
-      const ev = evidence(t.name, heavy.length ? liked : liked);
-      const cards = (ev.length >= 2 ? ev : heavy.slice(0, 4)).slice(0, 5);
-      threads.push({
-        tag: t.name, tag_id: t.id, kind: (t.subtype || "").split(":").pop(), affinity: t.affinity,
-        qloo_tags: [{ name: t.name, id: t.id, subtype: t.subtype, affinity: t.affinity, listed_on: ev.map((c) => c.name) }],
-        cards: cards.map((c) => ({ id: c.id, name: c.name, type: c.type, footprints: c.footprints, qloo_id: c.qloo_id, carries_tag: ev.some((e) => e.id === c.id) })),
-        carried_by_cards: ev.length >= 2,
-        your_words: await quotesFor(cards),
-        shift: shiftOf(t.name),
-        read: ev.length >= 2 ? `Shows up in ${[...new Set(ev.map((c) => kindWord[c.type] || "something"))].join(", ").replace(/, ([^,]*)$/, " and $1")} you keep returning to.` : "Read across the cards you return to most.",
-      });
+      throw e;
     }
-    // Merge threads that rest on the same cards; drop near-duplicate tag names (Intimacy / Intimate).
-    const stem = (w) => w.toLowerCase().replace(/(acy|ate|ity|ness|ive|al|s)$/,"");
-    const merged = [];
-    for (const t of threads) {
-      const key = t.carried_by_cards ? t.cards.map((c) => c.id).join(",") : "u:" + stem(t.tag);
-      const same = merged.find((m) => m.key === key);
-      if (same) {
-        if (!same.tags.some((x) => stem(x) === stem(t.tag))) { same.tags.push(t.tag); same.qloo_tags.push(...t.qloo_tags); if (!same.shift || same.shift === "Steady") same.shift = t.shift || same.shift; }
-        continue;
-      }
-      merged.push({ ...t, key, tags: [t.tag] });
-    }
-    threads.length = 0;
-    const input = heavy.map((c) => ({ qloo_id: c.qloo_id, name: c.name }));
-    let mi = 0;
-    for (const m of merged) {
-      const { key, tags, ...rest } = m; const idx = mi++;
-      threads.push({ ...rest, tag: tags.slice(0, 2).join(" · "), read: m.carried_by_cards ? m.read : (() => { const top = [...(m.cards || [])].sort((a, b) => (b.footprints || 0) - (a.footprints || 0)); top.push(...top.splice(0, idx % Math.max(1, top.length))); top.length = Math.min(top.length, 2); const names = top.map((c) => c.name); const lead = names.length > 1 ? `${names[0]} and ${names[1]}` : names[0]; const w = (m.your_words || [])[idx % Math.max(1, (m.your_words || []).length)]; const q = w ? (w.text || w.quote || (typeof w === "string" ? w : "")) : ""; return `${tags.map((x) => "“" + x + "”").join(" and ")} is how the catalogue reads the pull of ${lead || (period === "now" ? "your recent cards" : "your cards")}${q ? ` — you wrote “${clipQuote(q, 70)}”` : ""}.`; })(),
-        receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": input, tag_ids: m.qloo_tags.map((q) => q.id) } });
-    }
-    threads.splice(5);
-    const pick = (arr) => arr.slice(0, 6).map((t) => t.name);
-    return J({
-      threads, period,
-      shift: co.size >= 3 ? { based_on: co.size, now: pick(nowT), then: pick(thenT), now_cards: co.now.map((c) => c.name), then_cards: co.then.map((c) => c.name) } : { based_on: co.size, reason: "Not enough notes yet to compare earlier and recent." },
-      receipt: { endpoint: "/v2/insights", "filter.type": "urn:tag", "signal.interests.entities": heavy.map((c) => c.qloo_id) },
-    });
+    // Prod: remember the last good sample answer per language, so a capped/failing Qloo still has something to show.
+    if (user.sample && Array.isArray(body.threads) && body.threads.length) await cachePut(env, tKey, body);
+    return J(body);
   }
 
   // ---- plans
@@ -660,13 +755,35 @@ async function api(req, env, ctx, url) {
         if (redo) plan.diff = plan.mode === "in" ? { ...planDiff({ stops: redo.before.picks || [] }, { stops: plan.picks || [] }, redo.card, redo.restore, redo.from), unit: "pick" } : planDiff(redo.before, plan, redo.card, redo.restore, redo.from);
         const { pool, ...rest } = plan;
         await env.DB.prepare("INSERT INTO plans (id,user_id,request,plan,pool,saved,created_at) VALUES (?,?,?,?,?,0,?)").bind(plan.id, U, JSON.stringify(b), JSON.stringify(rest), JSON.stringify(pool), Date.now()).run();
+        // Prod: remember the last good sample result per mode + language, so a capped/failing Qloo or model
+        // still has something honest to show the demo notebook (see the catch below).
+        if (user.sample) await cachePut(env, "sample-saved:v1:plan:" + (rest.mode === "in" ? "in" : "out") + ":" + (b.lang === "zh" ? "zh" : "en"), rest);
         await send({ type: "plan", plan: rest });
         // FP-83: warm the no-Qloo comparison in the background so the first tap is instant. The warm write
         // is the same plan.plain the /plain handler serves; any failure is swallowed (the stream is already done).
         const lang = rest.lang === "zh" || rest.meta?.lang === "zh" || b.lang === "zh" ? "zh" : "en";
         ctx.waitUntil(warmPlain(env, user, { id: plan.id, plan: JSON.stringify(rest), request: JSON.stringify(b) }, lang).catch(() => {}));
       } catch (e) {
-        await send({ type: "error", state: e.state || "error", text: e.text || "Something went wrong making the plan. Your notes and cards are fine." });
+        // Prod: a sample notebook never shows an error line while a saved result exists. Copy the last good
+        // plan (new id, stored for this user) and mark it honestly instead. Everyone else keeps the error.
+        let served = false;
+        if (user.sample) {
+          try {
+            const zh = b.lang === "zh";
+            const saved = await cacheGet(env, "sample-saved:v1:plan:" + (b.mode === "in" ? "in" : "out") + ":" + (zh ? "zh" : "en"), 30 * DAY);
+            if (saved && typeof saved === "object") {
+              const copy = { ...saved, id: uid(), busy_notice: zh ? "现在有点忙，先给你看保存过的结果。" : "Busy right now — showing a saved result." };
+              await env.DB.prepare("INSERT INTO plans (id,user_id,request,plan,pool,saved,created_at) VALUES (?,?,?,?,?,0,?)").bind(copy.id, U, JSON.stringify(b), JSON.stringify(copy), "[]", Date.now()).run();
+              await send({ type: "plan", plan: copy });
+              served = true;
+            }
+          } catch (_) {}
+        }
+        if (!served) {
+          const capped = e && e.cap;
+          const capText = capped ? (b.lang === "zh" ? "Sparkling 现在有点忙（今天的额度用完了）。你的笔记和卡片都在，晚点再试。" : "Sparkling is busy right now (daily limit reached). Your notes and cards are safe. Try again later.") : null;
+          await send({ type: "error", state: capped ? "busy" : (e.state || "error"), text: capText || e.text || "Something went wrong making the plan. Your notes and cards are fine." });
+        }
         if (!e.state) console.log("plan error", e.message, e.stack);
       } finally { await w.close(); }
     })());
@@ -698,7 +815,19 @@ async function api(req, env, ctx, url) {
     if (act === "plain") {
       let reqLang = ""; try { reqLang = JSON.parse(row.request || "{}").lang; } catch (_) {}
       const lang = plan.lang === "zh" || plan.meta?.lang === "zh" || reqLang === "zh" ? "zh" : "en";
-      return J({ plain: await warmPlain(env, user, row, lang) });
+      const block = await warmPlain(env, user, row, lang);
+      // Prod: the sample notebook's compare shot never goes blank. Keep the last good comparison per
+      // mode + language, and when the model gives nothing back, answer that saved block with a notice.
+      if (user.sample) {
+        const key = "sample-saved:v1:plain:" + (plan.mode === "in" ? "in" : "out") + ":" + lang;
+        const filled = plan.mode === "in" ? Array.isArray(block.picks) && block.picks.length > 0 : Array.isArray(block.stops) && block.stops.length > 0;
+        if (filled) await cachePut(env, key, block);
+        else {
+          const saved = await cacheGet(env, key, 30 * DAY);
+          if (saved && typeof saved === "object") return J({ plain: { ...saved, busy_notice: lang === "zh" ? "现在有点忙，先给你看保存过的结果。" : "Busy right now — showing a saved result." } });
+        }
+      }
+      return J({ plain: block });
     }
     if (act === "save") { await env.DB.prepare("UPDATE plans SET saved=1 WHERE id=?").bind(row.id).run(); return J({ plan: { ...plan, saved: true } }); }
     if (act === "went") {
@@ -908,6 +1037,13 @@ async function swapCard(env, U, c, ent) {
   return newId;
 }
 
+// sample-first (prod): SAMPLE_FIRST=1 marks <html> so the welcome screen leads with the sample notebook. Unset = APP as is.
+let APP_SAMPLE_FIRST = null;
+function appPage(env) {
+  if (!env || env.SAMPLE_FIRST !== "1") return APP;
+  return APP_SAMPLE_FIRST || (APP_SAMPLE_FIRST = APP.replace("<html", '<html data-sample-first="1"'));
+}
+
 const app = {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
@@ -915,7 +1051,7 @@ const app = {
       if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/")) return await api(req, env, ctx, url);
       const asset = req.method === "GET" ? pwaAsset(url) : null;
       if (asset) return asset;
-      return new Response(APP, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
+      return new Response(appPage(env), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
     } catch (e) {
       console.log("error", e.message, e.stack);
       return ERR("Something went wrong. Your notes are safe.", 500);

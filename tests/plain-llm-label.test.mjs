@@ -32,6 +32,7 @@ test("zh: shared label is translated and the old ZH key is kept", () => {
   const z = trZh(LABEL);
   assert.notEqual(z, LABEL, "zh copy exists for the shared label");
   assert.ok(/[\u4e00-\u9fff]/.test(z), "zh copy is Chinese: " + z);
-  assert.ok(/Qloo/.test(z), "zh copy keeps the Qloo name: " + z);
+  assert.ok(/口味目录/.test(z), "zh copy says 口味目录: " + z);
+  assert.ok(!/Qloo/.test(z), "zh copy no longer says Qloo: " + z);
   assert.equal(trZh("Plain LLM"), "纯模型对比", "old ZH entry stays untouched");
 });

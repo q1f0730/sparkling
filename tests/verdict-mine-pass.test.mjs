@@ -64,6 +64,6 @@ test("verdictHTML: no With-place line when mine_pass is absent or null", () => {
 
 test("zh: the added With-place pattern translates and leaves the Without one intact", () => {
   const trZh = loadZh();
-  assert.equal(trZh("With Qloo: 2 of 3 places checked out."), "用 Qloo：3 个地方里有 2 个核对得上。");
-  assert.equal(trZh("Without Qloo: 1 of 3 places checked out."), "不用 Qloo：3 个地方里只有 1 个核对得上。");
+  assert.equal(trZh("With Qloo: 2 of 3 places checked out."), "用口味目录：3 个地方里有 2 个核对得上。");
+  assert.equal(trZh("Without Qloo: 1 of 3 places checked out."), "不用口味目录：3 个地方里只有 1 个核对得上。");
 });

@@ -4,7 +4,7 @@
 
 Write a line about a film, a song, a book or a shop, the way you already do in your notes app. Sparkling quietly resolves what you mentioned to real [Qloo](https://www.qloo.com/) entities, keeps **one card per thing** with a dated trail of every time it came back to you, and, when you ask, turns the cards you love into a **three-stop plan of real places nearby**, with a receipt for every stop.
 
-**Live demo → https://sparkling-dev.q1f0730.workers.dev** (tap *Try a sample notebook*; fictional New York persona, no signup)
+**Live demo: https://sparkling.q1f0730.workers.dev** (tap *Open Juno Park's sample notebook*: a fictional New Yorker's notes, cards and plans, no signup; English / 简体中文 toggle on the welcome screen)
 
 ![Notes, Cards, a three-stop plan and the "Why this stop?" sheet](docs/img/hero.jpg)
 

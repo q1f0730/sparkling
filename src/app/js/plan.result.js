@@ -281,6 +281,8 @@ function renderPlanResult(id){
       return;
     }
     const pl = d && d.plain;
+    /* Prod: a sample fallback comparison says so, in the same notice line the plan views use. */
+    const busyHTML = pl && pl.busy_notice ? '<p class="plan-notice" role="note">' + esc(pl.busy_notice) + "</p>" : "";
     /* the raw model id stays out of the sheet; it is only a hover title for provenance */
     const modelSlug = pl && pl.model ? String(pl.model).split("/").pop() : "";
     const modelLabel = modelSlug ? esc(modelSlug) : "";
@@ -291,7 +293,7 @@ function renderPlanResult(id){
       const kindTag = function(k){ return k ? ' <small>(' + esc(t(String(k).toLowerCase())) + ")</small>" : ""; };
       const sharedPickWhy = plainReasonOnce(plainPicks);
       const theirPicks = plainPicks.length ? plainPicks.map(function(p){ return plainPickRow(p, kindTag, !!sharedPickWhy); }).join("") : '<li><small class="muted">' + esc((pl && pl.note) || t("Could not load.")) + "</small></li>";
-      const body = verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same model. The only change: no Qloo.")) + "</p>" +
+      const body = busyHTML + verdictHTML(currentPlan, pl, picks, plainPicks) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same model. The only change: no Qloo.")) + "</p>" +
         '<div class="pc-cols">' +
           '<section class="pc-plain"><h3 class="r7-eyebrow">' + esc(t("Plain model")) + "</h3>" + plainReasonOnceHTML(sharedPickWhy) + '<ol class="plain-list" style="margin:0;padding-left:18px">' + theirPicks + "</ol></section>" +
           '<section class="pc-mine">' + mineHalfHTML(currentPlan, "r7-eyebrow") + "</section>" +
@@ -310,7 +312,7 @@ function renderPlanResult(id){
     const sharedStopWhy = plainReasonOnce(pl && pl.stops);
     const theirs = pl && pl.stops && pl.stops.length ? pl.stops.map(function(s){ return plainStopRow(s, ckLine, !!sharedStopWhy); }).join("") : '<li>' + esc((pl && pl.note) || t("Could not load.")) + '</li>';
     const ok = pl && pl.stops ? pl.stops.filter(function(s){ return s.check && (s.check.status === "found"); }).length : 0;
-    const body = verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + '</p>' +
+    const body = busyHTML + verdictHTML(currentPlan, pl, currentPlan.stops, pl && pl.stops) + '<p class="muted" title="' + modelLabel + '">' + esc(t("Same cards, same area, same model. The only change: no Qloo.")) + '</p>' +
       '<div class="pc-cols">' +
         '<section class="pc-plain"><h3>' + esc(t("Plain model")) + "</h3>" + plainReasonOnceHTML(sharedStopWhy) + '<ol class="plain-list">' + theirs + '</ol><p class="muted"><small>' + esc(t("The model named these from memory. Afterwards Sparkling looked each one up in Qloo: does it exist, is it still open, is it near your route.")) + (pl && pl.stops && pl.stops.length ? " " + esc(t(ok + " of " + pl.stops.length + " pass.")) : "") + '</small></p></section>' +
         '<section class="pc-mine">' + mineHalfHTML(currentPlan) + '<p class="muted"><small>' + esc(t("Every stop came from Qloo in the first place: an ID, coordinates, listed hours and credit to your notes.")) + '</small></p></section>' +
@@ -524,6 +526,7 @@ function renderPlanResult(id){
         '<button class="plain-cta" type="button" data-plain="1"><span>' + esc(t("Same notes, no Qloo")) + '</span><span class="plain-cta-go">' + esc(t("Compare →")) + "</span></button>" +
       "</header>" +
       (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +
+      (plan.busy_notice ? '<p class="plan-notice" role="note">' + esc(plan.busy_notice) + "</p>" : "") +
       diffHTML(plan) +
       '<div class="picks">' + picks.map(pickHTML).join("") + "</div>" +
       '<p class="pick-foot">' + esc(t("Already in your cards? Left out.")) + " " + esc(t("Where to watch is not shown: the catalogue does not list it.")) + "</p>" +
@@ -560,6 +563,7 @@ function renderPlanResult(id){
       (Array.isArray(plan.left_out) && plan.left_out.length ? '<p class="plan-notice" role="note">' + esc((LANG === "zh" ? "已排除（你标了“不适合我”）：" : "Left out, you said not for me: ") + plan.left_out.join(", ")) + "</p>" : "") +
       diffHTML(plan) +
       (plan.notice ? '<p class="plan-notice" role="note">' + esc(plan.notice) + "</p>" : "") +
+      (plan.busy_notice ? '<p class="plan-notice" role="note">' + esc(plan.busy_notice) + "</p>" : "") +
       routeMapHTML(stops) + sideHTML(stops, plan) +
       stops.map(function(st, i){ return stopHTML(st, i, stops); }).join("") +
       '<div class="plan-actions">' +

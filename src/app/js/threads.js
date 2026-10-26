@@ -2,7 +2,7 @@
    Threads
    --------------------------------------------------------------------------- */
 
-Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。", "No card carries this tag directly": "还没有卡片直接带着这个标签" });
+Object.assign(ZH, { "Offline · showing your last copy.": "离线 · 显示的是上次的内容。", "Couldn't refresh · showing your last copy.": "没能刷新 · 显示的是上次的内容。", "No card carries this tag directly": "还没有卡片直接带着这个标签", "The letter did not load. Check your connection, then try again.": "来信没加载出来。检查网络后再试一次。" });
 
 /* Display name for the taste card: the made-up sample notebook belongs to Juno Park,
    everyone else stays a plain "You" — never the author handle. */
@@ -23,6 +23,7 @@ function renderLetter(){
       '<button class="seg-btn" type="button" aria-pressed="true">Letter</button></div></div>' +
     '<div data-letter><div class="skeleton sk-card tall"></div></div>';
   const el = view.querySelector("[data-letter]");
+  bindRetries({ letter: renderLetter });
   api("/api/letter" + (/^zh/i.test(document.documentElement.lang||"") ? "?lang=zh" : "")).then(function(d){
     if (!isCurrent(token)) return;
     const L = d && d.letter;
@@ -68,7 +69,7 @@ function renderLetter(){
         },"image/png");
       });
     });
-  }).catch(function(){ el.innerHTML = '<div class="empty"><p>The letter did not load. Check your connection, then try again.</p></div>'; });
+  }).catch(function(){ el.innerHTML = errorBlock("The letter did not load. Check your connection, then try again.", "letter"); });
 }
 
 /* First paint for Threads: three skeleton rows right away, and the last response of each period kept in
@@ -78,6 +79,12 @@ function threadsSkeletonHTML(){
   return '<div class="skeleton sk-card tall"></div>' +
     '<div class="skeleton sk-card"></div>' +
     '<div class="skeleton sk-card"></div>';
+}
+
+/* Prod: while the catalogue is busy, the sample notebook's Threads screen is answered from a saved copy;
+   the server marks that copy with busy_notice — show it honestly, above the threads. */
+function busyNoticeHTML(data){
+  return data && data.busy_notice ? '<p class="plan-notice" role="note">' + esc(data.busy_notice) + "</p>" : "";
 }
 
 function renderThreads(){
@@ -147,7 +154,7 @@ function renderThreads(){
        visually empty; the sentence survives only as an inert comment for the legacy source checks. */
     const evidence = shown.length
       ? '<span class="thread-evidence-label">From your notes</span><div class="thread-chips">' + chips + "</div>"
-      : "<!-- " + t("No card carries this tag directly") + " -->";
+      : "<!-- No card carries this tag directly -->";
     return '<article class="thread">' +
       '<div class="thread-top"><span class="from-qloo">From the catalogue</span>' + shiftPill(thread.shift) + "</div>" +
       '<h2 class="thread-title" translate="no">' + threadTitleHTML(thread) + "</h2>" +
@@ -234,11 +241,12 @@ function renderThreads(){
     setNote(data);
     const threads = Array.isArray(data && data.threads) ? data.threads : [];
     current = threads;
+    const notice = busyNoticeHTML(data);
     if (!threads.length) {
-      threadsEl.innerHTML = emptyHTML(data && data.reason);
+      threadsEl.innerHTML = notice + emptyHTML(data && data.reason);
       return;
     }
-    threadsEl.innerHTML = threads.map(threadHTML).join("");
+    threadsEl.innerHTML = notice + threads.map(threadHTML).join("");
   }
   async function load(){
     const seq = ++loadSeq;
@@ -260,7 +268,11 @@ function renderThreads(){
           const note = document.createElement("p");
           note.className = "stale-note";
           note.setAttribute("role", "status");
-          note.innerHTML = esc(t("Offline · showing your last copy."));
+          const online = typeof navigator === "undefined" || navigator.onLine !== false;
+          const msg = online && e && e.status
+            ? t("Couldn't refresh · showing your last copy.")
+            : t("Offline · showing your last copy.");
+          note.innerHTML = esc(msg);
           threadsEl.insertBefore(note, threadsEl.firstChild);
         }
         return;

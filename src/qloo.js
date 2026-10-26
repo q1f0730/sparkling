@@ -1,5 +1,6 @@
 // Thin, cached client for the Qloo Taste AI API (hackathon environment).
 // Every tool the agent can call is built on these helpers.
+import { spend } from "./llm.js";
 
 const BASE = "https://hackathon.api.qloo.com";
 
@@ -36,6 +37,30 @@ export function makeGate() {
   };
 }
 
+// The one place that performs a Qloo HTTP request. With env.QLOO_D1_CACHE === "1" a 200 body is
+// cached in the existing D1 llm_cache table (key "qc:v1:" + url) and served without a network call.
+export async function qlooFetch(env, url) {
+  const cacheOn = env.QLOO_D1_CACHE === "1" && !!env.DB;
+  const key = "qc:v1:" + url;
+  if (cacheOn) {
+    try {
+      const row = await env.DB.prepare("SELECT value, created_at FROM llm_cache WHERE key=?").bind(key).first();
+      const ttlMs = (+env.QLOO_D1_CACHE_TTL_H || 24) * 3600000;
+      if (row && typeof row.value === "string" && Date.now() - Number(row.created_at) < ttlMs) {
+        return new Response(row.value, { status: 200, headers: { "content-type": "application/json" } });
+      }
+    } catch (_) {}
+  }
+  await spend(env, "qloo");
+  const res = await fetch(url, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
+  if (!cacheOn || res.status !== 200) return res;
+  const text = await res.text();
+  try {
+    await env.DB.prepare("INSERT OR REPLACE INTO llm_cache (key,value,created_at) VALUES (?,?,?)").bind(key, text, Date.now()).run();
+  } catch (_) {}
+  return new Response(text, { status: 200, headers: { "content-type": "application/json" } });
+}
+
 async function qloo(env, path, params) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params || {})) {
@@ -50,7 +75,7 @@ async function qloo(env, path, params) {
     const gate = env.__gate || (env.__gate = makeGate());
     await gate.acquire();
     try {
-      res = await fetch(url, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
+      res = await qlooFetch(env, url);
       text = await res.text();
     } finally {
       gate.release();

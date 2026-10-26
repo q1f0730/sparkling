@@ -144,8 +144,8 @@ async function retryBootFromOnboarding(button){
     renderOnboarding();
   }
 }
-function onboardingChoiceHTML(key, title, support){
-  return '<button class="choice" type="button" data-choice="' + attr(key) + '">' +
+function onboardingChoiceHTML(key, title, support, extraClass){
+  return '<button class="choice' + (extraClass ? " " + attr(extraClass) : "") + '" type="button" data-choice="' + attr(key) + '">' +
     '<span class="choice-copy"><span class="choice-title">' + esc(title) + '</span><span class="choice-sub">' + esc(support) + "</span></span>" +
     '<span class="choice-chev">' + icons.chevron + "</span>" +
   "</button>";
@@ -165,11 +165,26 @@ function switchOnboardLang(){
   const b = view.querySelector("[data-onboard-lang]");
   if (b) try { b.focus({ preventScroll: true }); } catch (_) {}
 }
+/* sample-first (prod, SAMPLE_FIRST=1 -> <html data-sample-first="1">): judges reach Juno Park's notebook in one tap.
+   The first hash is kept because route() rewrites it to #/onboarding before this screen renders. */
+const SP_FIRST_HASH = (function(){ try { return location.hash || ""; } catch (_) { return ""; } })();
+let spSampleDeepLinkUsed = false;
+function onboardingChoicesHTML(sampleFirst){
+  if (!sampleFirst) {
+    return onboardingChoiceHTML("note", "Add your first note", "Start with whatever is on your mind.") +
+      onboardingChoiceHTML("sample", "Try a sample notebook", "Look around a made-up notebook first.") +
+      onboardingChoiceHTML("history", "Bring some history", "Start from your Letterboxd export.");
+  }
+  return onboardingChoiceHTML("sample", "Open Juno Park's sample notebook", "One tap: a made-up New Yorker's notes, cards and plans.", "choice-primary") +
+    onboardingChoiceHTML("note", "Add your first note", "Start with whatever is on your mind.") +
+    onboardingChoiceHTML("history", "Bring some history", "Start from your Letterboxd export.");
+}
 function renderOnboarding(){
   beginView();
   setShell({ hide: true });
   document.title = "Sparkling";
   view.className = "view onboarding";
+  const sampleFirst = document.documentElement.getAttribute("data-sample-first") === "1";
   const bootError = state.bootError
     ? '<div class="onboard-error" role="alert"><span>' + esc(state.bootError) + '</span><br><button class="text-btn" type="button" data-retry-boot>Try again</button></div>'
     : "";
@@ -186,9 +201,7 @@ function renderOnboarding(){
       '<p class="onboard-sub">Write a thought, paste a link, or add a screenshot. Sparkling connects the cultural things you return to.</p>' +
       notice +
       '<div class="choices">' +
-        onboardingChoiceHTML("note", "Add your first note", "Start with whatever is on your mind.") +
-        onboardingChoiceHTML("sample", "Try a sample notebook", "Look around a made-up notebook first.") +
-        onboardingChoiceHTML("history", "Bring some history", "Start from your Letterboxd export.") +
+        onboardingChoicesHTML(sampleFirst) +
       "</div>" +
       '<p class="onboard-status" data-onboard-status role="status" hidden></p>' +
       '<div class="onboard-foot-row">' +
@@ -258,6 +271,10 @@ function renderOnboarding(){
       else makeSession("new", "history");
     }
   });
+  if (sampleFirst && !spSampleDeepLinkUsed && !state.user && SP_FIRST_HASH === "#/sample") {
+    spSampleDeepLinkUsed = true;
+    makeSession("sample", "sample");
+  }
 }
 
 function renderOnboardingImport(){

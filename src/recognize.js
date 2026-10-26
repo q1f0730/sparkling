@@ -1,7 +1,7 @@
 // Recognition: a saved note -> mentions -> Qloo entities -> cards + footprints, or the inbox.
 // The note is always saved first; nothing here can lose it.
-import { getEntities, slimEntity } from "./qloo.js";
-import { llmJSON } from "./llm.js";
+import { getEntities, slimEntity, qlooFetch } from "./qloo.js";
+import { llmJSON, spend } from "./llm.js";
 
 const BASE = "https://hackathon.api.qloo.com";
 export const TYPE_URNS = {
@@ -128,7 +128,7 @@ export async function extractMentions(env, text) {
 export async function qsearch(env, query, types, take = 5) {
   const qs = new URLSearchParams({ query, take: String(take) });
   if (types) qs.set("types", types.join(","));
-  const r = await fetch(`${BASE}/search?${qs}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
+  const r = await qlooFetch(env, `${BASE}/search?${qs}`);
   if (!r.ok) throw new Error(`Qloo search ${r.status}`);
   const d = await r.json();
   return (d.results || []).map((e) => {
@@ -379,7 +379,7 @@ export async function tasteRank(env, userId, guesses) {
   } catch (_) { return guesses; }
 }
 async function qinsights(env, params) {
-  const r = await fetch(`${BASE}/v2/insights?${new URLSearchParams(params)}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
+  const r = await qlooFetch(env, `${BASE}/v2/insights?${new URLSearchParams(params)}`);
   if (!r.ok) throw new Error(`Qloo insights ${r.status}`);
   return r.json();
 }
@@ -551,9 +551,16 @@ export async function recognizeNote(env, userId, noteId) {
     const free = found.filter((m) => !tags.some((g) => overlaps(m.surface, g.name)));
     // Mentions are independent: resolve them in parallel (one note = one round of Qloo calls, not N).
     const mentions = [...tagged, ...(await Promise.all(free.map((m) => resolveMention(env, userId, note, noteId, text, m, meta.scene))))];
-    await env.DB.prepare("UPDATE notes SET mentions=?, status='done' WHERE id=?").bind(JSON.stringify(mentions), noteId).run();
+    await env.DB.prepare("UPDATE notes SET mentions=?, status='done', meta=json_remove(COALESCE(meta,'{}'),'$.busy') WHERE id=?").bind(JSON.stringify(mentions), noteId).run();
   } catch (e) {
     console.log("recognize failed", e.message);
+    // A daily cap (spend() in llm.js) is not a recognition failure: keep the note pending and busy,
+    // so it is retried once the cap clears, and never count it as a try.
+    if (e && e.cap) {
+      const { error, ...rest } = meta;
+      await env.DB.prepare("UPDATE notes SET status='pending', meta=? WHERE id=?").bind(JSON.stringify({ ...rest, busy: true }), noteId).run();
+      return;
+    }
     const tries = (meta.tries || 0) + 1;
     // Transient errors (quota, timeouts) go back to pending up to 3 times; then the note stays failed with the reason.
     const status = tries < 3 ? "pending" : "failed";
@@ -608,6 +615,7 @@ export function parseVision(raw) {
 }
 export async function readImageFull(env, bytes, mime) {
   const b64 = btoa(Array.from(new Uint8Array(bytes), (c) => String.fromCharCode(c)).join(""));
+  await spend(env, "llm");
   const r = await env.AI.run("@cf/meta/llama-4-scout-17b-16e-instruct", {
     messages: [
       { role: "system", content: "Transcribe the readable text in the image (titles, names, lyrics, signs). If it is a poster, book cover, record sleeve or shop sign, start with: TITLE: <title> BY: <creator>. If there is no readable text, write NONE. Then, on the last line, classify the picture as exactly one of: SCENE: portrait (a photo of people, not from a film) | SCENE: film_still (a frame from a film or TV show) | SCENE: poster | SCENE: book | SCENE: record | SCENE: place | SCENE: screen (a phone or app screenshot) | SCENE: other. No commentary. Never name a person from their face." },

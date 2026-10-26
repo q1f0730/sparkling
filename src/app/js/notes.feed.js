@@ -172,10 +172,12 @@ function renderNotes(){
       normalizeMentionCounts(notes);
       baseCount = notes.length;
       greetingNotes = notes;
+      NOTES_LAST = notes;
       initialRetry = false;
     } else {
-      notes = [];
-      greetingNotes = null;
+      notes = NOTES_LAST || [];
+      baseCount = NOTES_LAST ? NOTES_LAST.length : null;
+      greetingNotes = NOTES_LAST;
     }
     if (cres && cres.status === "fulfilled") {
       const data = cres.value || {};
@@ -184,8 +186,27 @@ function renderNotes(){
       greetingCards = null;
     }
     paintGreeting();
-    if (nres && nres.status === "fulfilled") paintTimeline();
-    else setListError();
+    if (nres && nres.status === "fulfilled") {
+      paintTimeline();
+    } else if (NOTES_LAST) {
+      /* The last notebook is all we have: paint it and say once, above it, that it may be old. */
+      notes = NOTES_LAST;
+      paintTimeline();
+      if (listEl) {
+        const note = document.createElement("p");
+        note.className = "stale-note";
+        note.setAttribute("role", "status");
+        const err = nres && nres.reason;
+        const online = typeof navigator === "undefined" || navigator.onLine !== false;
+        const msg = online && err && err.status
+          ? "Couldn't refresh · showing your last copy."
+          : "Offline · showing your last copy.";
+        note.textContent = t(msg);
+        listEl.insertBefore(note, listEl.firstChild);
+      }
+    } else {
+      setListError();
+    }
   }
 
   async function loadNotes(opts){

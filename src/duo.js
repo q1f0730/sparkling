@@ -1,11 +1,14 @@
 // Two notebooks, one outing. Our own fairness rule (not Qloo's): maximise the lower of the two scores, break ties by the sum.
+import { qlooFetch } from "./qloo.js";
 export function mergeSeeds(a, b, max = 6) {
+  a = a || []; b = b || [];
   const out = [], seen = new Set();
   for (let i = 0; out.length < max && (i < a.length || i < b.length); i++)
     for (const s of [a[i], b[i]]) if (s && !seen.has(s.qloo_id) && out.length < max) { seen.add(s.qloo_id); out.push({ ...s, from: s === a[i] ? "A" : "B" }); }
   return out;
 }
 export function balancedPick(cands, n = 3) {
+  cands = cands || [];
   const scored = cands.map((c) => ({ ...c, min: Math.min(c.scoreA ?? 0, c.scoreB ?? 0), sum: (c.scoreA ?? 0) + (c.scoreB ?? 0) }));
   scored.sort((x, y) => y.min - x.min || y.sum - x.sum);
   return scored.slice(0, n).map((c) => ({ ...c, label: "Chosen by Sparkling's fairness rule: best for whoever likes it least" }));
@@ -15,11 +18,12 @@ export function balancedPick(cands, n = 3) {
 export async function duoPlan(env, { area, seedsA, seedsB, take = 3 }) {
   const call = async (seeds) => {
     const qs = new URLSearchParams({ "filter.type": "urn:entity:place", "filter.location.query": area, "signal.interests.entities": seeds.map((s) => s.qloo_id).join(","), take: "50" });
-    const r = await fetch(`https://hackathon.api.qloo.com/v2/insights?${qs}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
+    const r = await qlooFetch(env, `https://hackathon.api.qloo.com/v2/insights?${qs}`);
     if (!r.ok) throw Object.assign(new Error("Qloo " + r.status), { state: "qloo_down" });
     return (await r.json()).results?.entities || [];
   };
   const merged = mergeSeeds(seedsA, seedsB);
+  if (!merged.length) return { area, merged_seeds: [], picks: [], receipt: { endpoint: "/v2/insights", calls: 0, "filter.location.query": area } };
   const [ra, rb, rm] = await Promise.all([call(seedsA), call(seedsB), call(merged)]);
   const aff = (e) => e.query?.affinity ?? e.affinity ?? 0;
   const mapA = new Map(ra.map((e) => [e.entity_id, aff(e)])), mapB = new Map(rb.map((e) => [e.entity_id, aff(e)]));

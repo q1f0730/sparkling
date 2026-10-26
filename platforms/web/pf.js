@@ -290,6 +290,9 @@
 
   /* Notes, nothing selected: what needs you + what came back this week */
   function renderHome(tok) {
+    // Before a session exists (welcome screen) there is nothing to show and /api/inbox|cards would only 401.
+    var st0 = appState();
+    if (!st0 || !st0.user) { insp.innerHTML = ""; return; }
     insp.innerHTML = skeleton();
     Promise.all([getJSON("/api/inbox").catch(function () { return { items: [] }; }), getJSON("/api/cards").catch(function () { return { cards: [] }; })]).then(function (res) {
       if (tok !== selTok) return;

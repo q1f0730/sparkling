@@ -95,10 +95,11 @@ test("zh: place-check line and button", () => {
   ]) {
     const z = trZh(k);
     assert.ok(z !== k && /[\u4e00-\u9fff]/.test(z), "zh for: " + k + " -> " + z);
-    assert.ok(/Qloo/.test(z), "zh keeps Qloo: " + z);
+    assert.ok(/口味目录/.test(z), "zh says 口味目录: " + z);
+    assert.ok(!/Qloo/.test(z), "zh no longer says Qloo: " + z);
     for (const n of nums) assert.ok(z.includes(n), "zh keeps " + n + ": " + z);
   }
-  assert.equal(trZh("Without Qloo: 1 of 3 places checked out."), "不用 Qloo：3 个地方里只有 1 个核对得上。");
+  assert.equal(trZh("Without Qloo: 1 of 3 places checked out."), "不用口味目录：3 个地方里只有 1 个核对得上。");
   assert.equal(trZh("Plain LLM"), "纯模型对比");
   // the old kept-link patterns are untouched
   assert.ok(trZh("Without Qloo: 0 of 2 tied to a card you kept.").includes("连着"));

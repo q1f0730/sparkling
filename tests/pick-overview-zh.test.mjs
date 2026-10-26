@@ -73,3 +73,12 @@ test("the pick renderer prefers overview_zh in zh and keeps overview otherwise",
   const html = FRONT.slice(FRONT.indexOf("function pickHTML"), FRONT.indexOf("function paintIn"));
   assert.match(html, /const synopsis = zh \? \(pk\.overview_zh/, "zh must choose overview_zh before the English overview");
 });
+
+test("zhOverviews reuses read_zh when the overview is the same text (no second translation)", async () => {
+  let calls = 0;
+  const env = { DB: { prepare: () => ({ bind: () => ({ first: async () => null, run: async () => ({}) }) }) }, AI: { run: async () => { calls++; return { response: "{}" }; } } };
+  const picks = [{ overview: "A quiet life.", read: "A quiet life.", read_zh: "安静的生活。" }];
+  await zhOverviews(env, picks, 20);
+  assert.equal(picks[0].overview_zh, "安静的生活。");
+  assert.equal(calls, 0);
+});

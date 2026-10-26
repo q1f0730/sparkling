@@ -2,6 +2,7 @@
 // Every stop is a Qloo entity returned in this request. The model only writes one sentence per stop.
 import { llmJSON } from "./llm.js";
 import { uid } from "./recognize.js";
+import { qlooFetch } from "./qloo.js";
 
 const BASE = "https://hackathon.api.qloo.com";
 
@@ -9,7 +10,7 @@ export const AUDIENCES = { photography: ["7DCA3589-E6FF-4582-BE24-5A2D09D71336",
 async function qloo(env, path, params) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && !v.length)) qs.set(k, Array.isArray(v) ? v.join(",") : String(v));
-  const r = await fetch(`${BASE}${path}?${qs}`, { headers: { "X-Api-Key": env.QLOO_API_KEY, accept: "application/json" }, signal: AbortSignal.timeout(+env.QLOO_TIMEOUT_MS || 10000) });
+  const r = await qlooFetch(env, `${BASE}${path}?${qs}`);
   const t = await r.text();
   if (!r.ok) throw Object.assign(new Error(`Qloo ${path} ${r.status}`), { status: r.status, body: t.slice(0, 200) });
   return JSON.parse(t);
@@ -328,6 +329,11 @@ export async function zhReads(env, stops, ms) {
 const READ_SCHEMA = { type: "object", properties: { reads: { type: "array", items: { type: "string" } } }, required: ["reads"] };
 /** Simplified-Chinese version of each pick's catalogue synopsis (overview_zh). Cached; the English overview stays as fallback. */
 export async function zhOverviews(env, picks, ms) {
+  // Stay-in picks usually carry the same catalogue text as read and overview: reuse the read_zh zhReads just made
+  // instead of a second (slow, often length-mismatched, so never cached) translation of the same sentences.
+  for (const p of picks) if (!p.overview_zh && p.read_zh && p.overview && p.overview === p.read) p.overview_zh = p.read_zh;
+  picks = picks.filter((p) => !p.overview_zh);
+  if (!picks.length) return;
   const src = picks.map((p) => String(p.overview || ""));
   if (!src.some(Boolean)) return;
   const key = "ov:zh:" + (await sha(JSON.stringify(src)));
@@ -418,6 +424,7 @@ export async function makePlan(env, user, req, log) {
       await cachePut(env, key, out);
       return out;
     } catch (e) {
+      if (e && e.cap) throw e;
       throw { state: "qloo_down", text: "Plans need the taste catalogue right now and it isn't answering. Your notes and cards are fine." };
     }
   };
@@ -436,7 +443,7 @@ export async function makePlan(env, user, req, log) {
     ok.sort((x, y) => y.fit - x.fit);
     return { ok, dropped };
   };
-  const tags = await Promise.all(kinds.map((k) => placeTag(env, k).catch(() => null)));
+  const tags = await Promise.all(kinds.map((k) => placeTag(env, k).catch((e) => { if (e && e.cap) throw e; return null; })));
   const T1 = Date.now();
   const first = await Promise.all(kinds.map((k, i) => { const sd = seedsFor(k); return ask(k, tags[i], { "filter.location.query": area }, sd).then((raw) => ({ k, tag: tags[i], sd, raw })); }));
   const pools = first.map(({ k, tag, sd, raw }) => {
@@ -854,7 +861,7 @@ export async function makeStayIn(env, user, req, log) {
     if (items) cached++;
     else {
       try { live++; const d = await qloo(env, "/v2/insights", params); items = (d.results?.entities || []).map((e) => slimMedia(e, k)).filter(Boolean); await cachePut(env, key, items); }
-      catch (e) { throw { state: "qloo_down", text: "Plans need the taste catalogue right now and it isn't answering. Your notes and cards are fine." }; }
+      catch (e) { if (e && e.cap) throw e; throw { state: "qloo_down", text: "Plans need the taste catalogue right now and it isn't answering. Your notes and cards are fine." }; }
     }
     const fresh = items.filter((x) => !known.has(String(x.qloo_id)) && !sd.some((s) => s.qloo_id === x.qloo_id));
     const seedNames = sd.slice(0, 3).map((s) => s.name);

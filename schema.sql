@@ -9,3 +9,4 @@ CREATE TABLE IF NOT EXISTS mappings (user_id TEXT, surface TEXT, qloo_id TEXT, P
 CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, user_id TEXT, request TEXT, plan TEXT, pool TEXT, saved INTEGER DEFAULT 0, went INTEGER, created_at INTEGER);
 CREATE TABLE IF NOT EXISTS llm_cache (key TEXT PRIMARY KEY, value TEXT, created_at INTEGER);
 CREATE TABLE IF NOT EXISTS prefs (user_id TEXT PRIMARY KEY, json TEXT, updated_at INTEGER);
+CREATE TABLE IF NOT EXISTS quota (key TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, created_at INTEGER);

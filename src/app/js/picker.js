@@ -230,3 +230,5 @@ function pickerRelevant(rows, q){
 window.Picker = Picker;
 
 /* picker:js:end */
+// notes feed: last rendered list (declared here so notes.feed.js keeps its manifest anchor as its first line)
+let NOTES_LAST = null;

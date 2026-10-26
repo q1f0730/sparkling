@@ -501,6 +501,11 @@
   transition:border-color .15s ease;
 }
 .choice:hover{border-color:var(--line-strong)}
+/* sample-first (prod): the sample notebook is the obvious first tap */
+.choice.choice-primary{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;padding:17px 16px}
+.choice.choice-primary .choice-title{font-size:15px}
+.choice.choice-primary .choice-chev{color:var(--accent-ink)}
+.choice.choice-primary:hover{border-color:var(--accent-ink)}
 .choice-copy{min-width:0;flex:1}
 .choice-title{display:block;font-size:14px;font-weight:600;line-height:1.35;color:var(--text)}
 .choice-sub{display:block;font-size:12px;line-height:1.4;color:var(--muted);margin-top:2px}

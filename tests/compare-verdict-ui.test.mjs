@@ -3,7 +3,7 @@
 // .plain-verdict block whose two lines are counted from data already on screen:
 //   With Qloo: N of N tied to a card you kept.    (Sparkling items with a kept-card link)
 //   Without Qloo: M of K tied to a card you kept. (plain items whose why names a plan seed)
-// Both lines go through t(); zh is pattern-driven and keeps the digits and the word Qloo.
+// Both lines go through t(); zh is pattern-driven and keeps the digits and the word 口味目录.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { read, fnSource, loadZh, runFn, esc, stripTags } from "../tools/orchestra/checks/swarm/lib_front.mjs";
@@ -82,11 +82,11 @@ test("a server-sent plain.verdict wins over the counted numbers", () => {
   assert.match(text, /Without Qloo: 0 of 2 tied to a card you kept\./);
 });
 
-test("zh patterns keep the digits and the word Qloo", () => {
+test("zh patterns keep the digits and the word 口味目录", () => {
   const zh = loadZh();
-  assert.equal(zh("With Qloo: 3 of 3 tied to a card you kept."), "用了 Qloo：3 个里有 3 个连着你留下的卡片。");
-  assert.equal(zh("Without Qloo: 0 of 2 tied to a card you kept."), "不用 Qloo：2 个里有 0 个连着你留下的卡片。");
-  assert.equal(zh("With Qloo: 1 of 4 tied to a card you kept."), "用了 Qloo：4 个里有 1 个连着你留下的卡片。");
+  assert.equal(zh("With Qloo: 3 of 3 tied to a card you kept."), "用了口味目录：3 个里有 3 个连着你留下的卡片。");
+  assert.equal(zh("Without Qloo: 0 of 2 tied to a card you kept."), "不用口味目录：2 个里有 0 个连着你留下的卡片。");
+  assert.equal(zh("With Qloo: 1 of 4 tied to a card you kept."), "用了口味目录：4 个里有 1 个连着你留下的卡片。");
   for (const [k, nums] of [
     ["With Qloo: 3 of 3 tied to a card you kept.", ["3"]],
     ["Without Qloo: 0 of 2 tied to a card you kept.", ["0", "2"]],
@@ -96,6 +96,7 @@ test("zh patterns keep the digits and the word Qloo", () => {
     assert.notEqual(z, k, "translated: " + k);
     assert.match(z, /[\u4e00-\u9fff]/, "has Chinese: " + z);
     for (const n of nums) assert.ok(z.includes(n), "keeps " + n + ": " + z);
-    assert.match(z, /Qloo/, "keeps Qloo: " + z);
+    assert.match(z, /口味目录/, "keeps 口味目录: " + z);
+    assert.ok(!/Qloo/.test(z), "no Qloo: " + z);
   }
 });
